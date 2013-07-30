@@ -1,0 +1,1035 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>CudaMat - using the computing powers of graphics cards within
+      Malab</title>
+    <style type="text/css">
+   <!--
+@media print {
+	body {
+		padding-top: 0.000000in;
+		padding-bottom: 0.000000in;
+		padding-left: 0.982639in;
+		padding-right: 0.982639in;
+	}
+}
+body {
+	font-family: 'Times New Roman';
+	font-style: normal;
+	text-indent: 0in;
+	font-weight: normal;
+	font-variant: normal;
+	color: #000000;
+	text-decoration: none;
+	text-align: left;
+	font-size: 12pt;
+	widows: 2;
+	font-stretch: normal;
+	background-color: #ffffff;
+}
+h1, .Heading1 {
+	font-size: 17pt;
+	margin-bottom: 0.0417in;
+	font-weight: bold;
+	font-family: 'Arial';
+	margin-top: 0.3056in;
+}
+h2, .Heading2 {
+	font-size: 14pt;
+	margin-bottom: 0.0417in;
+	font-weight: bold;
+	font-family: 'Arial';
+	margin-top: 0.3056in;
+}
+h3, .Heading3 {
+	font-size: 12pt;
+	margin-bottom: 0.0417in;
+	font-weight: bold;
+	font-family: 'Arial';
+	margin-top: 0.3056in;
+}
+p, .Normal {
+	font-family: 'Times New Roman';
+	font-style: normal;
+	margin-left: 0pt;
+	text-indent: 0in;
+	margin-top: 0pt;
+	font-weight: normal;
+	font-variant: normal;
+	color: #000000;
+	text-decoration: none;
+	margin-bottom: 0pt;
+	text-align: left;
+	margin-right: 0pt;
+	font-size: 12pt;
+	widows: 2;
+	font-stretch: normal;
+}
+     -->
+  </style>
+    <meta content="This package allows to harness the GPU power within
+      Matlab with no or minimal change of the code" name="description">
+    <meta http-equiv="CONTENT-TYPE" content="text/html; charset=UTF-8">
+    <meta name="GENERATOR" content="OpenOffice.org 3.0 (Unix)">
+    <style type="text/css">
+	<!--
+		@page { margin: 2cm }
+		P { margin-bottom: 0.21cm }
+	-->
+	</style>
+    <meta http-equiv="CONTENT-TYPE" content="text/html; charset=UTF-8">
+    <meta name="GENERATOR" content="OpenOffice.org 3.0 (Unix)">
+    <style type="text/css">
+	<!--
+		@page { margin: 2cm }
+		P { margin-bottom: 0.21cm }
+	--></style>
+  </head>
+  <body>
+    <div>
+      <div style="text-align: center;"></div>
+      <h1 style="margin-right: 0in; text-align: center;" dir="ltr"><span
+          style="font-weight: bold; font-size: 17pt; font-family:
+          'Arial';">Information on CudaMat </span></h1>
+      <h1 style="text-align: center;"><span style="font-weight: bold;
+          font-size: 14pt; font-family: 'Arial';">CudaMat&nbsp; (current
+          version: 1.1.4beta, 15. Mai 2013)<br>
+        </span></h1>
+      <div style="text-align: center;"><span style="font-weight: bold;
+          font-size: 14pt; font-family: 'Arial';"> </span><span
+          style="font-weight: bold; font-family: 'Arial';">Rainer
+          Heintzmann,&nbsp; Friedrich Schiller University of Jena &amp;
+          IPHT, Jena, Germany.</span><br>
+        <span style="font-weight: bold; font-family: 'Arial';"></span></div>
+      <h3 style="text-align: center; margin-right: 0in;" dir="ltr"><span
+          style="font-weight: bold; font-family: 'Arial';">(heintzmann
+          at gmail dot com)</span></h3>
+      <br>
+      <p class="western" style="margin-bottom: 0cm;">CudaMat enables
+        fast computing on graphics cards that supports the <a
+          href="http://www.nvidia.com/object/cuda_home.html">CUDA
+          programming language</a>. Currently such cards are available
+        from NVidia. CudaMat is, as much as possible, invisible to the
+        user. The idea is that the user can transform any existing
+        Matlab code into a CudaMat code with minimal effort. E.g. with a
+        single line like<i> a=cuda(a)</i> the Matlab object <span
+          style="font-style: italic;">'a</span>' gets transformed into a
+        CudaMat object <span style="font-style: italic;">'a</span>'.
+        This can be checked using the matlab command <span
+          style="font-style: italic;">whos</span>.</p>
+      <h2>Under which conditions will CudaMat be fast?</h2>
+      CudaMat will greately improve the speed of your code, when the
+      main time of your Matlab code is spent in computing 'expensive'
+      operations between large matrices and/or vectors, sums over them
+      or Fourier transformations. However, when the problem consists of
+      many operations on small matrices and vectors, CudaMat will
+      probably not help you and might in fact turn out to be slower than
+      standard matlab code. One way to think of this is that every start
+      of a function execution in CudaMat has some overhead, but once it
+      is running, it is quite fast.<br>
+      It may be possible to adjust the performance a little bit by
+      changing the two <span style="font-style: italic;">#define</span>
+      commands for <span style="font-style: italic;">BLOCKSIZE</span>
+      and <span style="font-style: italic;">CUIMAGE_REDUCE_THREADS</span>&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+      given at the top of the file <span style="font-style: italic;">cudaArith.cu</span>.<br>
+      <h2>Is there a demo to quickly check the performance increase?</h2>
+      Yes. CudaMat comes with a two test programs '<span
+        style="font-style: italic;">applemantest.m</span>' and&nbsp; '<span
+        style="font-style: italic;">speedtestDeconv.m</span>'.<br>
+      <span style="font-style: italic;"><br>
+        applemantest.m</span> calculates the famous Mandelbrot set in a
+      straight forward way. This test has the advantage that it does not
+      require any toolboxes other than <a
+        href="http://www.nanoimaging.de/CudaMat/">CudaMat</a> and <a
+        href="http://www.nvidia.com/object/cuda_get.html">NVidia's cuda
+        library</a> to be installed. The speedup optained depend on the
+      chosen datasize. On my Intel(R) Core(TM) i% CPU 750@ 2,67 GHz, 64
+      bit processor and gcc 4.5.0 run under OpenSuse11.3 it is about a
+      factor of 20 (2.38 versus 49.9 seconds) for a 2048x2048 image with
+      iteration depth 300.<br>
+      The new (as of version 1.0.0.06 beta) on-the-fly compilation
+      allows a further speedup by writing code snippets for the GPU. In
+      this case the graphic card needs 0.00037 second for the example
+      above, yielding <span style="font-weight: bold;">a total speedup
+        bigger than 100000</span>! Type "edit applemantest" under matlab
+      to get an example how to achieve such speed.<br>
+      <br>
+      <span style="font-style: italic;">speedtestDeconv.m</span>
+      measures the performance for an example deconvolution of a 3D
+      microscopy dataset (using the DipImage '<span style="font-style:
+        italic;">chromo3d</span>' example image).<br>
+      To run this demo, <a href="http://www.diplib.org">DipImage</a>
+      with the example images and <a
+        href="http://www.nanoimaging.de/CudaMat/">CudaMat</a> need to be
+      installed, as well as the optimisation toolbox with the function<span
+        style="font-style: italic;"> <a
+          href="http://www.di.ens.fr/%7Emschmidt/Software/minFunc.html">minFunc()</a>
+      </span>written by <a href="http://www.di.ens.fr/%7Emschmidt/">Mark
+
+
+
+
+
+
+
+
+
+
+
+
+
+        Schmidt</a> (line 103 in the file <span style="font-style:
+        italic;">polyinterp.m</span> needs to be changed to: <span
+        style="font-style: italic;">for qq=1:length(cp);xCP=cp(qq);</span>
+      and the appearances of <span style="font-style: italic;">ones()</span>
+      and <span style="font-style: italic;">zeros()</span> need to be
+      changed to <span style="font-style: italic;">ones_cuda() </span>and<span
+        style="font-style: italic;"> zeros_cuda()</span>)<font
+        face="tahoma"><font size="3"></font></font>. A GeForce GTX 280
+      card gave about 10x speedup (3.3 versus 30.3 seconds) in
+      comparison to a 2,4 GHz AMD Hammer 64 bit processor and gcc 4.3.2
+      run under OpenSuse11.1 .<br>
+      <h2>What is CUDA?</h2>
+      Cuda is a programming language extension to C which enables code
+      to run in parallel on multi-processor graphics cards. Current
+      graphics cards can have more than 200 processors running
+      simultaneously. They all execute the same code (SIMD = single
+      instruction, multiple data). If a branch point (e.g. initiated by
+      an '<span style="font-style: italic;">if</span>') is reached,
+      where some processors have to execute different code than others,
+      these processes are temporarily suspended. The beauty of the
+      hardware is that this switching between many thousands of
+      processes is very efficient.<br>
+      <h2>What changes may be necessary to existing Matlab code to run
+        under CudaMat?</h2>
+      Note that CudaMat currently only supports the <span
+        style="font-style: italic; font-weight: bold;">single</span>
+      floatingpoint <span style="font-weight: bold;">datatype</span> of
+      matlab (4 bytes). Since Matlab usually computed with doubles, the
+      results can differ depending on how sensitive the algorithm is to
+      roud-off errors.<br>
+      The general idea is that <span style="font-weight: bold;">only
+        large marix (image) input objects </span>requiring time
+      intensive conputations should converted to cuda before the
+      existing Matlab code is run. <span style="font-weight: bold;">Ideally
+
+
+
+
+
+
+
+
+
+
+
+
+        no changes to the Matlab code should be necessary.</span><br>
+      However, practically minor changes can be necessary, if CudaMat
+      does not support the operation used in the Matlab code. This is
+      especially the case for <br>
+      <ul>
+        <li>Additional datatypes defined by the Matlab code</li>
+        <li>Using a standard Matlab operation that is not yet
+          implemented in CudaMat</li>
+        <li>If the Matlab code checks for the datatype with operations
+          other than isreal() or isfloat(). E.g. if the operation isa()
+          is used, the result is probably wrong.</li>
+        <li>for loops iterating over the contense of a vector need a
+          minor change (iterating over an access index and the assigning
+          the component by indexing in the vector) to be compatible with
+          CudaMat<br>
+        </li>
+      </ul>
+      Sometimes the system may perform an automatic conversion to a
+      Matlab object, with the associated overhead involved in
+      transferring from the graphics card.<br>
+      In other cases the user will have to either force this conversion
+      (e.g. using <span style="font-style: italic;">single_force(a)</span>),
+
+
+
+
+
+
+
+
+
+
+
+
+
+      find an alternative expression, which is supported in CudaMat or
+      extend the CudaMat algorithms to support this additional feature
+      (please send me an email with the new code, so I can put it up on
+      the website). <br>
+      <br>
+      In addition, there may be changes necessary inside the Matlab
+      code, if new objects are generated, as these will be by default
+      Matlab matrices.<br>
+      Prominent examples are the Matlab commands <span
+        style="font-style: italic;">zeros() </span>and <span
+        style="font-style: italic;">ones() </span>, which by default
+      generate Matlab objects. These function calls should be changed to<span
+        style="font-style: italic;"> zeros_cuda()</span>, <span
+        style="font-style: italic;">ones_cuda()</span>.<br>
+      Global variables influencing the behaviour of <span
+        style="font-style: italic;">zeros_cuda()</span>, <span
+        style="font-style: italic;">ones_cuda()</span> but also
+      overloaded DIPImage funcitons<span style="font-style: italic;"> </span><span
+        style="font-style: italic;">newim(), </span><span
+        style="font-style: italic;">xx(), yy(), zz(), </span>rr(),
+      phiphi(). <br>
+      Whether they then generate a standard or a <span
+        style="font-style: italic;">cuda</span> object) can conveniently
+      be set via the functions <span style="font-style: italic;">set_ones_cuda(state)</span>
+      and <span style="font-style: italic;">set_zeros_cuda(state) and
+        alike</span>.<br>
+      <br>
+      Other command which generate Matlab objects are enumerations such
+      as <span style="font-style: italic;">[1:N]</span> or <span
+        style="font-style: italic;">meshgrid()</span>.<br>
+      In future versions, it will be possible to define by a set of
+      global variables whether these functions should generate standard
+      Matlab objects of cuda objects.<br>
+      In addition it may (in rare cases) be necessary to convert
+      standard Matlab matrices to cuda (e.g. using the command <span
+        style="font-style: italic;">cuda(a)</span>) within the Matlab
+      code to run, as some CudaMat functions may not yet automatically
+      do so.<br>
+      <h2>Why a separate datatype 'cuda'?</h2>
+      <br>
+      To realize the idea of accessing the speed of the graphics cards
+      from within the convenient programming environment of Matlab
+      efficiently, one has to avoid memory transfer to and from the
+      graphics card as much as possible. To this aim a datatype 'cuda'
+      was introduced. <br>
+      Whenever matlab needs to execute a function that involves a cuda
+      object as one of it’s arguments, it checks for the presence of
+      this function in the folder <span style="font-style: italic;">@cuda
+
+
+
+
+
+
+
+
+
+
+
+
+      </span>and executes the code given there. In this way it is
+      ensured that code can efficiently be executed on the graphics
+      card, without the cuda objects leaving the card.<br>
+      <h2>When will transfers be made to and from the graphics card?</h2>
+      <br>
+      If a cuda object is created (e.g.<span style="font-style: italic;">
+        a=cuda(a)</span>), the matlab object is transferred to the
+      graphics card. This costs some time and should thus ideally not be
+      performed within the inner loop of a calculation. With every
+      output operation (e.g. printing the values on the screen or
+      displaying an image) the data is transferred back from the
+      graphics card to Matlab. <br>
+      The commands <span style="font-style: italic;">double_force(a) </span>and
+
+
+
+
+
+
+
+
+
+
+
+
+
+      <span style="font-style: italic;">single_force(a) </span>will
+      force a conversion from a cuda object back to matlab (and not
+      affect the object if it is already a standard matlab double or
+      single).<br>
+      In the event that a CudaMat operation results in a single value,
+      the result will automatically transferred back to an ordinary
+      Matlab object.<br>
+      <br>
+      Why do ordinary conversion operations '<span style="font-style:
+        italic;">single(a)</span>' and 'double(a)' not convert back to a
+      Matlab matrix?<br>
+      Currently these operations leave the objects on the graphics card,
+      with the aim to require as little modification as possible to
+      existing Matlab programs to be able to run under CudaMat.
+      Currently these command are essentially ignored. To force a
+      conversion use the command <span style="font-style: italic;">single_force(a)
+
+
+
+
+
+
+
+
+
+
+
+
+      </span>or <span style="font-style: italic;">double_force(a) </span>with
+
+
+
+
+
+
+
+
+
+
+
+
+      a cuda object 'a'.<br>
+      <h2>How can I reset the graphics card when something went wrong?</h2>
+      <br>
+      If an error appeared during the execution of code on the graphics
+      card, it is possible that cuda is in a state, where it needs a
+      reset. In this case the first thing to try is the matlab command '<span
+        style="font-style: italic;">clear classes</span>', which will
+      reload the cuda class and force cuda to initialize on the next
+      cuda call. If this does not work, one will have to quite Matlab
+      and restart it.<br>
+      <h2>Supported Datatypes</h2>
+      <br>
+      Currently only the datatypes single and single complex are fully
+      supported by CudaMat. This means that in the current version all
+      computations in double are simply performed at single precision.
+      This results in a loss in precisions, which is sometimes not
+      acceptable in an application. Future versions will support more
+      datatypes (e.g. int datatypes). Currently the cuda libraries (and
+      in part the hardware) often also just supports single precision
+      computations.<br>
+      <h2>How can I change the behaviour of certain operations in
+        CudaMat?</h2>
+      <br>
+      Currently there are very few possibilities to influence the
+      behaviour of CudaMat. However, it is planned that the following
+      can be influenced by global environment variables in the future:<br>
+      <ul>
+        <li>adjusting (optimizing) the threading parameters for the cuda
+          code, by entering the number of processors that the code
+          should assume. Also other optimisation parameters can be set.</li>
+        <li>Defining whether the commands <span style="font-style:
+            italic;">double()</span> and <span style="font-style:
+            italic;">single()</span> will convert cuda objects back to
+          Matlab objects or not.</li>
+        <li>Defining the behaviour subasgn should be executed (optimized
+          or compatible)</li>
+        <li>Control whether warning should be printed when automatic
+          conversions to cuda objects are performed.</li>
+      </ul>
+      <h2>Interfacing with DipImage</h2>
+      <br>
+      CudaMat is designed to be compatible with standard Matlab objects
+      as well as objects of the dipimage datatyp. This does not mean
+      that DipImage needs to be installed. If no version of DipImage is
+      installed, all objects are simply of Matlab origin (<span
+        style="font-style: italic;">object.fromDip=false</span>).<br>
+      DipImage is an image processing toolbox from Delft university (see<a
+        href="http://www.diplib.org"> www.diplib.org</a>) which can be
+      obtained free of charge for the academic community.<br>
+      This compatibility could be achieved by having the datatype cuda
+      remember where each object came from using a tag 'fromDip' within
+      each object. However, currently only very basic operations of
+      DipImage are supported within CudaMat.<br>
+      <h2>Known incompatibilities</h2>
+      <br>
+      Matlab subassign operations such as '<span style="font-style:
+        italic;">b=a;a(3:5,7:10)=10</span>' would change the variable b
+      in the current version. The reason for this is that by simply
+      changing the object 'a' the code currently avoids an extra copy
+      and delete operation as it simply performs the subassign. However,
+      if another identical copy of the object exists this object '<span
+        style="font-style: italic;">b</span>' will be modified too
+      (contrary to standard Matlab code), as Matlab is tricked in
+      avoiding the extra copy operation.<br>
+      <h2>Additional CudaMat operations not present in standard Matlab</h2>
+      <br>
+      Many of the dipimage operations are implemented also for the cuda
+      datatype when imported from a standard matlab object.<br>
+      E.g. ft and ift perform fft and fft shift operations<br>
+      <br>
+      <h2>The really big speedup: Implementing your own Cuda function</h2>
+      If you type<br>
+      edit applemantest.m<br>
+      and look at the code, you get an idea, about how to really speed
+      up the code. The essential bit is to write a small pice of C-style
+      code which is automatically wrapped up by CudaMat into its own
+      function that can then be called. This is possible for a number of
+      standard functions.<br>
+      The two essential commands which do the magic are:<br>
+      "cuda_define" and "cuda_compile_all". The former defines a new
+      cuda function with its own name and a program code as given by a
+      string. Then many such definitions can be collected and finally
+      the cuda_compile_all command wraps them all up in the correct ways
+      and compiles them such that they can be called from within matlab
+      simply by their given name.<br>
+      However, the programming of such new functions has to observ
+      certain rule as described in the <a
+        href="on-the-fly-programming-guide.html">on-the-fly-programming-guide</a>.<br>
+      <h2>Known errors / incompatibilies<br>
+      </h2>
+      <ul>
+        <li>sum, min and max for arrays always sum over all elements in
+          CudaMat. This has to be changed to be compatible with standard
+          Matlab code (partial sums) and the possibility in DipImage to
+          sum over arbitrary dimensions.</li>
+        <li>for loops assigning vectors do not work (e.g. :&nbsp; <span
+            style="font-style: italic;">for q=cuda([1 2 3 4 5 4 3 2
+            1]);fprintf('Hello Wold\n');end</span>&nbsp; would not
+          produce the same result as standard matlab code)<br>
+        </li>
+        <li>as CudaMat works always with floating point datatypes,
+          certain kind of operations (integer division) and overflow
+          errors (e.g. for byte datatype in dipimage) are not supported.<br>
+        </li>
+      </ul>
+      <h2>The internal structure of CudaMat</h2>
+      <br>
+      CudaMat is based on the cuda datatype. All the methods operating
+      on this datatype are stored in the <span style="font-style:
+        italic;">@cuda </span>folder and other methods (which also do
+      something for other datatypes) are stored outside in the main
+      CudaMat folder.<br>
+      A cuda object stores a reference (<span style="font-style:
+        italic;">myobject.ref</span>) and the information whether it
+      should be treated according to Matlab or DipImage conventions (<span
+        style="font-style: italic;">myobject.fromDIP</span>). The cuda
+      functions are either taken direction from the Cuda fft and CuBlas
+      libraries or are written in CUDA (all in the file <span
+        style="font-style: italic;">cudaArith.cu</span>). The mex file <span
+        style="font-style: italic;">cuda_cuda.c</span> is a frontend to
+      cuda which supports all the functionalilty. The main mex function
+      in this file is invoked always with a command string, telling it
+      which command to execute. At the moment this sting is parsed
+      simply by a daisy chain of strcmp operations. As the number of
+      commands has grown, this might eventually present an unacceptable
+      overhead, but I believe at the moment it should still not pose a
+      problem.<br>
+      This interface should make it comparably easy to adapt the code
+      for working under Octave, Mathematica or in fact any other
+      interpreter driven language.<br>
+      <h2 style="text-align: left; margin-right: 0in;" dir="ltr"><span
+          style="font-weight: bold; font-size: 14pt; font-family:
+          'Arial';">How to obtain</span></h2>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">Download <a href="CudaMat.zip">the
+
+
+
+
+
+
+
+
+
+
+
+
+
+          current version</a> as a tar-gzip-file with all the necessary
+        classes and an example html-file in it. Just place the CudaMat
+        folder somewhere, add it to the Matlab path and call initCuda
+        (see installation details below). Depending on the operation
+        system it may be necessary to recompile the modules cudaArith.cu
+        and cuda_cuda.c. A makefile for unix environment is provided. <br>
+      </p>
+      For CudaMat you will need&nbsp; <a
+        href="http://www.nvidia.com/object/cuda_get.html">NVidia's cuda
+        library</a>&nbsp; installed on your operating system and a
+      graphics card which can run cuda programs (above GeForce 8800).<br>
+      This software is released under the GPL2 license. It can be used
+      for non-commercial purposes.
+      <h2>Installation instructions (64 Linux system)<br>
+      </h2>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">Download <a href="CudaMat.zip">the
+
+
+
+
+
+
+
+
+
+
+
+
+
+          current version</a> into a folder<span style="font-style:
+          italic;"> /usr/local/CudaMat/ </span>and unpack it with <span
+          style="font-style: italic;">tar -xzf CudaMat.tgz</span> .<br>
+        <a href="http://www.nvidia.com/object/cuda_get.html">NVidia's
+          cuda driver and toolkit</a> needs to be installed according to
+        the manufacturer's instruction. Make sure this is really the
+        version corresponding to<br>
+        the Cuda Toolkit.<br>
+        sudo vi /usr/local/cuda/bin/nvcc.profile<br>
+      </p>
+      <div id=":12o">add option "-fPIC" to nvcc.profile. The line should
+        now read:<br>
+        INCLUDES &nbsp; &nbsp; &nbsp; &nbsp;+= &nbsp;-fPIC
+        "-I$(TOP)/include" "-I$(TOP)/include/cudart" $(_SPACE_)</div>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr"><br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">To leave the X-window system under
+        SuSe Linux, log off and the click on "menu" and select Console.
+        The in the console (as superuser) you can run the driver
+        installation program.<br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">Edit the file ".profile" in your
+        user home directory and add the lines:<br>
+        export
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/MATLAB/dip/Linuxa64/lib:/usr/local/cuda/lib64:/usr/local/cula/lib64:/usr/lib64:/usr/lib<br>
+        export PATH=$PATH:/usr/local/cuda/bin</p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr"><br>
+        export CULA_ROOT=/usr/local/cula/<br>
+        export CULA_INC_PATH=/usr/local/cula/include<br>
+        export CULA_BIN_PATH_64=/usr/local/cula/<br>
+        export CULA_LIB_PATH_64=/usr/local/cula/lib64<br>
+        export CULA_BIN_PATH_32=/usr/local/cula/<br>
+        export CULA_LIB_PATH_32=/usr/local/cula/lib<br>
+        <br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">Install CULA (needs a free
+        registration) from&nbsp;<a href="http://www.culatools.com/">http://www.culatools.com/</a>
+        to add support for the matlab "svd" and equation system solving
+        commands.<br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr"><br>
+        To fix a problem with mex compilation in Matlab, modify the file<br>
+        /usr/local/matlab2010a/bin/.matlab7rc.sh<br>
+      </p>
+      <div id=":131">and modify LDPATH_PREFIX to<br>
+        LDPATH_PREFIX='/usr/lib64'<br>
+        in all theachitechure configurations.<br>
+        <br>
+        edit<br>
+        /usr/local/MATLAB/R2010a/bin/gccopts.sh<br>
+        <div id=":12o">and delete all occurances of "-ansi" to avoid
+          compilation problems with C++ style comments.<br>
+          type<br>
+          mex -setup<br>
+          as a standart user in Matlab, to copy the above change into
+          the local user directory<br>
+          <div class="im"><br>
+          </div>
+        </div>
+        If compiling with mex inside matlab (after restart of matlab)
+        still does not work, it might have to be done outside Matlab,
+        since Matlab uses a wrong LD_LibraryPath the same mex command
+        works also outside.<br>
+      </div>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">In some versions of Matlab the
+        following links need to be created:</p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">su<br>
+        cd /usr/lib64<br>
+        ln -s libGLU.so.1 libGLU.so<br>
+        ln -s libX11.so.6 libX11.so<br>
+        ln -s libXi.so.6 libXi.so<br>
+        ln -s libXmu.so.6 libXmu.so<br>
+        ln -s libglut.so.3 libglut.so<br>
+        ln -s libcuda.so.1 libcuda.so<br>
+        exit<br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr"><br>
+        In some Matlab versions it needs to know about the library. If
+        matlab is installed in<span style="font-style: italic;">
+          /usr/local/matlab</span> type:<br>
+        su<br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr"><span style="font-style: italic;">cd
+
+
+
+
+
+
+
+
+
+
+
+
+
+          /usr/local/matlab/bin/glnxa64/</span><br>
+        <span style="font-style: italic;">ln -s
+          /usr/local/CudaMat/libcudaArith.so </span><br
+          style="font-style: italic;">
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">exit<br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr"><br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">The commands for compilation under
+        Matlab are<br>
+        system('nvcc -c cudaArith.cu -I/usr/local/cuda/include/')<br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">and</p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">mex cuda_cuda.c cudaArith.o
+        -I/usr/local/cula/include -I/usr/local/cuda/include
+        -L/usr/local/cula/lib64 -L/usr/local/cuda/lib64 -lcublas -lcufft
+        -lcudart -lcula<br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr"><br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr">with appropriately modified -I and
+        -LC paths from the cuda and cula installation.<br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr"></p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr"><br>
+      </p>
+      <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
+        margin-right: 0in;" dir="ltr"> For more details on the setup and
+        testing see Windows 64 bit installation below.<br>
+      </p>
+      <h2>Installation instructions (Windows 32 bit system)</h2>
+      add the path of the (visual studio) cl.exe comiler into PATH
+      (windows -&gt; home, or right click computer)<br>
+      <a href="http://www.nvidia.com/object/cuda_get.html">NVidia's cuda
+        library</a> and SDK needs to be installed according to the
+      manufacturer's instruction.<br>
+      compile under Matlab: Change to the directory where CudaMat was
+      downloaded to, e.g.:<br>
+      <span style="font-style: italic;">cd c:\Pro'gram
+        Files'\dip\CudaMat\</span><br>
+      <span style="text-decoration: underline;"><br>
+      </span>Compile the cuda part of the program using NVidia's nvcc
+      compiler:<br style="font-style: italic;">
+      <span style="font-style: italic;">system('nvcc --compile
+        cudaArith.cu')</span><br style="font-style: italic;">
+      <span style="font-style: italic;">mex -setup</span><br
+        style="font-style: italic;">
+      <span style="font-style: italic;">mex cuda_cuda.c cudaArith.obj
+        -Ic:\CUDA\include\ -LC:\CUDA\lib -lcublas -lcufft -lcuda
+        -lcudart</span><br style="font-style: italic;">
+      See if the installation was successful by typing in matlab:<br
+        style="font-style: italic;">
+      <span style="font-style: italic;">applemantest(1)</span>;<br>
+      <br>
+      For more details on the setup and testing see Windows 64 bit
+      installation below.<br>
+      <h2>Installation instructions (Windows 64 bit system)</h2>
+      <br>
+      <b>- Install VC++ Express and <span class="il">Windows</span>
+        SDK:</b> Visual Studio does not come with 64-bit compiler (not
+      quite sure) and 64-bit libraries (for sure). You have to obtain
+      the <span class="il">windows</span> SDK for your OS which
+      provides the 64-bit libraries, headers, and the compiler. Ensure
+      that 64-bit packages are selected when installing <span
+        class="il">Windows</span> SDK.<br>
+      VC++ Express: <a
+        href="http://www.microsoft.com/express/Downloads/#2010-Visual-CPP"
+        target="_blank">http://www.microsoft.com/<wbr>express/Downloads/#2010-<wbr>Visual-CPP</a><br>
+      <span class="il">Windows</span> SDK: <a
+        href="http://msdn.microsoft.com/en-us/windows/bb980924.aspx"
+        target="_blank">http://msdn.microsoft.com/en-<wbr>us/<span
+          class="il">windows</span>/bb980924.aspx</a><br>
+      <b><br>
+        - Install <span class="il">CUDA</span>: </b>There are three
+      things to install, all available from <a
+        href="http://developer.nvidia.com/object/cuda_3_0_downloads.html"
+        target="_blank"></a><a
+        href="http://www.nvidia.com/content/cuda/cuda-downloads.html">http://www.nvidia.com/content/cuda/cuda-downloads.html<br>
+        &nbsp; </a>Download and install development version of NVIDIA
+      drivers, <span class="il">CUDA</span> Toolkit, <span class="il">CUDA</span>
+      SDK. Current version is 4.2<br>
+      <br>
+      <b>- Install CudaMat as described above</b>. To be able to use
+      cudamat one needs to compile the custom library cudaArithmatic.obj
+      (with nvcc) and the mex file cuda_cuda.mexw64 (with mex).
+      Precomiled version might possibly work, but not guaranteed (due to
+      mismatch of systems).<br>
+      <br>
+      <b>Configuration of mex and MatLab:</b><br>
+      &gt; mex -setup<br>
+      Works well iff VC++ and <span class="il">Windows</span> SDK are
+      installed and the 64-bit compiler (cl.exe) is visible on the
+      system PATH.<br>
+      <br>
+      If you have not installed and set up Cula you should add the
+      following lines to your startup.m file:<br>
+      <span style="font-style: italic;">addpath('/usr/local/CudaMat/');<br>
+        initCuda();</span><br>
+      <br>
+      If you do not want to by default create ones (using "ones_cuda"),
+      zeros (using "zeros_cuda"),&nbsp; you should change these places
+      in the code by replacing the matlab function "ones" with
+      "ones_cuda" and "zeros" with "zeros_cuda". See ones_cuda,
+      zeros_cuda for more detail.<br>
+      <br>
+      The dipimage generator functions "newimage", "xx","yy","zz", "rr",
+      "phiphi" are overwritten by CudaMat. By default they now generate
+      cuda output. However this behaviour (and also of "ones_cuda" and
+      "zeros_cuda") can invidually be controlled by the global
+      variables:<br>
+      use_zeros_cuda=1; use_ones_cuda=1; use_newim_cuda=1;
+      use_newimar_cuda=1; use_xyz_cuda=1;<br>
+      <br>
+      <br>
+      <b> Configuration of nvcc:</b> <br>
+      Trying to compile the cuda file (e.g. by going to the cuda
+      directory and executing "applemantest(2)" you will get the error:<br>
+      <div id=":ew"> nvcc fatal : Visual Studio configuration file
+        '(null)' could not be found...."<br>
+        This can be fixed by creating a file named <br>
+        C:\Program Files (x86)\Microsoft Visual Studio
+        10.0\VC\bin\vcvars64.bat<br>
+        with the only text in it:<br>
+        CALL setenv /x64<br>
+        which you can also download <a href="vcvars64.bat">here</a>.<br>
+        <br>
+        see also<br>
+        <a
+href="http://stackoverflow.com/questions/8900617/how-can-i-setup-nvcc-to-use-visual-c-express-2010-x64-from-windows-sdk-7-1"
+          target="_blank">http://stackoverflow.com/<wbr>questions/8900617/how-can-i-<wbr>setup-nvcc-to-use-visual-c-<wbr>express-2010-x64-from-windows-<wbr>sdk-7-1</a><br>
+        <span class="gI"><span email="shalin.mehta@gmail.com" class="gD"
+            style="color: rgb(0, 104, 28);"><br>
+            Testing the installation<br>
+            You should go to the CudaMat installation directory and type<br>
+            applemantest(1)<br>
+            After about 6 seconds you should have a nice image in front
+            of you.<br>
+            If the compilation is installed all correctly you can type<br>
+            applemantest(2)<br>
+            which will first recompile but then yield a result in a few
+            milliseconds. Running it again will make it even faster.<br>
+          </span></span></div>
+      <h2>Bug reports</h2>
+      If you find any bugs, please send them to me under<span
+        style="font-style: italic;"> heintzmannd at gmail dot com </span>stating
+
+
+
+
+
+
+
+
+
+
+
+
+      the system you were using as well as the version of CudaMat.
+      Please put 'CudaMat bug' in the subject line.
+      <h2>History of CudaMat and Acknowledgements<br>
+      </h2>
+      CudaMat started with the incentive to write faster deconvolution
+      software for microscopy image processing. Using the fft code
+      provided by NVidia, it quickly became clear that something more
+      general would be useful and the idea of CudaMat was born. CudaMat
+      was written by Rainer Heintzmann with discussions and
+      contributions from Martin Kielhorn, Kai Wicker, Wouter Caarls,
+      Bernd Rieger and Keith Lidke.&nbsp;<br>
+      <h2>Recent changes:</h2>
+      <ul>
+        <li>The first version <a href="CudaMat1_0_00.tgz">V 1.0.0beta</a>
+          was started around November 2008 and finished March 2009.</li>
+        <li><a href="CudaMat1_0_01.tgz">V 1.0.1beta</a> , bug fixes,
+          added <span style="font-style: italic;">newim</span> overload
+          and <span style="font-style: italic;">complex</span>
+          function.</li>
+        <li><a href="CudaMat1_0_02.tgz">V 1.0.2beta</a> , bug fixes,
+          added <span style="font-style: italic;">repmat</span> and
+          assignment and referencing with mask images <span
+            style="font-style: italic;">(subsref</span> and <span
+            style="font-style: italic;">subsasgn</span>) and <span
+            style="font-style: italic;">dip_fouriertransform</span>.</li>
+        <li><a href="CudaMat1_0_03.tgz">V 1.0.3beta</a>, bug fixes,
+          partial reduction functions (such as<span style="font-style:
+            italic;"> [m,mm]=max(cuda(readim('chromo3d')),[],3)</span> )
+          fully supported now. Also sum, max and min have now correct
+          performance for Matlab type arrays. Functions <span
+            style="font-style: italic;">phase</span> and <span
+            style="font-style: italic;">angle</span> were added. The
+          functions<span style="font-style: italic;"> zeros()</span>, <span
+            style="font-style: italic;">ones()</span> and <span
+            style="font-style: italic;">newim()</span> were renamed to<span
+            style="font-style: italic;"> zeros_cuda()</span>, <span
+            style="font-style: italic;">ones_cuda()</span> and <span
+            style="font-style: italic;">newim_cuda()</span> due to
+          conflicts with the native code of dipimage and Matlab.</li>
+        <li><a href="CudaMat1_0_04.tgz">V 1.0.4beta</a>, made the file
+          cuda_cuda.c compatible with older style ANSI C, as it would
+          previously not compile under some compilers which require
+          declarations at the beginning of a block.</li>
+        <li><a
+            href="http://www.nanoimaging.de/CudaMat/CudaMat1_0_05.tgz">V
+            1.0.5beta</a>, a few bug fixes. Introduced the first version
+          of on-the-fly compilation (commands: 'cuda_define' and
+          'cuda_compile_all') for new cuda functions and included an
+          impressive example (speedup 54000) by the command appleman(2)</li>
+        <li><a
+            href="http://www.nanoimaging.de/CudaMat/CudaMat1_0_06.tgz">V
+            1.0.6beta</a>, bug fixes. Added support for CULA, the cuda
+          lapack library, which needs to be installed. svd and equation
+          system solving ("\" and "/", i.e. mldivide and mrdivide).
+          Binary function on-the-fly compilation is now possible.
+          Updated installation instructions and web page.</li>
+        <li><a
+            href="http://www.nanoimaging.de/CudaMat/CudaMat1_0_07.zip">V
+            1.0.7beta</a>, bug fixes. Added functions (e.g. circshift).
+          Improved the performance significantly by using an internal
+          heap. Half-complex ffts are now available ("rft" and "rift").
+          They are fast and memory-efficient. Deconvolution toolbox now
+          works with cudaMat. Now available as a zip file.</li>
+        <li><a
+            href="http://www.nanoimaging.de/CudaMat/CudaMat1_0_08.zip">V
+            1.0.8beta</a>, bug fix.&nbsp;</li>
+        <li><a
+            href="http://www.nanoimaging.de/CudaMat/CudaMat1_1_00.zip">V
+            1.1.0beta</a>, bug fixes (especially memory bug for reduce
+          operations in older versions). New generator functions xx, yy,
+          zz, rr and phiphi. These are now overloaded DIPImage
+          functions. The same holds for newim and newimar, which are
+          from now on (sorry for no backward compatibility here!)
+          overloaded. Funktions "disableCuda()" and "enableCuda()" where
+          introduced, which allow to easily switch off and on the use of
+          cuda. New functions introduced (real and complex datatype):
+          sin, cos, sinh, cosh. Also mpower (only partially implemented)
+          was added. reshape bug was fixed and the function permute was
+          implemented.</li>
+        <li><a
+            href="http://www.nanoimaging.de/CudaMat/CudaMat1_1_01.zip">V
+            1.1.1beta</a>, bug fixes (plus a complex number was buggy
+          adn the sum function had hickups). Introduced the rfftshift
+          and rifftshift functions.</li>
+        <li><a
+            href="http://www.nanoimaging.de/CudaMat/CudaMat1_1_02.zip">V
+            1.1.2beta</a>, bug fixes. Introduced "initCuda()" function,
+          which should be started in the startup.m file. disableCuda()
+          and enableCuda() allow easy turn on and turn off of CudaMat.</li>
+        <li><a
+            href="http://www.nanoimaging.de/CudaMat/CudaMat1_1_03.zip">V
+            1.1.3beta</a>, bug fixes (especially the subassign
+          function). The cuda_compile_all() function now uses the local
+          temp directory to store the user-defined cuda sources and
+          compiled results. This avoids clashes on multi-user systems.
+          RFT (real valued fast Fourier transforms) support was added.<br>
+        </li>
+        <li><a
+            href="http://www.nanoimaging.de/CudaMat/CudaMat1_1_04.zip">V
+            1.1.4beta</a>, bug fixes (the compilation in the temp
+          directory did not work correctly). For speed reasons a "user"
+          directory is created in the temp folder, in which all the
+          additional user-defined compiled versions and .m files are
+          placed.<br>
+        </li>
+      </ul>
+      <ul>
+      </ul>
+      <ul>
+      </ul>
+      <ul>
+      </ul>
+      <ul>
+      </ul>
+      <h2>Ongoing work / Future goals</h2>
+      More standard Matlab and DipImage functions should be supported.
+      E.g.: Mean, var, rand, median, wavelet transformations, rfft and
+      convolve<br>
+      Where possible DipImage code which does not use DipLib can be used
+      directly from CudaMat. A number of in-place operations are planned
+      to allow more efficient programs to be written. E.g. '<span
+        style="font-style: italic;">+='</span> and alike should be
+      implemented. These operations should also be implemented for
+      standard Matlab and DipImage objects (for compatibility reasons).
+      Even more special Multi-array operations could be useful.<br>
+      A mechanism (via another datatype?) for parallelisation of Matlab
+      loops could be introduced, which allows to profit from cuda even
+      for operations involving small matrices).<br>
+      Implement more Matlab and DipImage features in cuda. Most
+      important are:<br>
+      <ul>
+        <li>Testing the software on different systems and GPUs.<br>
+        </li>
+        <li>solving of equation systems. The current CUBLAS library
+          unfortunately does not support this, as the Cholevski
+          factorisation is not yet implemented. As soon as this changes
+          equation system solving can be fully implemented in CudaMat.
+          Currently the workaround is a conversion to standard matlab
+          objects and back to cuda</li>
+        <li>accessing elements via an index list should be implemented
+          (e.g.<span style="font-style: italic;"> a=[3 5 7];b=[1 2 3 4 5
+            6 7];b(a)</span>). Not yet finnished, but subsref_vec
+          function exists</li>
+        <li>automatic decision to move small vectors and matrices back
+          to standard matlab objects. The CudaMat overhead for smaller
+          objects can be quite significant, so a global variable (<span
+            style="font-style: italic;">max_cuda_size</span>) might be
+          useful to decide for automatic conversion back to standard
+          matlab/DipImage.<br>
+        </li>
+        <li>a faster implementation of the<span style="font-style:
+            italic;"> convolve</span> operation and full support of
+          half-complex transforms (implementation of this is started but
+          not yet finnished).</li>
+        <li>Implement more variations of on-the-fly cuda commands.
+          Different types of functions and macros.<br>
+        </li>
+      </ul>
+    </div>
+    <h2>Related Software</h2>
+    A package called <a href="http://www.accelereyes.com/">Jacket</a>
+    by Accellereyes implements a CUDA based toolbox in the spirit of
+    requiring minimal effort to change from standard Matlab code to code
+    run on the GPU. The company XTech has developed <a
+      href="http://www.txcorp.com/products/GPULib/index.php">GPULib.</a><br>
+    <hr style="width: 100%; height: 2px;">
+    <div style="text-align: left;"><a href="CudaMat.html">Back to the
+        CudaMat homepage</a><br>
+      For hints and suggestions, contact the author under heintzmann at
+      gmail dot com<br>
+      <br>
+    </div>
+    <!-- Counter Code START --><a href="http://www.mesolink.org/"
+      target="_blank"><img
+src="http://www.e-zeeinternet.com/count.php?page=261989&amp;style=default&amp;nbdigits=5"
+        alt="Mesothelioma" border="0"></a><br>
+    <a href="http://www.mesolink.org/" title="Mesothelioma"
+      target="_blank" style="font-family:
+      Geneva,Arial,Helvetica,sans-serif; font-size: 10px; color: rgb(0,
+      0, 0); text-decoration: none;">Mesothelioma</a><!-- Counter Code END -->
+  </body>
+</html>

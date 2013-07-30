@@ -1,0 +1,1 @@
+CALL setenv /x64

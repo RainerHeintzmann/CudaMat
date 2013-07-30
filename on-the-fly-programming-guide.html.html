@@ -1,0 +1,56 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+    <title>on-the-fly-programming-guide.html</title>
+  </head>
+  <body>
+    <h1>On the fly CudaMat programming guide</h1>
+    This guide describes the basic rule for constructing an on-the-fly
+    cuda program.<br>
+    On-the-fly programs can be of various types, depending on the type
+    of function you want to implement.<br>
+    Your code will go right into the core of the graphic card (and thus
+    can easily crash it) but the matlab wrapper will deal with all the
+    parameter conversion and data transport issues including calling the
+    cuda function itself. Thus programming such a function is made
+    really easy.<br>
+    <h2>Function types</h2>
+    The following function types currently exist and hopefully many more
+    will be added later.<br>
+    <ul>
+      <li>CUDA_UnaryFkt&nbsp; : Takes one input array (refered to as
+        "a") as input and has one output array (referred to as "c" in
+        the cuda code).<br>
+      </li>
+      <li>CUDA_BinaryFkt&nbsp; : Takes two input arrays (refered to as
+        "a" and "b") as inputs and has one output array (referred to as
+        "c" in the cuda code).<br>
+      </li>
+    </ul>
+    See also "help cuda_define"<br>
+    <br>
+    Write your program<br>
+    In all code snippets you are writing a number of variables are
+    predefined:<br>
+    <ul>
+      <li>idx&nbsp; : The linear index of your processor</li>
+      <li>a,b,c : Depending on the function type (see above) input and
+        output arrays</li>
+      <li>sSize : A structure containing the source size array in its
+        components s. E.g. sSize.s[1] would return the size along X<br>
+      </li>
+    </ul>
+    If you need to calculate with the position coordinates in the
+    arrays, you can start your program with the line<br>
+    CoordsNDFromIdx(idx,sSize)<br>
+    wich will create the array "pos" assigning each processor directly
+    the multidimensional coordinate of its pixel.<br>
+    Furthermore the lines<br>
+    int idd;IdxNDFromCoords(pos,sSize,idd)<br>
+    will calculate the index corresponding to the position given in pos
+    such that a result can for example be written to c[idd]=a[idx];<br>
+    <br>
+  </body>
+</html>
