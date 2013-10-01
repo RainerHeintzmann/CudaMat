@@ -27,7 +27,11 @@ if isa(in1,'cuda')
             mask=cuda(mask);
         end
         maskref=mask.ref;
-        msum=sum(mask,[],projdir);
+        if nargin < 3
+            msum=sum(mask,[]);
+        else
+            msum=sum(mask,[],projdir);
+        end
     else
         maskref=[];
     end

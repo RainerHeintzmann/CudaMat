@@ -94,7 +94,7 @@ p, .Normal {
           'Arial';">Information on CudaMat </span></h1>
       <h1 style="text-align: center;"><span style="font-weight: bold;
           font-size: 14pt; font-family: 'Arial';">CudaMat&nbsp; (current
-          version: 1.1.4beta, 15. Mai 2013)<br>
+          version: 1.1.5beta, 30. July 2013)<br>
         </span></h1>
       <div style="text-align: center;"><span style="font-weight: bold;
           font-size: 14pt; font-family: 'Arial';"> </span><span
@@ -145,6 +145,7 @@ p, .Normal {
 
 
 
+
       given at the top of the file <span style="font-style: italic;">cudaArith.cu</span>.<br>
       <h2>Is there a demo to quickly check the performance increase?</h2>
       Yes. CudaMat comes with a two test programs '<span
@@ -157,16 +158,15 @@ p, .Normal {
         href="http://www.nanoimaging.de/CudaMat/">CudaMat</a> and <a
         href="http://www.nvidia.com/object/cuda_get.html">NVidia's cuda
         library</a> to be installed. The speedup optained depend on the
-      chosen datasize. On my Intel(R) Core(TM) i% CPU 750@ 2,67 GHz, 64
-      bit processor and gcc 4.5.0 run under OpenSuse11.3 it is about a
-      factor of 20 (2.38 versus 49.9 seconds) for a 2048x2048 image with
-      iteration depth 300.<br>
+      chosen datasize. On my Intel(R) Core(TM) i7 CPU @ 2,8 GHz, 64 bit
+      processor, Windows 7 is about a factor of 30 (2.35 versus 75,5
+      seconds) for a 2048x2048 image with iteration depth 300.<br>
       The new (as of version 1.0.0.06 beta) on-the-fly compilation
       allows a further speedup by writing code snippets for the GPU. In
-      this case the graphic card needs 0.00037 second for the example
+      this case the graphic card needs 0.088 second for the example
       above, yielding <span style="font-weight: bold;">a total speedup
-        bigger than 100000</span>! Type "edit applemantest" under matlab
-      to get an example how to achieve such speed.<br>
+        bigger than 850</span>! Type "edit applemantest" under matlab to
+      get an example how to achieve such speed.<br>
       <br>
       <span style="font-style: italic;">speedtestDeconv.m</span>
       measures the performance for an example deconvolution of a 3D
@@ -179,6 +179,7 @@ p, .Normal {
         style="font-style: italic;"> <a
           href="http://www.di.ens.fr/%7Emschmidt/Software/minFunc.html">minFunc()</a>
       </span>written by <a href="http://www.di.ens.fr/%7Emschmidt/">Mark
+
 
 
 
@@ -238,6 +239,7 @@ p, .Normal {
 
 
 
+
         no changes to the Matlab code should be necessary.</span><br>
       However, practically minor changes can be necessary, if CudaMat
       does not support the operation used in the Matlab code. This is
@@ -260,6 +262,7 @@ p, .Normal {
       transferring from the graphics card.<br>
       In other cases the user will have to either force this conversion
       (e.g. using <span style="font-style: italic;">single_force(a)</span>),
+
 
 
 
@@ -333,6 +336,7 @@ p, .Normal {
 
 
 
+
       </span>and executes the code given there. In this way it is
       ensured that code can efficiently be executed on the graphics
       card, without the cuda objects leaving the card.<br>
@@ -346,6 +350,7 @@ p, .Normal {
       displaying an image) the data is transferred back from the
       graphics card to Matlab. <br>
       The commands <span style="font-style: italic;">double_force(a) </span>and
+
 
 
 
@@ -387,7 +392,9 @@ p, .Normal {
 
 
 
+
       </span>or <span style="font-style: italic;">double_force(a) </span>with
+
 
 
 
@@ -548,6 +555,7 @@ p, .Normal {
 
 
 
+
           current version</a> as a tar-gzip-file with all the necessary
         classes and an example html-file in it. Just place the CudaMat
         folder somewhere, add it to the Matlab path and call initCuda
@@ -565,6 +573,7 @@ p, .Normal {
       </h2>
       <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
         margin-right: 0in;" dir="ltr">Download <a href="CudaMat.zip">the
+
 
 
 
@@ -671,6 +680,7 @@ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/MATLAB/dip/Linuxa64/lib:/usr/local/c
       </p>
       <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
         margin-right: 0in;" dir="ltr"><span style="font-style: italic;">cd
+
 
 
 
@@ -851,6 +861,7 @@ href="http://stackoverflow.com/questions/8900617/how-can-i-setup-nvcc-to-use-vis
 
 
 
+
       the system you were using as well as the version of CudaMat.
       Please put 'CudaMat bug' in the subject line.
       <h2>History of CudaMat and Acknowledgements<br>
@@ -954,7 +965,14 @@ href="http://stackoverflow.com/questions/8900617/how-can-i-setup-nvcc-to-use-vis
           directory did not work correctly). For speed reasons a "user"
           directory is created in the temp folder, in which all the
           additional user-defined compiled versions and .m files are
-          placed.<br>
+          placed.</li>
+        <li><a
+            href="http://www.nanoimaging.de/CudaMat/CudaMat1_1_05.zip">V
+            1.1.5beta</a>, bug fixes (the ffts had a bug and the plans
+          exhausted too quickly for some applications. Bugs in the
+          multi-user capability using the temp folder to store the
+          user-defined code and the executables were fixed. GitHub was
+          introduced)<br>
         </li>
       </ul>
       <ul>

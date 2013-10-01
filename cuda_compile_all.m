@@ -67,13 +67,18 @@ catch
 end
 CurrentPath=pwd;
 cd(UserBase)
+if (0)
+    MEXFLAGS='-g';
+else
+    MEXFLAGS='';
+end
 if ispc
     global nocula;
     % system('"c:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\bin\vcvars32.bat"')
     % system('nvcc -c cudaArith.cu -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\bin')
     % system('"c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat"')
     % vcvars64.bat has to be present at C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64
-    status=system(['nvcc -c ' CudaBase 'cudaArith.cu -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include" -I.']);
+    status=system(['nvcc -c ' MEXFLAGS ' ' CudaBase 'cudaArith.cu -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include" -I.']);
     if status ~= 0
         error('nvcc command failed');
     end
@@ -82,11 +87,11 @@ if ispc
     if ~isempty(nocula)
         % mex cuda_cuda.c cudaArith.obj -DNOCULA -Ic:\\CUDA\include\ -Lc:\\CUDA\lib64\ -lcublas -lcufft -lcudart
         % mex cuda_cuda.c cudaArith.obj -DNOCULA "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v4.2\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v4.2\lib\x64" -lcublas -lcufft -lcudart
-        eval(['mex ' CudaBase 'cuda_cuda.c cudaArith.obj -DNOCULA "-I' UserBase '" "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\lib\x64" -lcublas -lcufft -lcudart']);
+        eval(['mex ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.obj -DNOCULA "-I' UserBase '" "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\lib\x64" -lcublas -lcufft -lcudart']);
     else
         % mex cuda_cuda.c cudaArith.obj -Ic:\\CUDA\include\ -Ic:\\CULA\include\ -Lc:\\CUDA\lib64\ -Lc:\\CULA\lib64\ -lcublas -lcufft -lcudart -lcula
         % mex cuda_cuda.c cudaArith.obj "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v4.2\include" "-IC:\Program Files\CULA\R14\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v4.2\lib\x64" "-LC:\Program Files\CULA\R14\lib64" -lcublas -lcufft -lcudart -lcula_core -lcula_lapack
-        eval(['mex ' CudaBase 'cuda_cuda.c cudaArith.obj "-I' UserBase '" "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" "-IC:\Program Files\CULA\R14\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\lib\x64" "-LC:\Program Files\CULA\R14\lib64" -lcublas -lcufft -lcudart -lcula_core -lcula_lapack']);
+        eval(['mex ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.obj "-I' UserBase '" "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" "-IC:\Program Files\CULA\R14\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\lib\x64" "-LC:\Program Files\CULA\R14\lib64" -lcublas -lcufft -lcudart -lcula_core -lcula_lapack']);
     end
 else
     global nocula;
@@ -95,13 +100,13 @@ else
         if status ~= 0
             error('nvcc command failed');
         end
-        eval(['mex ' CudaBase 'cuda_cuda.c cudaArith.o -DNOCULA "-I' UserBase '" -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lcublas -lcufft -lcudart']);
+        eval(['mex ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.o -DNOCULA "-I' UserBase '" -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lcublas -lcufft -lcudart']);
     else
         status=system('nvcc -c cudaArith.cu -I/usr/local/cula/include/');
         if status ~= 0
             error('nvcc command failed');
         end
-        eval(['mex ' CudaBase 'cuda_cuda.c cudaArith.o "-I' UserBase '" -I/usr/local/cula/include -I/usr/local/cuda/include -L/usr/local/cula/lib64 -L/usr/local/cuda/lib64 -lcublas -lcufft -lcudart -lcula']);
+        eval(['mex ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.o "-I' UserBase '" -I/usr/local/cula/include -I/usr/local/cuda/include -L/usr/local/cula/lib64 -L/usr/local/cuda/lib64 -lcublas -lcufft -lcudart -lcula']);
     end
 end
 cd(CurrentPath)

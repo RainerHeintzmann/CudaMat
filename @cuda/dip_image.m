@@ -1,4 +1,4 @@
-% dip_image(in,varargin) : conversion from cuda to dip_image
+% dip_image(in,varargin) : conversion from cuda to dip_image cuda
 
 
 %************************** CudaMat ****************************************
@@ -21,12 +21,12 @@
 %**************************************************************************
 %
 
-function out = dip_image(in,varargin)
+function out = dip_image(in,varargin)  % should only be called if in is of type cuda
 
 if length(varargin) > 0
     %    if strcmp(varargin,'single') || strcmp(varargin,'double') || strcmp(varargin{,'int')
     if strcmp(varargin{1},'scomplex')  || strcmp(varargin{1},'dcomplex')
-        if ~cuda_cuda('isCpx',in)
+        if ~cuda_cuda('isCpx',in.ref)
             out=scomplex(in);
         else
             out=copy(in);

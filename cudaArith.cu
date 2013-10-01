@@ -37,7 +37,7 @@ system('nvcc -c cudaArith.cu -v -I/usr/local/cuda/include/')
 #include "cudaArith.h"
 #define IMUL(a, b) __mul24(a, b)
 
-#define BLOCKSIZE 512
+#define BLOCKSIZE 1024
 //#define BLOCKSIZE 512
 #define NBLOCKS(N,blockSize) (N/blockSize+(N%blockSize==0?0:1))
 
@@ -867,8 +867,8 @@ FktName(float *c, float br, float bi, Size5D dSize, Size5D dROI, Size5D dOffs) \
 }                                                                       \
 extern "C" const char * CUDA ## FktName(float * c, float br, float bi, int dSize[5], int dROI[5], int dOffs[5])  \
 {                                                                       \
-     cudaError_t myerr;                                                \
-   int N=dROI[0]*dROI[1]*dROI[2]*dROI[3]*dROI[4];                      \
+    cudaError_t myerr;                                                \
+    int N=dROI[0]*dROI[1]*dROI[2]*dROI[3]*dROI[4];                      \
 	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
     Size5D dR,dS,dO;                                                    \
     int d;                                                              \
