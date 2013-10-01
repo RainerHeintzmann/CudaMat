@@ -37,9 +37,25 @@ system('nvcc -c cudaArith.cu -v -I/usr/local/cuda/include/')
 #include "cudaArith.h"
 #define IMUL(a, b) __mul24(a, b)
 
-#define BLOCKSIZE 1024
 //#define BLOCKSIZE 512
+//#define BLOCKSIZE 512
+// below is blocksize for temporary array for reduce operations. Has to be a power of 2 in size
+#define CUIMAGE_REDUCE_THREADS 512
+// #define CUIMAGE_REDUCE_THREADS 512
+// #define CUIMAGE_REDUCE_THREADS 128
+//#define CUIMAGE_REDUCE_BLOCKS  64
+
 #define NBLOCKS(N,blockSize) (N/blockSize+(N%blockSize==0?0:1))
+
+#define NBLOCKSL(N,blockSize) min((N/blockSize+(N%blockSize==0?0:1)),prop.maxGridSize[0])
+
+#define MemoryLayout(blockSize,nBlocks)	blockSize=prop.maxThreadsPerBlock; \
+{ int numb=NBLOCKS(N,blockSize);                    \
+    if (numb<prop.maxGridSize[0])                   \
+    nBlocks.x=numb;                                 \
+else                                                \
+    {nBlocks.x=(int)(sqrt((float)numb)+1);          \
+    nBlocks.y=(int)(sqrt((float)numb)+1);}}       
 
 // the real part is named ".x" and the imaginary ".y" in the cufftComplex datatype
 __device__ cufftComplex cuda_resultVal;   // here real and complex valued results can be stored to be then transported to the host
@@ -48,12 +64,13 @@ static float * TmpRedArray=0;   // This temporary array will be constructed on t
 static float * accum = 0;       // This is the corresponding array on the host side
 static int CurrentRedSize=0;    // Keeps track of how much reduce memory is allocated on the device
 static const int MinRedBlockSize=65536;    // defines the chunks of memory (in floats) which will be used
+static struct cudaDeviceProp prop;  // Defined in cudaArith.h: contains the cuda Device properties. is set during initialisation
+    // prop.maxThreadsPerBlock;  // 512
+    // prop.multiProcessorCount;   // 30
+    // prop.warpSize;   // 32
+    // prop.maxThreadsDim[0];   // 512  = max blocksize
+    // prop.maxGridSize[0];   // 65535  = max GridSize = max nBlocks?
 
-// below is blocksize for temporary array for reduce operations. Has to be a power of 2 in size
-#define CUIMAGE_REDUCE_THREADS 512
-// #define CUIMAGE_REDUCE_THREADS 512
-// #define CUIMAGE_REDUCE_THREADS 128
-//#define CUIMAGE_REDUCE_BLOCKS  64
 
 #define mysum(a,b) ((a)+(b))
 #define maxCond(a,b) (((b)>(a)))
@@ -100,7 +117,7 @@ static const int MinRedBlockSize=65536;    // defines the chunks of memory (in f
 // CAVE: These versions can be slow, if the resulting data has is smaller than the number of processors
 #define CUDA_PartRedMask(FktName, OP)               \
 __global__ void FktName (float *in, float *out, float * mask, int N, int dSizeX, int sStrideX, int sStrideY, int ProjStride, int ProjSize){      \
-  int idd=(blockIdx.x*blockDim.x+threadIdx.x);                          \
+  int idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   if(idd>=N) return;                                                    \
   int p;                                                                \
   int ids=(idd%dSizeX)*sStrideX+(idd/dSizeX)*sStrideY;                  \
@@ -124,11 +141,11 @@ extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, int s
 {                                                                       \
     cudaError_t myerr;                                                  \
     int dSize[CUDA_MAXPROJ],d,N=1;                                      \
+	int blockSize;dim3 nBlocks;                                         \
+    int ProjStride=0,ProjSize=0,sStrideX=0,sStrideY=0,dSizeX=0;         \
     for (d=0;d<CUDA_MAXPROJ;d++)  {dSize[d]=sSize[d]; }                 \
     dSize[ProjDir-1]=1;                                                 \
     for (d=0;d<CUDA_MAXPROJ;d++)  {N*=dSize[d];}                         \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
-    int ProjStride=0,ProjSize=0,sStrideX=0,sStrideY=0,dSizeX=0;         \
     if (ProjDir==1)                                                     \
         {ProjStride=1;ProjSize=sSize[0];dSizeX=sSize[1];sStrideX=sSize[0];sStrideY=sSize[0]*sSize[1];}\
     else if (ProjDir == 2)                                              \
@@ -141,6 +158,7 @@ extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, int s
         {ProjStride=sSize[0]*sSize[1]*sSize[2]*sSize[3];ProjSize=sSize[4];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
     else                                                                \
         return "Error: Unsupported projection direction";               \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,c,mask,N,dSizeX,sStrideX,sStrideY,ProjStride,ProjSize);\
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -151,7 +169,7 @@ extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, int s
 //   This is the same as the above but suited for complex numbers
 #define CUDA_PartRedMaskCpx(FktName, OP)               \
 __global__ void FktName (float *in, float *out, float * mask, int N, int dSizeX, int sStrideX, int sStrideY, int ProjStride, int ProjSize){      \
-  int idd=(blockIdx.x*blockDim.x+threadIdx.x);                          \
+  int idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   if(idd>=N) return;                                                    \
   int p;                                                                \
   int ids=(idd%dSizeX)*sStrideX+(idd/dSizeX)*sStrideY;                  \
@@ -179,11 +197,11 @@ extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, int s
 {                                                                       \
      cudaError_t myerr;                                                \
     int dSize[CUDA_MAXPROJ],d,N=1;                                      \
+	int blockSize;dim3 nBlocks;                                         \
+    int ProjStride=0,ProjSize=0,sStrideX=0,sStrideY=0,dSizeX=0;         \
     for (d=0;d<CUDA_MAXPROJ;d++)  {dSize[d]=sSize[d]; }                 \
     dSize[ProjDir-1]=1;                                                 \
     for (d=0;d<CUDA_MAXPROJ;d++)  {N*=dSize[d];}                         \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
-    int ProjStride=0,ProjSize=0,sStrideX=0,sStrideY=0,dSizeX=0;         \
     if (ProjDir==1)                                                     \
         {ProjStride=1;ProjSize=sSize[0];dSizeX=sSize[1];sStrideX=sSize[0];sStrideY=sSize[0]*sSize[1];}\
     else if (ProjDir == 2)                                              \
@@ -196,6 +214,7 @@ extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, int s
         {ProjStride=sSize[0]*sSize[1]*sSize[2]*sSize[3];ProjSize=sSize[4];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
     else                                                                \
         return "Error: Unsupported projection direction";                     \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,c,mask,N,dSizeX,sStrideX,sStrideY,ProjStride,ProjSize);\
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -207,7 +226,7 @@ extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, int s
 
 #define CUDA_PartRedMaskIdx(FktName, OP)               \
 __global__ void FktName (float *in, float *out, float * outIdx, float * mask, int N, int dSizeX, int sStrideX, int sStrideY, int ProjStride, int ProjSize){      \
-  int idd=(blockIdx.x*blockDim.x+threadIdx.x);                          \
+  int idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   if(idd>=N) return;                                                    \
   int p;                                                                \
   int ids=(idd%dSizeX)*sStrideX+(idd/dSizeX)*sStrideY;                  \
@@ -235,11 +254,11 @@ extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, float
 {                                                                       \
     cudaError_t myerr;                                                  \
     int dSize[CUDA_MAXPROJ],d,N=1;                                      \
+	int blockSize;dim3 nBlocks;                                         \
+    int ProjStride=0,ProjSize=0,sStrideX=0,sStrideY=0,dSizeX=0;         \
     for (d=0;d<CUDA_MAXPROJ;d++)  {dSize[d]=sSize[d]; }                 \
     dSize[ProjDir-1]=1;                                                 \
     for (d=0;d<CUDA_MAXPROJ;d++)  {N*=dSize[d];}                         \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
-    int ProjStride=0,ProjSize=0,sStrideX=0,sStrideY=0,dSizeX=0;         \
     if (ProjDir==1)                                                     \
         {ProjStride=1;ProjSize=sSize[0];dSizeX=sSize[1];sStrideX=sSize[0];sStrideY=sSize[0]*sSize[1];}\
     else if (ProjDir == 2)                                              \
@@ -252,6 +271,7 @@ extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, float
         {ProjStride=sSize[0]*sSize[1]*sSize[2]*sSize[3];ProjSize=sSize[4];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
     else                                                                \
         return "Error: Unsupported projection direction";               \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,c,cIdx,mask,N,dSizeX,sStrideX,sStrideY,ProjStride,ProjSize);\
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -301,7 +321,8 @@ while(nTotalThreads > 1)                                                \
 }                                                               \
 extern "C" const char * CUDA ## FktName(float * a, int N, float * resp) \
 {                                                               \
-  int CUIMAGE_REDUCE_BLOCKS=NBLOCKS(N,CUIMAGE_REDUCE_THREADS);  \
+  int CUIMAGE_REDUCE_BLOCKS;                                    \
+  CUIMAGE_REDUCE_BLOCKS=NBLOCKSL(N,CUIMAGE_REDUCE_THREADS);     \
   dim3 threadBlock(CUIMAGE_REDUCE_THREADS);                     \
   dim3 blockGrid(CUIMAGE_REDUCE_BLOCKS);                        \
                                                                 \
@@ -349,7 +370,8 @@ extern "C" const char * CUDA ## FktName(float * a, int N, float * resp) \
   cudaError_t myerr;                                            \
   const char * myerrStr;                                              \
   float res;                                                    \
-  int CUIMAGE_REDUCE_BLOCKS=NBLOCKS(N,CUIMAGE_REDUCE_THREADS);  \
+  int CUIMAGE_REDUCE_BLOCKS;                                    \
+  CUIMAGE_REDUCE_BLOCKS=NBLOCKSL(N,CUIMAGE_REDUCE_THREADS);     \
   dim3 threadBlock(CUIMAGE_REDUCE_THREADS);                     \
   dim3 blockGrid(CUIMAGE_REDUCE_BLOCKS);                        \
   myerrStr=CheckReduceAllocation(2*CUIMAGE_REDUCE_BLOCKS);      \
@@ -414,7 +436,8 @@ extern "C" const char * CUDA ## FktName(float * a, int N, float * resp) \
     cudaError_t myerr;                                          \
   const char * myerrStr;                                              \
   float res, resI;                                              \
-  int CUIMAGE_REDUCE_BLOCKS=NBLOCKS(N,CUIMAGE_REDUCE_THREADS);  \
+  int CUIMAGE_REDUCE_BLOCKS;                                    \
+  CUIMAGE_REDUCE_BLOCKS=NBLOCKSL(N,CUIMAGE_REDUCE_THREADS);     \
   dim3 threadBlock(CUIMAGE_REDUCE_THREADS);                     \
   dim3 blockGrid(CUIMAGE_REDUCE_BLOCKS);                        \
   myerrStr=CheckReduceAllocation(2*CUIMAGE_REDUCE_BLOCKS);      \
@@ -480,8 +503,9 @@ extern "C" const char * CUDA ## FktName(float * a, int N, float * resp) \
 {                                                               \
   float res, resI;                                              \
   cudaError_t myerr;                                            \
-  const char * myerrStr;                                              \
-  int CUIMAGE_REDUCE_BLOCKS=NBLOCKS(N,CUIMAGE_REDUCE_THREADS);  \
+  const char * myerrStr;                                        \
+  int CUIMAGE_REDUCE_BLOCKS;                                    \
+  CUIMAGE_REDUCE_BLOCKS=NBLOCKSL(N,CUIMAGE_REDUCE_THREADS);     \
   dim3 threadBlock(CUIMAGE_REDUCE_THREADS);                     \
   dim3 blockGrid(CUIMAGE_REDUCE_BLOCKS);                        \
   myerrStr=CheckReduceAllocation(2*CUIMAGE_REDUCE_BLOCKS);      \
@@ -581,13 +605,15 @@ extern "C" const char * CUDA ## FktName(float * in, float * mask, float *  out, 
 __global__ void                                                     \
 FktName(float*a,float *b, float * c, int N)                         \
 {                                                                   \
-	int idx=blockIdx.x*blockDim.x+threadIdx.x; if(idx>=N) return;   \
+    int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+	if(idx>=N) return;                                              \
 	expression                                                      \
 }                                                                   \
 extern "C" const char * CUDA ## FktName(float * a, float * b, float * c, int N)  \
 {                                                                       \
     cudaError_t myerr;                                          \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
+	int blockSize;dim3 nBlocks;                                         \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,b,c,N);                            \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -601,13 +627,15 @@ extern "C" const char * CUDA ## FktName(float * a, float * b, float * c, int N) 
 __global__ void                                                     \
 FktName(float*a,float b, float * c, int N)                          \
 {                                                                   \
-	int idx=blockIdx.x*blockDim.x+threadIdx.x; if(idx>=N) return;   \
+    int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+	if(idx>=N) return;                                              \
 	expression                                                      \
 }                                                                   \
 extern "C" const char * CUDA ## FktName(float * a, float b, float * c, int N)  \
 {                                                                       \
     cudaError_t myerr;                                          \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
+	int blockSize;dim3 nBlocks;                                         \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,b,c,N);                            \
     myerr=cudaGetLastError();                                             \
     if (myerr != cudaSuccess)                                             \
@@ -620,13 +648,15 @@ extern "C" const char * CUDA ## FktName(float * a, float b, float * c, int N)  \
 __global__ void                                                     \
 FktName(float*a,float br, float bi, float * c, int N)               \
 {                                                                   \
-	int idx=blockIdx.x*blockDim.x+threadIdx.x; if(idx>=N) return;   \
+    int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+	if(idx>=N) return;                                              \
 	expression                                                      \
 }                                                                   \
 extern "C" const char * CUDA ## FktName(float * a, float br, float bi, float * c, int N)  \
 {                                                                       \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
-   cudaError_t myerr;                                          \
+    cudaError_t myerr;                                                  \
+	int blockSize;dim3 nBlocks;                                         \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,br,bi,c,N);                        \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -641,16 +671,18 @@ extern "C" const char * CUDA ## FktName(float * a, float br, float bi, float * c
 __global__ void                                                     \
 FktName(float*a, SizeND b, float * c, SizeND sSize, int N)          \
 {                                                                   \
-	int idx=blockIdx.x*blockDim.x+threadIdx.x; if(idx>=N) return;   \
+    int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+	if(idx>=N) return;                                              \
     expression                                                      \
 }                                                                   \
 extern "C" const char * CUDA ## FktName(float * a, int b[CUDA_MAXDIM], float * c, int mySize[CUDA_MAXDIM], int N)  \
 {                                                                       \
   cudaError_t myerr;                                          \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
+	int blockSize;dim3 nBlocks;                                         \
     SizeND sb,sSize;                                                    \
     for (int d=0;d<CUDA_MAXDIM;d++)                                     \
     { sb.s[d]=b[d];sSize.s[d]=mySize[d]; }                              \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,sb,c,sSize,N);                     \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -663,13 +695,15 @@ extern "C" const char * CUDA ## FktName(float * a, int b[CUDA_MAXDIM], float * c
 __global__ void                                                     \
 FktName(float * c, VecND vec1, VecND vec2, SizeND sSize, int N)     \
 {                                                                   \
-	int idx=blockIdx.x*blockDim.x+threadIdx.x; if(idx>=N) return;   \
+    int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+	if(idx>=N) return;                                              \
     expression                                                      \
 }                                                                   \
 extern "C" const char * CUDA ## FktName(float * c, VecND vec1, VecND vec2, SizeND sSize, int N)  \
 {                                                                       \
     cudaError_t myerr;                                          \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
+	int blockSize;dim3 nBlocks;                                         \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(c,vec1,vec2,sSize,N);                \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -684,13 +718,15 @@ extern "C" const char * CUDA ## FktName(float * c, VecND vec1, VecND vec2, SizeN
 __global__ void                                                     \
 FktName(float*a, float * c, int N)                                  \
 {                                                                   \
-	int idx=blockIdx.x*blockDim.x+threadIdx.x; if(idx>=N) return;   \
+    int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+	if(idx>=N) return;                                              \
 	expression                                                      \
 }                                                                   \
 extern "C" const char * CUDA ## FktName(float * a, float * c, int N)         \
 {                                                                       \
     cudaError_t myerr;                                          \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
+	int blockSize;dim3 nBlocks;                                         \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,c,N);                              \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -720,24 +756,25 @@ typedef struct {
 __global__ void                                                         \
 FktName(float *a, float *c, Size3D sSize,Size3D dSize,Size3D sOffs, Size3D sROI, Size3D dOffs) \
 {                                                                       \
-  int idx=(blockIdx.x*blockDim.x+threadIdx.x);                          \
   int N=sROI.s[0]*sROI.s[1]*sROI.s[2];                                        \
-  if(idx>=N) return;                                                    \
+  int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   int x=(idx)%sROI.s[0];                                                  \
   int y=(idx/sROI.s[0])%sROI.s[1];                                          \
   int z=(idx/(sROI.s[0]*sROI.s[1]))%sROI.s[2];                                \
   int ids=x+sOffs.s[0]+sSize.s[0]*(y+sOffs.s[1])+sSize.s[0]*sSize.s[1]*(z+sOffs.s[2]);                               \
+  if(idx>=N) return;                                              \
   expressions                                                            \
 }                                                                       \
 extern "C" const char * CUDA ## FktName(float * a, float *c, int sSize[3], int dSize[3], int sOffs[3], int sROI[3], int dOffs[3])  \
 {                                                                       \
     cudaError_t myerr;                                                \
     int N=sROI[0]*sROI[1]*sROI[2];                                      \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
-    Size3D sS,dS,sO,sR,dO;                                              \
+	int blockSize;dim3 nBlocks;                                         \
+     Size3D sS,dS,sO,sR,dO;                                              \
     int d;                                                              \
     for (d=0;d<3;d++)                                                   \
         {sS.s[d]=sSize[d];dS.s[d]=dSize[d];sO.s[d]=sOffs[d];sR.s[d]=sROI[d];dO.s[d]=dOffs[d];} \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,c,sS,dS,sO,sR,dO); \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -750,7 +787,7 @@ extern "C" const char * CUDA ## FktName(float * a, float *c, int sSize[3], int d
 __global__ void                                                         \
 FktName(float *c, float br, float bi, Size3D dSize, Size3D dROI, Size3D dOffs) \
 {                                                                       \
-  int idx=(blockIdx.x*blockDim.x+threadIdx.x);                          \
+  int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   int N=dROI.s[0]*dROI.s[1]*dROI.s[2];                                        \
   if(idx>=N) return;                                                    \
   int x=(idx)%dROI.s[0];                                               \
@@ -763,11 +800,12 @@ extern "C" const char * CUDA ## FktName(float * c, float br, float bi, int dSize
 {                                                                       \
     cudaError_t myerr;                                                \
     int N=dROI[0]*dROI[1]*dROI[2];                                      \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
+	int blockSize;dim3 nBlocks;                                         \
     Size3D dR,dS,dO;                                              \
     int d;                                                              \
     for (d=0;d<3;d++)                                                   \
         {dS.s[d]=dSize[d];dR.s[d]=dROI[d];dO.s[d]=dOffs[d];} \
+    MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(c,br,bi,dS,dR,dO); \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -780,24 +818,25 @@ extern "C" const char * CUDA ## FktName(float * c, float br, float bi, int dSize
 __global__ void                                                         \
 FktName(float *a, float *c, Size3D dSize, Size3D sSize)       \
 {                                                                       \
-  int idd=(blockIdx.x*blockDim.x+threadIdx.x);                          \
+  int idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   int N=dSize.s[0]*dSize.s[1]*dSize.s[2];                               \
-  if(idd>=N) return;                                                    \
   int x=(idd)%dSize.s[0];                                                \
   int y=(idd/dSize.s[0])%dSize.s[1];                                    \
   int z=(idd/(dSize.s[0]*dSize.s[1]))%dSize.s[2];                       \
   int ids=x%sSize.s[0]+sSize.s[0]*(y%sSize.s[1])+sSize.s[0]*sSize.s[1]*(z%sSize.s[2]); \
+  if(idd>=N) return;                                                    \
   expressions                                                           \
 }                                                                       \
 extern "C" const char * CUDA ## FktName(float *a, float * c, int sSize[3], int dSize[3])  \
 {                                                                       \
     cudaError_t myerr;                                                \
     int N=dSize[0]*dSize[1]*dSize[2];                                      \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
-    Size3D sS,dS;                                              \
+	int blockSize;dim3 nBlocks;                                         \
     int d;                                                              \
+    Size3D sS,dS;                                              \
     for (d=0;d<3;d++)                                                   \
         {dS.s[d]=dSize[d];sS.s[d]=sSize[d];} \
+   MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,c,dS,sS); \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -821,26 +860,27 @@ typedef struct {
 __global__ void                                                         \
 FktName(float *a, float *c, Size5D sSize,Size5D dSize,Size5D sOffs, Size5D sROI, Size5D dOffs) \
 {                                                                     \
-  int idx=(blockIdx.x*blockDim.x+threadIdx.x);                        \
+  int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   int N=sROI.s[0]*sROI.s[1]*sROI.s[2]*sROI.s[3]*sROI.s[4];            \
-  if(idx>=N) return;                                                  \
   int x=(idx)%sROI.s[0];                                              \
   int y=(idx/sROI.s[0])%sROI.s[1];                                    \
   int z=(idx/(sROI.s[0]*sROI.s[1]))%sROI.s[2];                        \
   int t=(idx/(sROI.s[0]*sROI.s[1]*sROI.s[2]))%sROI.s[3];              \
   int e=(idx/(sROI.s[0]*sROI.s[1]*sROI.s[2]*sROI.s[3]))%sROI.s[4];    \
   int ids=x+sOffs.s[0]+sSize.s[0]*(y+sOffs.s[1])+sSize.s[0]*sSize.s[1]*(z+sOffs.s[2])+sSize.s[0]*sSize.s[1]*sSize.s[2]*(t+sOffs.s[3])+sSize.s[0]*sSize.s[1]*sSize.s[2]*sSize.s[3]*(e+sOffs.s[4]);   \
+  if(idx>=N) return;                                                  \
   expressions                                                            \
 }                                                                       \
 extern "C" const char * CUDA ## FktName(float * a, float *c, int sSize[5], int dSize[5], int sOffs[5], int sROI[5], int dOffs[5])  \
 {                                                                       \
     cudaError_t myerr;                                                \
     int N=sROI[0]*sROI[1]*sROI[2]*sROI[3]*sROI[4];                      \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
+	int blockSize;dim3 nBlocks;                                         \
     Size5D sS,dS,sO,sR,dO;                                              \
     int d;                                                              \
     for (d=0;d<5;d++)                                                   \
         {sS.s[d]=sSize[d];dS.s[d]=dSize[d];sO.s[d]=sOffs[d];sR.s[d]=sROI[d];dO.s[d]=dOffs[d];} \
+   MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,c,sS,dS,sO,sR,dO); \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -854,26 +894,27 @@ extern "C" const char * CUDA ## FktName(float * a, float *c, int sSize[5], int d
 __global__ void                                                         \
 FktName(float *c, float br, float bi, Size5D dSize, Size5D dROI, Size5D dOffs) \
 {                                                                       \
-  int idx=(blockIdx.x*blockDim.x+threadIdx.x);                          \
+  int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   int N=dROI.s[0]*dROI.s[1]*dROI.s[2]*dROI.s[3]*dROI.s[4];              \
-  if(idx>=N) return;                                                    \
   int x=(idx)%dROI.s[0];                                               \
   int y=(idx/dROI.s[0])%dROI.s[1];                                    \
   int z=(idx/(dROI.s[0]*dROI.s[1]))%dROI.s[2];                       \
   int t=(idx/(dROI.s[0]*dROI.s[1]*dROI.s[2]))%dROI.s[3];              \
   int e=(idx/(dROI.s[0]*dROI.s[1]*dROI.s[2]*dROI.s[3]))%dROI.s[4];    \
   int idd=x+dOffs.s[0]+dSize.s[0]*(y+dOffs.s[1])+dSize.s[0]*dSize.s[1]*(z+dOffs.s[2])+dSize.s[0]*dSize.s[1]*dSize.s[2]*(t+dOffs.s[3])+dSize.s[0]*dSize.s[1]*dSize.s[2]*dSize.s[3]*(e+dOffs.s[4]);   \
-  expressions                                                            \
+  if(idx>=N) return;                                                    \
+   expressions                                                            \
 }                                                                       \
 extern "C" const char * CUDA ## FktName(float * c, float br, float bi, int dSize[5], int dROI[5], int dOffs[5])  \
 {                                                                       \
     cudaError_t myerr;                                                \
     int N=dROI[0]*dROI[1]*dROI[2]*dROI[3]*dROI[4];                      \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
+	int blockSize;dim3 nBlocks;                                         \
     Size5D dR,dS,dO;                                                    \
     int d;                                                              \
     for (d=0;d<5;d++)                                                   \
         {dS.s[d]=dSize[d];dR.s[d]=dROI[d];dO.s[d]=dOffs[d];}            \
+   MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(c,br,bi,dS,dR,dO);                   \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -886,26 +927,27 @@ extern "C" const char * CUDA ## FktName(float * c, float br, float bi, int dSize
 __global__ void                                                         \
 FktName(float *a, float *c, Size5D dSize, Size5D sSize)       \
 {                                                                       \
-  int idd=(blockIdx.x*blockDim.x+threadIdx.x);                          \
+  int idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   int N=dSize.s[0]*dSize.s[1]*dSize.s[2]*dSize.s[3]*dSize.s[4];                               \
-  if(idd>=N) return;                                                    \
   int x=(idd)%dSize.s[0];                                                \
   int y=(idd/dSize.s[0])%dSize.s[1];                                    \
   int z=(idd/(dSize.s[0]*dSize.s[1]))%dSize.s[2];                       \
   int t=(idd/(dSize.s[0]*dSize.s[1]*dSize.s[2]))%dSize.s[3];              \
   int e=(idd/(dSize.s[0]*dSize.s[1]*dSize.s[2]*dSize.s[3]))%dSize.s[4];    \
   int ids=x%sSize.s[0]+sSize.s[0]*(y%sSize.s[1])+sSize.s[0]*sSize.s[1]*(z%sSize.s[2]) + sSize.s[0]*sSize.s[1]*sSize.s[2]*(t%sSize.s[3])+sSize.s[0]*sSize.s[1]*sSize.s[2]*sSize.s[3]*(e%sSize.s[4]); \
+  if(idd>=N) return;                                                    \
   expressions                                                           \
 }                                                                       \
 extern "C" const char * CUDA ## FktName(float *a, float * c, int sSize[5], int dSize[5])  \
 {                                                                       \
     cudaError_t myerr;                                                  \
     int N=dSize[0]*dSize[1]*dSize[2]*dSize[3]*dSize[4];                 \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          \
+	int blockSize;dim3 nBlocks;                                         \
     Size5D sS,dS;                                                       \
     int d;                                                              \
     for (d=0;d<5;d++)                                                   \
         {dS.s[d]=dSize[d];sS.s[d]=sSize[d];}                            \
+   MemoryLayout(blockSize,nBlocks)                                     \
 	FktName<<<nBlocks,blockSize>>>(a,c,dS,sS);                          \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
@@ -953,6 +995,14 @@ const char * CheckReduceAllocation(int asize) {
 
 extern "C" int GetCurrentRedSize(void) {
     return CurrentRedSize;
+}
+
+int GetMaxThreads(void) {
+    return prop.maxThreadsPerBlock;
+}
+
+int GetMaxBlocksX(void) {
+    return prop.maxGridSize[0];
 }
 
 /*__global__ void                                                         \
@@ -1180,6 +1230,10 @@ CUDA_UnaryFktConst(const_and_arr,{c[idx]=(float) (b!=0) && (a[idx]!=0);})
 // Unary logical operations
 CUDA_UnaryFkt(not_arr,c[idx]=(a[idx] == 0);)
 
+// Unary sign operation
+CUDA_UnaryFkt(sign_arr,c[idx]=(a[idx] > 0)?1 :((a[idx]<0)?-1:0);)
+CUDA_UnaryFkt(sign_carr,int idc=2*idx; float absc=sqrt(a[idc]*a[idc]+a[idc+1]*a[idc+1]); if (absc==0) {c[idc]=0;c[idc+1]=0;} else {c[idc]=a[idc]/absc;c[idc+1]=a[idc+1]/absc;})
+
 // Comparison
 CUDA_BinaryFkt(arr_smaller_arr,c[idx]=a[idx]<b[idx];)
 CUDA_UnaryFktConst(arr_smaller_const,c[idx]=a[idx]<b;)
@@ -1334,14 +1388,16 @@ CUDA_Fkt2Vec(arr_phiphi_2vec,CoordsNDFromIdx(idx,sSize,pos); c[idx]=atan2(vec1.s
 
 
 __global__ void set_arr(float b, float * c, int N)                          
-{                                                                   
-	int idx=blockIdx.x*blockDim.x+threadIdx.x; if(idx>=N) return;   
-	c[idx]=b;
+{                                                          
+   int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x); 
+   if(idx>=N) return;   
+   c[idx]=b;
 }                                                                   
 extern "C" const char * CUDAset_arr(float b, float * c, int N)  
 {                                                                       
-    cudaError_t myerr;                                                \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          
+    cudaError_t myerr;                                                
+	int blockSize;dim3 nBlocks;                                         
+    MemoryLayout(blockSize,nBlocks)                                    
 	set_arr<<<nBlocks,blockSize>>>(b,c,N);                            
   myerr=cudaGetLastError();                                             
   if (myerr != cudaSuccess)                                             
@@ -1351,21 +1407,33 @@ extern "C" const char * CUDAset_arr(float b, float * c, int N)
 
 __global__ void set_carr(float br, float bi, float * c, int N)               
 {                                                                   
-	int idx=blockIdx.x*blockDim.x+threadIdx.x; if(idx>=N) return;   
+   int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x); 
+    if(idx>=N) return;   
     int idc=idx*2;                                                  
 	c[idc]=br;c[idc+1]=bi;
 }
 
 extern "C" const char * CUDAset_carr(float br, float bi, float * c, int N)
 {                                                                       
-    cudaError_t myerr;                                                \
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);          
+    cudaError_t myerr;                                             
+	int blockSize;dim3 nBlocks;                                         
+    MemoryLayout(blockSize,nBlocks)                                    
 	set_carr<<<nBlocks,blockSize>>>(br,bi,c,N);                        
   myerr=cudaGetLastError();                                             
   if (myerr != cudaSuccess)                                             
       return cudaGetErrorString(myerr);                                 
   return 0;                                                             
 }                                                                       
+
+extern "C" const char * SetDeviceProperties() {
+    cudaError_t myerr;                                             
+    int dev=0;
+    cudaGetDevice(&dev);
+    myerr=cudaGetDeviceProperties(&prop,dev);
+    if (myerr != cudaSuccess)  
+        return cudaGetErrorString(myerr);
+    return 0;
+}
 
 
 extern "C" unsigned long CUDAmaxSize() {
@@ -1386,7 +1454,7 @@ extern "C" unsigned long CUDAmaxSize() {
 __global__ void
 arr_times_const_checkerboard(float*a,float b, float * c, int N, int sx,int sy,int sz)
 {
-	int ids=blockIdx.x*blockDim.x+threadIdx.x;   // which source array element do I have to deal with?
+    int ids=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x); // which source array element do I have to deal with?
 	if(ids>=N) return;  // not in range ... quit
 
 	int px=(ids/2)%sx;   // my x pos
@@ -1403,7 +1471,8 @@ extern "C" int CUDAarr_times_const_checkerboard(float * a, float b, float * c, i
     if (dims>2)
         sz=sizes[2];
     int N=sx*sy*sz*2;  // every pair will be processed exactly once
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);	// add extra block if N can't be divided by blockSize
+	int blockSize;dim3 nBlocks;                                         
+    MemoryLayout(blockSize,nBlocks)                                    
 	arr_times_const_checkerboard<<<nBlocks,blockSize>>>(a,b,c,N,sx,sy,sz);
 	return 0;
 }
@@ -1414,7 +1483,7 @@ extern "C" int CUDAarr_times_const_checkerboard(float * a, float b, float * c, i
 __global__ void
 rotate2(float*a,float b, float * c, int sx,int sy,int sz, int dx, int dy, int dz)
 {
-  int ids=(blockIdx.x*blockDim.x+threadIdx.x); // id of this processor
+  int ids=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x); // id of this processor
   int x=(ids + dx)%sx;  // advance by the offset steps along the chain
   int y=(ids/sx + dy)%sy;
   int z=(ids/(sx*sy) + dz)%sz;
@@ -1429,7 +1498,8 @@ rotate2(float*a,float b, float * c, int sx,int sy,int sz, int dx, int dy, int dz
 __global__ void
 rotate(float*a,float b, float * c, int sx,int sy,int sz, int dx, int dy, int dz, int ux, int uy, int uz)
 {
-  int id=(blockIdx.x*blockDim.x+threadIdx.x); // id of this processor
+  // id of this processor
+  int id=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x); 
 
   int Processes=blockDim.x * gridDim.x;
   int chains=ux*uy*uz; // total number of independent chains
@@ -1572,9 +1642,10 @@ extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, int * s
     //    rotate<<<nBlocks,blockSize>>>(a,b,c,sx,sy,sz,dx,dy,dz,ux,uy,uz);  // get unit cell sizes
 
     int N=sx*sy*sz; // includes the space for coomplex numbers
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);	// add extra block if N can't be divided by blockSize
+	int blockSize;dim3 nBlocks;                                         
                                                                 //    printf("BlockSize %d, ux %d, uy %d, uz %d\n",blockSize,ux,uy,uz);
     // unfortunately we have to do it out of place.
+    MemoryLayout(blockSize,nBlocks)                                    
     if (a == c)
     {
         float * d =0;
@@ -1594,7 +1665,8 @@ extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, int * s
 __global__ void
 arr_times_const_scramble(float*a,float b, float * c, int sx,int sy,int sz, int ox, int oy, int oz)
 {
-	int pnum=blockIdx.x*blockDim.x+threadIdx.x;   // which source array element do I have to deal with?
+	// which source array element do I have to deal with?
+    int pnum=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x); 
 
 	int px=pnum%(sx/2);   // my x pos of a complex number in the subarray
 	int py=pnum/(sx/2);   // my y pos of a complex number
@@ -1614,7 +1686,7 @@ arr_times_const_scramble(float*a,float b, float * c, int sx,int sy,int sz, int o
 __global__ void
 array_copy(float*a, float * c, int mx, int my, int mz, int sx,int sy,int sz, int ox, int oy, int oz)  // copies between two memories with different strides
 {
-	int pnum=blockIdx.x*blockDim.x+threadIdx.x;   // which source array element do I have to deal with?
+    int pnum=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x); 
 
 	int px=pnum%(sx/2);   // my x pos of a complex number in the subarray
 	int py=pnum/(sx/2);   // my y pos of a complex number
@@ -1635,6 +1707,7 @@ array_copy(float*a, float * c, int mx, int my, int mz, int sx,int sy,int sz, int
 extern "C" int CUDAarr_times_const_scramble(float * a, float b, float * c, int * sizes, int dims)  // multiplies with a constand and scrambles the array
 {
     int sx=sizes[0],sy=1,sz=1, iseven=1;
+	int blockSize;dim3 nBlocks;                                         
     if (sx%2 == 1) iseven=0;
     if (dims>1) {
         sy=sizes[1];
@@ -1646,7 +1719,7 @@ extern "C" int CUDAarr_times_const_scramble(float * a, float b, float * c, int *
         if (sz%2 == 1) iseven=0;
         }
     int N=sx*sy*sz*2;  // every pair will be processed exactly once
-	int blockSize=BLOCKSIZE; int nBlocks=NBLOCKS(N,blockSize);	// add extra block if N can't be divided by blockSize
+    MemoryLayout(blockSize,nBlocks)                                    
 
     if (! iseven)
         {

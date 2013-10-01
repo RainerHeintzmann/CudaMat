@@ -346,8 +346,7 @@ int dims_sizes,nshifts[CUDA_MAXDIM], dsize[CUDA_MAXDIM],d,tsize=1,ref;          
     	{ printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt(" " #FktName " Bailing out");} \
     Dbg_printf("" #FktName "\n");                                                           \
     } }
-            
-
+    
 static const char * ERROR_NAMES[]={
     "SUCCESS",
     "INVALID_PLAN",
@@ -1349,13 +1348,17 @@ void mexFunction( int nlhs, mxArray *plhs[],
   Dbg_printf4("Pos 1: ignoreDelete state is : %d, command %s, ignoreRef: %d\n",ignoreDelete, command, ignoreRef);
 
   if (!cuda_initialized) {
+      const char * anerror=0;
+      printf("initializing cuda ... ");
       custatus = cublasInit();
-      
       if (custatus != CUBLAS_STATUS_SUCCESS) {
           mexErrMsgTxt("cuda: CUBLAS initialization error\n");
           return;
       }
-      printf("initializing cuda\n");
+      anerror=SetDeviceProperties();
+      if (anerror!=0) { printf("cuda SetDeviceProperties failed: %s\n",anerror); mexErrMsgTxt("SetDeviceProperties Bailing out");}
+      printf("DeviceProperties: Maximal threads per block: %d, maximal blocks: %d\n",GetMaxThreads(),GetMaxBlocksX());
+      
       pOne=cudaPutVal(1.0f);NumOne=free_array;  // keep pointers and reference
       pZero=cudaPutVal(0.0f);NumZero=free_array; // keep pointers and reference
       pReturnVal=cudaPutCVal(0.0f,0.0f);NumReturnVal=free_array; // keep pointers and reference
@@ -2077,6 +2080,11 @@ if ((ignoreDelete!=0) && ((strcmp(command,"delete")!=0) || ((nrhs>1) && ignoreRe
   }
   else if (strcmp(command,"not")==0) { 
       CallCUDA_UnaryRealFkt(not,cudaAlloc)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
+  else if (strcmp(command,"sign")==0) { 
+      CallCUDA_UnaryFkt(sign,cudaAlloc)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }

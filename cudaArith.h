@@ -38,7 +38,9 @@ typedef struct {
 
 externC unsigned long CUDAmaxSize(void);   // returns the maximal total number of threads
 externC int GetCurrentRedSize(void);  // returns the current size of the allocated ReduceArray(s).
-        
+externC int GetMaxThreads(void);  // returns the maximal number of threads per block
+externC int GetMaxBlocksX(void);  // returns the maxmimal number of blocks along X
+
 externC const char * CUDAsum_arr(float * a, int N, float * resp);
 externC const char * CUDAsum_carr(float * a, int N, float * resp);  // N refers to nuhmber of complex entries, resp needs to point to two floats
 externC const char * CUDAmax_arr(float * a, int N, float * resp);   // returns max and index of  maximum, resp needs to point to two floats
@@ -209,6 +211,10 @@ externC const char * CUDAconst_and_arr(float * a, float b, float * c, int N);
 
 // not operation
 externC const char * CUDAnot_arr(float * a, float * c, int N);
+
+// sign operation
+externC const char * CUDAsign_arr(float * a, float * c, int N);
+externC const char * CUDAsign_carr(float * a, float * c, int N);
 
 // smaller than
 externC const char * CUDAarr_smaller_arr(float * a, float * b, float * c, int N);
