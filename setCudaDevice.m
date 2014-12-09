@@ -1,4 +1,6 @@
-% any(in1): computes if any value is unequal zero of a cuda array
+% setCudaDevice(devnum) :  Activates a cuda device with the device number given
+% devnum : device number to activate. All new allocations will go to this device.
+%
 
 %************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
@@ -19,15 +21,5 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-
-function out = any(in1)
-if isa(in1,'cuda') 
-    out=cuda_cuda('any',in1.ref);  % returns a number
-end
-out.isBinary = 1; % mark this as a binary result (needed for subsasgn)
-
-%if isa(in1,'cuda')
-%     val= sum(in1~=0)>0;
-%else
-%    error('unary any: Unknown datatype');
-%end
+function setCudaDevice(devnum)
+    cuda_cuda('setDevice',devnum);

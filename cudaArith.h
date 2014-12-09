@@ -23,6 +23,7 @@
 
 #define CUDA_MAXDIM 5   // is needed for transferring parameters, CAREFUL! This uses for some function this number of variables on each processor
 #define CUDA_MAXPROJ 5  // needed for projections
+#define ACCUTYPE double   // is used in cudaArith.cu and cuda_cuda.c  to define the type in which accumulation operations are computed
 
 // THESE STRUCT DEVINITION ARE NEEDED, AS CUDA CANNOT DEAL CORRECTLY WITH FIXED LENGTH ARRAYS IN THE ARGUMENT
 // ACCESING THEM WILL CAUSE A CRASH!
@@ -39,12 +40,15 @@ typedef struct {
 externC unsigned long CUDAmaxSize(void);   // returns the maximal total number of threads
 externC int GetCurrentRedSize(void);  // returns the current size of the allocated ReduceArray(s).
 externC int GetMaxThreads(void);  // returns the maximal number of threads per block
-externC int GetMaxBlocksX(void);  // returns the maxmimal number of blocks along X
+externC int ReduceThreadsDef(void);
+externC long GetMaxBlocksX(void);  // returns the maxmimal number of blocks along X
+externC struct cudaDeviceProp GetDeviceProp(void);  // returns the device properties of the active cuda device
+externC const char * SetDeviceProperties(void);  // initializes a static variable with the device properties
 
-externC const char * CUDAsum_arr(float * a, int N, float * resp);
-externC const char * CUDAsum_carr(float * a, int N, float * resp);  // N refers to nuhmber of complex entries, resp needs to point to two floats
-externC const char * CUDAmax_arr(float * a, int N, float * resp);   // returns max and index of  maximum, resp needs to point to two floats
-externC const char * CUDAmin_arr(float * a, int N, float * resp);   // returns max and index of  maximum, resp needs to point to two floats
+externC const char * CUDAsum_arr(float * a, int N, ACCUTYPE * resp);
+externC const char * CUDAsum_carr(float * a, int N, ACCUTYPE * resp);  // N refers to nuhmber of complex entries, resp needs to point to two floats
+externC const char * CUDAmax_arr(float * a, int N, ACCUTYPE * resp);   // returns max and index of  maximum, resp needs to point to two floats
+externC const char * CUDAmin_arr(float * a, int N, ACCUTYPE * resp);   // returns max and index of  maximum, resp needs to point to two floats
 
 // partial reductions
 externC const char * CUDApsum_arr(float * a, float * mask,float * c, int sSize[5], int ProjDir);  // partial reductions (projections)
@@ -183,6 +187,14 @@ externC const char * CUDACconst_minus_arr(float * a, float br, float bi, float *
 externC const char * CUDAarr_subsref_arr(float * in, float * mask, float *  out, int N, int * pM);
 externC const char * CUDAcarr_subsref_arr(float * in, float * mask, float *  out, int N, int * pM);
 
+externC const char * CUDAarr_subsref_ind(float * a, float * b, float * c, int N, int M);
+externC const char * CUDAcarr_subsref_ind(float * a, float * b, float * c, int N, int M);
+externC const char * CUDAarr_subsasgn_ind(float * a, float * b, float * c, int N, int M);
+externC const char * CUDAcarr_subsasgn_ind(float * a, float * b, float * c, int N, int M);
+externC const char * CUDAarr_subsasgn_const(float * a, float b, float * c, int N);
+externC const char * CUDAarr_subsasgn_Cconst(float * a, float br, float bi, float * c, int N);
+externC const char * CUDAcarr_subsasgn_const(float * a, float br, float bi, float * c, int N);
+
 // diagonal matrix generation
 externC const char * CUDAarr_diag_set(float * a, float * c,int sSize[3], int dSize[3], int sOffs[3], int sROI[3], int dOffs[3]);
 externC const char * CUDAcarr_diag_set(float * a, float * c,int sSize[3], int dSize[3], int sOffs[3], int sROI[3], int dOffs[3]);
@@ -268,6 +280,15 @@ externC const char * CUDAset_carr(float br, float bi, float * c, int N);
 
 externC const char * CUDAuminus_arr(float * a, float * c, int N);
 externC const char * CUDAuminus_carr(float * a, float * c, int N);
+
+externC const char * CUDAround_arr(float * a, float * c, int N);
+externC const char * CUDAround_carr(float * a, float * c, int N);
+
+externC const char * CUDAfloor_arr(float * a, float * c, int N);
+externC const char * CUDAfloor_carr(float * a, float * c, int N);
+
+externC const char * CUDAceil_arr(float * a, float * c, int N);
+externC const char * CUDAceil_carr(float * a, float * c, int N);
 
 externC const char * CUDAexp_arr(float * a, float * c, int N);
 externC const char * CUDAexp_carr(float * a, float * c, int N);

@@ -76,7 +76,7 @@ elseif all(transformdir == [1 1 0])
             tmp2=ift(tmp);
         end
         out.ref=cuda_cuda('subsasgn_block',tmp2.ref,out.ref,moffs,msize,-1);  % is an array to assing, next delete ignored
-        % cuda_cuda('delete',tmp.ref);
+        cuda_cuda('delete',tmp.ref);
     end
 elseif all(transformdir == [1 0 1])
     out=newim_cuda2(cuda(0),mz,'scomplex');
@@ -91,13 +91,13 @@ elseif all(transformdir == [1 0 1])
             tmp2=ift(tmp);
         end
         out.ref=cuda_cuda('subsasgn_block',tmp2.ref,out.ref,moffs,msize,-1);  % is an array to assing, next delete ignored
-        % cuda_cuda('delete',tmp.ref);
+        cuda_cuda('delete',tmp.ref);
     end
 elseif all(transformdir == [0 1 1])
-    out=newim_cuda2(mz,'scomplex');
+    out=newim_cuda2(cuda(0),mz,'scomplex');
     tmp=newim_cuda2(cuda(0),mz(2),mz(3));
     for p=0:mz(1)-1
-        moffs=[p 0 0];
+        moffs=[0 p q];
         msize=[1 mz(2) mz(3)];
         tmp.ref=cuda_cuda('subsref_block',in.ref,moffs,msize);
         if fwd
@@ -106,7 +106,24 @@ elseif all(transformdir == [0 1 1])
             tmp2=ift(tmp);
         end
         out.ref=cuda_cuda('subsasgn_block',tmp2.ref,out.ref,moffs,msize,-1);  % is an array to assing, next delete ignored
-        % cuda_cuda('delete',tmp.ref);
+        cuda_cuda('delete',tmp.ref);
+    end
+elseif all(transformdir == [1 0 0])
+    out=newim_cuda2(cuda(0),mz,'scomplex');
+    tmp=newim_cuda2(cuda(0),mz(1),1); 
+    for q=0:mz(3)-1
+        for p=0:mz(2)-1  % because direction 1 was switched with 2
+            moffs=[p 0 q];
+            msize=[1 mz(1) 1];
+            tmp.ref=cuda_cuda('subsref_block',in.ref,moffs,msize);
+            if fwd
+                tmp2=ft(tmp);
+            else
+                tmp2=ift(tmp);
+            end
+            out.ref=cuda_cuda('subsasgn_block',tmp2.ref,out.ref,moffs,msize,-1);  % is an array to assing, next delete ignored
+            cuda_cuda('delete',tmp.ref);
+        end
     end
 else
     error('yet unsupported single directional transform');

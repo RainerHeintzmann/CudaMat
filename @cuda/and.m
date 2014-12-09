@@ -28,6 +28,7 @@ end
 if prod(size(in2)) > 1 && ~isa(in2,'cuda')
     in2=cuda(in2);
 end
+out.isBinary = 1; % mark this as a binary result (needed for subsasgn)
 
 if isa(in1,'cuda') && prod(size(in2)) == 1
     if isa(in2,'cuda')

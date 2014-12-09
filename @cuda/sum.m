@@ -31,7 +31,7 @@ if isa(in1,'cuda')
     end
 
     if in1.fromDip
-        if (nargin < 2)  % sum over all pixels
+        if isempty(maskref) && (nargin < 3 || isempty(projdir))  % sum over all pixels
              val=cuda_cuda('sum',in1.ref);
         else
             if nargin < 3  % sum over all pixels with mask. For now: Have to use the part_sum function

@@ -1,4 +1,4 @@
-% any(in1): computes if any value is unequal zero of a cuda array
+% enableCudaWarning : enables the warning message about protected deletions in CudaMat
 
 %************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
@@ -19,15 +19,6 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-
-function out = any(in1)
-if isa(in1,'cuda') 
-    out=cuda_cuda('any',in1.ref);  % returns a number
-end
-out.isBinary = 1; % mark this as a binary result (needed for subsasgn)
-
-%if isa(in1,'cuda')
-%     val= sum(in1~=0)>0;
-%else
-%    error('unary any: Unknown datatype');
-%end
+function enableCudaWarning
+cuda_cuda('enableWarning');
+fprintf('Cuda Warning enabled\n');

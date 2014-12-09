@@ -28,3 +28,4 @@ else
     error('not: Unknown datatype');
 end
 out.fromDip = in1.fromDip;  
+out.isBinary = 1; % mark this as a binary result (needed for subsasgn)

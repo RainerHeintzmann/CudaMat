@@ -44,3 +44,5 @@ elseif isa(in1,'cuda') && isa(in2,'cuda')
     out.ref=cuda_cuda('larger',in2.ref,in1.ref);
     out.fromDip = (in1.fromDip || in2.fromDip);   % If eiter was dipimage, result will be
 end
+
+out.isBinary = 1; % mark this as a binary result (needed for subsasgn)

@@ -24,12 +24,14 @@ classdef cuda < handle
     properties
         ref
         fromDip    % was this variable generated from a DipImage (or from a matlab double object)?
+        isBinary    % is this a binary vector (or image), in matlab called 'logical'
     end
     methods
         function out=cuda(rhs,rhs2)
             if nargin == 0
                 %fprintf('constructing empty cuda object\n');
                 out.ref=-1;
+                out.isBinary=0;
             elseif nargin == 1
                 in=rhs;
                 %fprintf('constructing cuda obj\n');
@@ -37,9 +39,13 @@ classdef cuda < handle
                     % fprintf('cuda copy constructor\n');  % jsut ignore this
                     out=in;
                 elseif isa(in,'double') || isa(in,'single')
+                    if ~isempty(in)
                     out.ref=cuda_cuda('put',single(in));
                     out.fromDip=0;
                     cuda_cuda('setSize',out.ref,size(in)); % just because matlab can eliminate sizes during cast to single
+                    else
+                        error('Cannot convert an empty object to cuda');
+                    end
                 elseif isa(in,'dip_image')
                     if strcmp(datatype(in), 'scomplex') || strcmp(datatype(in), 'dcomplex')
                         out.ref=cuda_cuda('put',single(in));

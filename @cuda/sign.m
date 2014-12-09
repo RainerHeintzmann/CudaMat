@@ -1,4 +1,4 @@
-% any(in1): computes if any value is unequal zero of a cuda array
+% sign(in) : returns the sign in every pixel
 
 %************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
@@ -20,14 +20,11 @@
 %**************************************************************************
 %
 
-function out = any(in1)
+function out = sign(in1)
+out=cuda();
 if isa(in1,'cuda') 
-    out=cuda_cuda('any',in1.ref);  % returns a number
+     out.ref=cuda_cuda('sign',in1.ref);
+else
+    error('sign: Unknown datatype');
 end
-out.isBinary = 1; % mark this as a binary result (needed for subsasgn)
-
-%if isa(in1,'cuda')
-%     val= sum(in1~=0)>0;
-%else
-%    error('unary any: Unknown datatype');
-%end
+out.fromDip = in1.fromDip;  

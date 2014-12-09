@@ -26,3 +26,4 @@ if isa(in,'cuda')
 else
     error('fft: Unsupported datatype');
 end
+out.fromDip=in.fromDip;

@@ -25,4 +25,5 @@ function out = copy(in)
 out=cuda();
 out.ref=cuda_cuda('copy',in.ref);
 out.fromDip=in.fromDip;
+out.isBinary=in.isBinary;
 

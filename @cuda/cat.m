@@ -21,11 +21,27 @@
 %
 
 function out = cat(direction,varargin)
+if size(varargin,2)==1  % only copy (transport) the input to output
+    if direction > ndims(varargin{1})
+        out=copy(varargin{1});  % unfortunately a real copy has to be done here as the input is still lower dimensional in size and cannot be modified
+        mysize=size(out);
+        mysize(length(mysize)+1:direction)=1;  % expands the dimensions
+        cuda_cuda('setSize',out.ref,mysize);
+        if out.fromDip
+            if (length(mysize)>1)
+                cuda_cuda('swapSize',out.ref); % to deal with strange size order in DipImage
+            end
+        end
+    else
+        out=varargin{1};
+    end
+else
 out=cuda();
 for pos=1:length(varargin)
         varargin{pos}=cuda(varargin{pos});
 end
 out.fromDip = varargin{1}.fromDip;
+out.isBinary = varargin{1}.isBinary; % mark this as a binary result (needed for subsasgn)
 out.ref= varargin{1}.ref;
 
 if varargin{1}.fromDip
@@ -49,4 +65,6 @@ for m=2:size(varargin,2)
         cuda_cuda('delete',refold);
     end
     out.fromDip = out.fromDip || varargin{m}.fromDip; % If eiter was dipimage, result will be
+    out.isBinary = out.isBinary && varargin{m}.isBinary;
+end
 end

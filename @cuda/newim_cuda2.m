@@ -21,13 +21,13 @@
 %
 function out=newim_cuda2(in,varargin)
     myconst=0;
-    if isstr(varargin{end})
+    if ~isempty(varargin) && ischar(varargin{end})
         if (strcmp(varargin{end},'scomplex') || strcmp(varargin{end},'dcomplex'))
-            myconst=complex(0,0);
-        elseif (~strcmp(varargin{end},'single') && ~strcmp(varargin{end},'double') && ~strcmp(varargin{end},'sfloat') && ~strcmp(varargin{end},'dfloat'))
-            error('newim_cuda : trying to construct an unsupported datatype');
-        end
-        args={varargin{1:end-1}}; % size, vectors get converted correctlya as well
+            myconst=complex(0,0);        
+        elseif (~strcmp(varargin{end},'bin') && ~strcmp(varargin{end},'single') && ~strcmp(varargin{end},'double') && ~strcmp(varargin{end},'sfloat') && ~strcmp(varargin{end},'dfloat'))
+             error('newim_cuda : trying to construct an unsupported datatype');
+        end  % all of these types are simply treated as single float.
+        args={varargin{1:end-1}}; % size, vectors get converted correctly as well
     else
         args={varargin{1:end}};
     end
@@ -37,6 +37,9 @@ function out=newim_cuda2(in,varargin)
         end
     end
     ms=cell2mat(args); % size, vectors get converted correctlya as well
+    if isempty(ms)
+        ms=[256 256];
+    end
     if prod(ms) == 1
         out=myconst;
     else
@@ -45,8 +48,8 @@ function out=newim_cuda2(in,varargin)
             ms(2)=ms(1);
             ms(1)=tmp;
         end
-        out=in;
-        cuda_cuda('delete',out.ref);
+        out=cuda();
+        % cuda_cuda('delete',out.ref);
         out.ref=cuda_cuda('newarr',ms,myconst);
         out.fromDip=1;
     end

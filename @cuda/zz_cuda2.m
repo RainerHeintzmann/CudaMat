@@ -63,10 +63,10 @@ function out=zz_cuda2(in,varargin)
             endVec=[0 0 floor(dsize/2)+1];
         case {'freq','mfreq'}
             startVec=[0 0 -floor(dsize/2)/(2*floor(dsize/2))];
-            endVec=[0 0 floor((v+1)/2)/(2*floor(dsize/2))];
+            endVec=[0 0 floor((dsize+1)/2)/(2*floor(dsize/2))];
         case {'radfreq','mradfreq'}
             startVec=[0 0 -pi*floor(dsize/2)/(floor(dsize/2))];
-            endVec=[0 0 pi*floor((v+1)/2)/(floor(dsize/2))];
+            endVec=[0 0 pi*floor((dsize+1)/2)/(floor(dsize/2))];
         other
     end
     startVec(isnan(startVec)|isinf(startVec))=0;

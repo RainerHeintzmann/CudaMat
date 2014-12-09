@@ -1,4 +1,4 @@
-% any(in1): computes if any value is unequal zero of a cuda array
+% ft3d(in) Fourier transforms cuda dat (up to 3D), DipImage style
 
 %************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
@@ -19,15 +19,11 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-
-function out = any(in1)
-if isa(in1,'cuda') 
-    out=cuda_cuda('any',in1.ref);  % returns a number
+function out=ift3d(in)
+out=cuda();
+if isa(in,'cuda') 
+    out.ref=cuda_cuda('fft3d',in.ref,-2);  % inverse
+else
+error('fft: Unsupported datatype');
 end
-out.isBinary = 1; % mark this as a binary result (needed for subsasgn)
-
-%if isa(in1,'cuda')
-%     val= sum(in1~=0)>0;
-%else
-%    error('unary any: Unknown datatype');
-%end
+out.fromDip=in.fromDip;

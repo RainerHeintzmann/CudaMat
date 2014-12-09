@@ -37,7 +37,7 @@ if isa(in1,'cuda')
     end
     
     if in1.fromDip
-        if (nargin < 2)  % mean over all pixels
+        if isempty(maskref) && (nargin < 3 || isempty(projdir)) % mean over all pixels
             val=cuda_cuda('sum',in1.ref);
             val=val/prod(size(in1));
         else
