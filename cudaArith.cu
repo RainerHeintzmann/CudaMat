@@ -32,6 +32,7 @@ system('nvcc -c cudaArith.cu -v -I/usr/local/cuda/include/')
 
 #include <cuda.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <math.h>
 #ifndef NAN   // should be part of math.h
 #define NAN (0.0/0.0)
@@ -1245,7 +1246,7 @@ CUDA_UnaryFktConst(arr_minus_const,c[idx]=a[idx]-b;)
 CUDA_UnaryFktConst(const_minus_arr,c[idx]=b-a[idx];)
 CUDA_UnaryFktConstC(carr_minus_const,int idc=2*idx;c[idc]=a[idc]-br;c[idc+1]=a[idc+1]-bi;)
 CUDA_UnaryFktConstC(const_minus_carr,int idc=2*idx;c[idc]=br-a[idc];c[idc+1]=bi-a[idc+1];)
-CUDA_UnaryFktConstC(arr_minus_Cconst,int idc=2*idx;c[idc]=a[idx]-br;c[idc+1]=a[idx]-bi;)
+CUDA_UnaryFktConstC(arr_minus_Cconst,int idc=2*idx;c[idc]=a[idx]-br;c[idc+1]=-bi;)
 CUDA_UnaryFktConstC(Cconst_minus_arr,int idc=2*idx;c[idc]=br-a[idx];c[idc+1]=bi;)
 
 // Referencing and assignment  // STILL NEEDS SOME WORK

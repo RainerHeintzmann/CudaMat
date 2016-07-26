@@ -147,6 +147,7 @@ p, .Normal {
 
 
 
+
       given at the top of the file <span style="font-style: italic;">cudaArith.cu</span>.<br>
       <h2>Is there a demo to quickly check the performance increase?</h2>
       Yes. CudaMat comes with a two test programs '<span
@@ -180,6 +181,7 @@ p, .Normal {
         style="font-style: italic;"> <a
           href="http://www.di.ens.fr/%7Emschmidt/Software/minFunc.html">minFunc()</a>
       </span>written by <a href="http://www.di.ens.fr/%7Emschmidt/">Mark
+
 
 
 
@@ -243,6 +245,7 @@ p, .Normal {
 
 
 
+
         no changes to the Matlab code should be necessary.</span><br>
       However, practically minor changes can be necessary, if CudaMat
       does not support the operation used in the Matlab code. This is
@@ -265,6 +268,7 @@ p, .Normal {
       transferring from the graphics card.<br>
       In other cases the user will have to either force this conversion
       (e.g. using <span style="font-style: italic;">single_force(a)</span>),
+
 
 
 
@@ -342,6 +346,7 @@ p, .Normal {
 
 
 
+
       </span>and executes the code given there. In this way it is
       ensured that code can efficiently be executed on the graphics
       card, without the cuda objects leaving the card.<br>
@@ -355,6 +360,7 @@ p, .Normal {
       displaying an image) the data is transferred back from the
       graphics card to Matlab. <br>
       The commands <span style="font-style: italic;">double_force(a) </span>and
+
 
 
 
@@ -400,7 +406,9 @@ p, .Normal {
 
 
 
+
       </span>or <span style="font-style: italic;">double_force(a) </span>with
+
 
 
 
@@ -565,6 +573,7 @@ p, .Normal {
 
 
 
+
           current version</a> as a tar-gzip-file with all the necessary
         classes and an example html-file in it. Just place the CudaMat
         folder somewhere, add it to the Matlab path and call initCuda
@@ -578,10 +587,29 @@ p, .Normal {
       graphics card which can run cuda programs (above GeForce 8800).<br>
       This software is released under the GPL2 license. It can be used
       for non-commercial purposes.
+      <h2>Installation instructions</h2>
+      <p>CudaMat can be installed in two different ways. The easy way
+        is, if there is no need to modify any cuda code. You can simply
+        download the newest version of CudaMat and unzip it. It will
+        contain a folder called "user64bitCuda6VC11" or similar.<br>
+        This folder has to be copied to the temp file location as
+        obtained by typing "tempdir" in you Matlab installation and
+        renamed to "user". This directory will be user-specific.<br>
+        Then only a Cuda Runtime library needs to be installed
+        corresponding to the Cuda version in the filename and possibly
+        C-runtime libraries corresponding to the C-version in the
+        filename.<br>
+      </p>
+      <p>However, it should be noted, that this does not give you the
+        capability of recompiling code or introducing user-defined cuda
+        funtions. Thus you do not get the full benefit of CudaMat but
+        should be able to run some fast code anyway.<br>
+      </p>
       <h2>Installation instructions (64 Linux system)<br>
       </h2>
       <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
         margin-right: 0in;" dir="ltr">Download <a href="CudaMat.zip">the
+
 
 
 
@@ -690,6 +718,7 @@ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/MATLAB/dip/Linuxa64/lib:/usr/local/c
       </p>
       <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
         margin-right: 0in;" dir="ltr"><span style="font-style: italic;">cd
+
 
 
 
@@ -860,6 +889,7 @@ href="http://stackoverflow.com/questions/8900617/how-can-i-setup-nvcc-to-use-vis
       <h2>Bug reports</h2>
       If you find any bugs, please send them to me under<span
         style="font-style: italic;"> heintzmannd at gmail dot com </span>stating
+
 
 
 

@@ -83,15 +83,22 @@ else
     MEXFLAGS='';
 end
 if ispc
-    if CVERSION==11
-        CudaComp=' -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include" ';
+    if CVERSION==14
+        % CudaComp=' --cl-version 2013 -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64" "-Ic:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include" -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include" ';
+        CudaComp=' --cl-version 2013 -ccbin "d:\Programme (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64" "-ID:\Programme (x86)\Microsoft Visual Studio 14.0\VC\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include" -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include" ';
+    elseif CVERSION==12
+        CudaComp=' --cl-version 2013 -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64" "-Ic:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include" -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include" ';
+    elseif CVERSION==11
+        CudaComp=' -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include" -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include" ';
     elseif CVERSION==10
         CudaComp=' -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include" ';
     else
         warning('No global CVERSION flag was set. Assuming version 11.0. Choices are 9, 10 or 11.')
         CudaComp=' -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include" ';
     end
-    if CudaVERSION==6
+    if CudaVERSION==7
+        MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\lib\x64" ';
+    elseif CudaVERSION==6
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\lib\x64" ';
     elseif CudaVERSION==5
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\lib\x64" ';

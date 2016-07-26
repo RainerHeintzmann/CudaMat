@@ -67,7 +67,9 @@ function out=zz_cuda2(in,varargin)
         case {'radfreq','mradfreq'}
             startVec=[0 0 -pi*floor(dsize/2)/(floor(dsize/2))];
             endVec=[0 0 pi*floor((dsize+1)/2)/(floor(dsize/2))];
-        other
+        otherwise
+            fprintf('Wrong location method: %s. ',location);
+            error('Location method not implemented');
     end
     startVec(isnan(startVec)|isinf(startVec))=0;
     endVec(isnan(endVec)|isinf(endVec))=0;
