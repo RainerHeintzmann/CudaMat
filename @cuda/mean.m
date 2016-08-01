@@ -48,14 +48,15 @@ if isa(in1,'cuda')
             val=cuda();
             val.fromDip = 1;
            for p=1:length(projdir)
-                if projdir(p) == 1
+               origprojdir=projdir(p);
+                if origprojdir == 1
                     projdir(p) = 2;
-                elseif projdir(p) == 2
+                elseif origprojdir == 2
                     projdir(p) = 1;
                 end
                 val.ref=cuda_cuda('part_sum',inref,maskref,projdir(p));
                 if isempty(mask)
-                    val=val/size(in1,p);
+                    val=val/size(in1,origprojdir);
                 end
 
                 if p > 1

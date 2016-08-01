@@ -54,30 +54,7 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
 
 // #define DEBUG
 
-
-#ifndef NOCULA
-// #include "culadevice.h"    // Only for old Cula releases
-#include "cula.h"   // Later releases such as R14
-#include "cula_device.h"   // Later releases such as R14
-#endif
-
-#define UseHeap            // if defined the heap allocation and recycling is used. Otherwise normal allocation and free is used
-#define AllocBlas          // use the cublasAlloc and free functions instead of cudaMalloc and cudaFree
-
-#define MAX_ARRAYS 65738   // maximum number of arrays simultaneously on card
-
-#ifdef UseHeap
-#define MAX_HEAP 25        // size of the heap of arrays to recycle
-#endif
-
-#define CHECK_CUDAREF(p)     {if ((((double) (int) p) != p) || (p < 0) || (p >= MAX_ARRAYS)) \
-          mexErrMsgTxt("cuda: Reference must be an integer between 0 and max_array\n");}
-
-#define CHECK_CUDASIZES(ref1,ref2)     {if (cuda_array_dim[ref1] != cuda_array_dim[ref2]) mexErrMsgTxt("cuda: Arrays have different dimensionalities\n"); \
-         int d; for (d=0;d< cuda_array_dim[ref1]) if (cuda_array_size[ref1][d] != cuda_array_size[ref2][d])\
-          mexErrMsgTxt("cuda: Array sizes must be equal in all dimensions\n");}
-#define CHECK_CUDATotalSIZES(ref1,ref2) {if (getTotalSizeFromRefNum(ref1) != getTotalSizeFromRefNum(ref2)) mexErrMsgTxt("cuda: Total array sizes are unequal. Bailing out\n");}
-
+          
 #ifdef DEBUG
 #define Dbg_printf(arg) printf(arg)
 #define Dbg_printf2(arg1,arg2) printf(arg1,arg2)
@@ -95,11 +72,65 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
 #define Dbg_printf6(arg1,arg2,arg3,arg4,arg5,arg6) 
 #define Dbg_printf7(arg1,arg2,arg3,arg4,arg5,arg6,arg7) 
 #endif
-
-
-// is defined in stdlib.h
-// #define min(a,b) ((a)<(b) ? (a):(b))
         
+
+#ifndef NOCULA
+// #include "culadevice.h"    // Only for old Cula releases
+#include "cula.h"   // Later releases such as R14
+#include "cula_device.h"   // Later releases such as R14
+#endif
+
+#define UseHeap            // if defined the heap allocation and recycling is used. Otherwise normal allocation and free is used
+#define AllocBlas          // use the cublasAlloc and free functions instead of cudaMalloc and cudaFree
+
+#define MAX_ARRAYS 65738   // maximum number of arrays simultaneously on card
+
+#ifdef UseHeap
+#define MAX_HEAP 25        // size of the heap of arrays to recycle
+#endif
+
+// is defined in stdlib.h in Windows which is WRONG!!
+#undef min
+#define min(a,b) ((a)<(b) ? (a):(b))   // define our own version so that it is compatible with Linux and Windows
+// is defined in stdlib.h in Windows which is WRONG!!
+#undef max
+#define max(a,b) ((a)>(b) ? (a):(b))   // define our own version so that it is compatible with Linux and Windows
+
+#define CHECK_CUDAREF(p)     {if ((((double) (int) p) != p) || (p < 0) || (p >= MAX_ARRAYS)) \
+          mexErrMsgTxt("cuda: Reference must be an integer between 0 and max_array\n");}
+
+#define CHECK_CUDASIZES(ref1,ref2)     {if (cuda_array_dim[ref1] != cuda_array_dim[ref2]) mexErrMsgTxt("cuda: Arrays have different dimensionalities\n"); \
+         int d; for (d=0;d< cuda_array_dim[ref1]) if (cuda_array_size[ref1][d] != cuda_array_size[ref2][d])\
+          mexErrMsgTxt("cuda: Array sizes must be equal in all dimensions\n");}
+#define CHECK_CUDATotalSIZES(ref1,ref2) {if (getTotalSizeFromRefNum(ref1) != getTotalSizeFromRefNum(ref2)) mexErrMsgTxt("cuda: Total array sizes are unequal. Bailing out\n");}
+
+// TODO: New checksize for WrapExpand:
+// If sizes not equal: check if one dimension size is 1
+#define CHECK_CUDATotalSIZESSingleton(ref1,ref2,totalResSize, sizeC, singletonA, singletonB, numdims, hasSingleton) { \
+    int d;                                                                      \
+    int dimsA=cuda_array_dim[ref1], dimsB=cuda_array_dim[ref2], SA,SB;          \
+    totalResSize=1;   \
+    SizeND sizeA=getSizeFromRefNum(ref1), sizeB=getSizeFromRefNum(ref2);   \
+    numdims=max(dimsA,dimsB);                                                   \
+    Dbg_printf4("CHECK_CUDATotalSIZESSingleton numdims %d, ref1 %d ref2 %d\n",numdims,ref1,ref2); \
+    for (d=0;d<CUDA_MAXDIM;d++) {                                               \
+    Dbg_printf2("CHECK_CUDATotalSIZESSingleton d %d \n",d); \
+        if (d>dimsA) sizeA.s[d]=1;                                                \
+        if (d>dimsB) sizeB.s[d]=1;                                                \
+        singletonA.s[d]=0;singletonB.s[d]=0;                                        \
+        SA=sizeA.s[d]; SB=sizeB.s[d];                                       \
+        sizeC.s[d]=max(SA,SB);                                        \
+    Dbg_printf5("d %d SizeA: %d, SizeB: %d, SizeC %d\n",d,SA,SB,sizeC.s[d]); \
+        totalResSize *= sizeC.s[d];                                               \
+        if (SA != SB)                                               \
+            if (SA != 1 && SB != 1)                                     \
+            { mexErrMsgTxt("cuda: Sizes are incompatible, even considering singleton dimensions. Bailing out\n");} \
+            else if (SA==1) {singletonA.s[d]=1;hasSingleton=1;}             \
+            else {singletonB.s[d]=1;hasSingleton=1;}                              \
+    }                                                                               \
+    Dbg_printf7("CHECK_CUDATotalSIZESSingleton ref1 %d, ref2 %d, totalResSize %d sizeC[0] %d sizeC[1] %d hasSingleton %d\n",ref1,ref2,totalResSize,sizeC.s[0],sizeC.s[1],hasSingleton); \
+}
+   
 // Generates a new array (float * newarr) from a size vector
 #define CUDA_NewArrayFromSize(IsComplex)                                                    \
     int dims_sizes,nsizes[CUDA_MAXDIM],d,tsize=1;                                           \
@@ -163,25 +194,56 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
         }                                                                                   \
     } 
 
-//  ----------------- general macro for binary array functions such as plus and minus ---------
-#define CallCUDA_BinaryFkt(FktName,AllocFkt)                                         \
+    /*  This was for debugging purposes. Commented out for now
+
+    //  ----------------- general macro for binary array functions such as plus and minus ---------
+#define CallCUDA_BinaryFktOld(FktName,AllocFkt)                                         \
     const char *ret=0; int _ref1,_ref2;                                                     \
+    int TotalResSize=0, numdims=0, usedims=0, hasSingleton=0; SizeND sizeC; BoolND singletonA,singletonB;              \
     if (nrhs != 3) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");               \
     _ref1=getCudaRefNum(prhs[1]);_ref2=getCudaRefNum(prhs[2]);                              \
-    CHECK_CUDATotalSIZES(_ref1,_ref2);                                                             \
+    CHECK_CUDATotalSIZESSingleton(_ref1,_ref2, TotalResSize, sizeC, singletonA, singletonB, numdims, hasSingleton) \
+        Dbg_printf3("TotalSize %d, %d\n",TotalResSize,getTotalSizeFromRef(prhs[1]));                                     \
     if (isComplexType(_ref1) && isComplexType(_ref2)) {                                     \
         Dbg_printf("cuda: complex array " #FktName " complex array\n");                     \
-        ret=CUDAcarr_##FktName##_carr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1]),getTotalSizeFromRef(prhs[1])); } \
+        ret=CUDAcarr_##FktName##_carr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1],sizeC,numdims),getTotalSizeFromRef(prhs[1]),usedims,sizeC,singletonA,singletonB); } \
     else if (isComplexType(_ref1)) {                                       \
         Dbg_printf("cuda: complex array " #FktName " float array\n");                       \
-        ret=CUDAcarr_##FktName##_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1]),getTotalSizeFromRef(prhs[1])); } \
+        ret=CUDAcarr_##FktName##_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1],sizeC,numdims),getTotalSizeFromRef(prhs[1]),usedims,sizeC,singletonA,singletonB); } \
     else if (isComplexType(_ref2)) {                                       \
         Dbg_printf("cuda: float array " #FktName " complex array\n");                       \
-        ret=CUDAarr_##FktName##_carr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[2]),getTotalSizeFromRef(prhs[1])); }\
+        ret=CUDAarr_##FktName##_carr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1],sizeC,numdims),getTotalSizeFromRef(prhs[1]),usedims,sizeC,singletonA,singletonB); }\
     else {                                                                                  \
         Dbg_printf("cuda: array " #FktName " array\n");                                     \
-        ret=CUDAarr_##FktName##_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1]),getTotalSizeFromRef(prhs[1])); }\
+        Dbg_printf3("TotalSize %d, %d\n",TotalResSize,getTotalSizeFromRef(prhs[1]));                                     \
+        ret=CUDAarr_##FktName##_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1],sizeC,numdims),getTotalSizeFromRef(prhs[1]),usedims,sizeC,singletonA,singletonB); }\
     if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  \
+*/                
+                
+//  ----------------- general macro for binary array functions such as plus and minus ---------
+#define CallCUDA_BinaryFkt(FktName,AllocFkt)                                                \
+    const char *ret=0; int _ref1,_ref2;                                                     \
+    int TotalResSize=0, numdims=0, usedims=0, hasSingleton=0; SizeND sizeC; BoolND singletonA,singletonB;              \
+    Dbg_printf("cuda: CallCUDA_BinaryFkt: " #FktName " Checkpoint 1\n");                     \
+    if (nrhs != 3) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");              \
+    _ref1=getCudaRefNum(prhs[1]);_ref2=getCudaRefNum(prhs[2]);                              \
+    Dbg_printf("cuda: CallCUDA_BinaryFkt: " #FktName " before CHECK_CUDATotalSIZESSingleton\n");                     \
+    CHECK_CUDATotalSIZESSingleton(_ref1,_ref2, TotalResSize, sizeC, singletonA, singletonB, numdims, hasSingleton) \
+    usedims=numdims;                                                                        \
+    if (! hasSingleton) usedims=0;                                                          \
+    if (isComplexType(_ref1) && isComplexType(_ref2)) {                                     \
+        Dbg_printf("cuda: complex array " #FktName " complex array\n");                     \
+        ret=CUDAcarr_##FktName##_carr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1],sizeC,numdims),TotalResSize,usedims,sizeC,singletonA,singletonB); } \
+    else if (isComplexType(_ref1)) {                                       \
+        Dbg_printf("cuda: complex array " #FktName " float array\n");                       \
+        ret=CUDAcarr_##FktName##_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1],sizeC,numdims),TotalResSize,usedims,sizeC,singletonA,singletonB); } \
+    else if (isComplexType(_ref2)) {                                       \
+        Dbg_printf("cuda: float array " #FktName " complex array\n");                       \
+        ret=CUDAarr_##FktName##_carr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[2],sizeC,numdims),TotalResSize,usedims,sizeC,singletonA,singletonB); }\
+    else {                                                                                  \
+        Dbg_printf("cuda: array " #FktName " array\n");                                     \
+        ret=CUDAarr_##FktName##_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1],sizeC,numdims),TotalResSize,usedims,sizeC,singletonA,singletonB); }\
+    if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  
                 
 //  ----------------- for calling with array and constant ---------
 #define CallCUDA_UnaryFktConst(FktName,AllocFkt)                                            \
@@ -249,6 +311,7 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
     } 
 
 //  --------- The ones below are FOR REAL-VALUED Functions only --- (e.g. comparison operations) ----------
+    /*
 #define CallCUDA_BinaryHRealFkt(FktName,AllocFkt)                                         \
     const char *ret=0; int _ref1,_ref2;                                                     \
     if (nrhs != 3) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");               \
@@ -264,19 +327,26 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
     else {                                                                                  \
         Dbg_printf("cuda: array " #FktName " array\n");                                     \
         ret=CUDAarr_##FktName##_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1]),getTotalSizeFromRef(prhs[1])); }\
-    if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  \
-
+    if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  
+*/
+    
 //  --------- The ones below are FOR REAL-VALUED Functions only --- (e.g. comparison operations) ----------
-#define CallCUDA_BinaryRealFkt(FktName,AllocFkt)                                         \
+#define CallCUDA_BinaryRealFkt(FktName,AllocFkt)                                            \
     const char *ret=0; int _ref1,_ref2;                                                     \
-    if (nrhs != 3) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");               \
+    int TotalResSize=0, numdims=0, hasSingleton=0; SizeND sizeC; BoolND singletonA,singletonB;              \
+    if (nrhs != 3) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");              \
     _ref1=getCudaRefNum(prhs[1]);_ref2=getCudaRefNum(prhs[2]);                              \
-    CHECK_CUDATotalSIZES(_ref1,_ref2);                                                             \
-    if (isComplexType(_ref1) || isComplexType(_ref2))     \
+    Dbg_printf("cuda: CallCUDA_BinaryFkt: " #FktName " before CHECK_CUDATotalSIZESSingleton\n");                     \
+    CHECK_CUDATotalSIZESSingleton(_ref1,_ref2, TotalResSize, sizeC, singletonA, singletonB, numdims, hasSingleton) \
+    if (isComplexType(_ref1) || isComplexType(_ref2))                                       \
       mexErrMsgTxt("cuda: Function \"" #FktName "\" is defined only for real valued data.\n");  \
     else {                                                                                  \
         Dbg_printf("cuda: array " #FktName " array\n");                                     \
-        ret=CUDAarr_##FktName##_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1]),getTotalSizeFromRef(prhs[1])); }\
+        if (hasSingleton)                                                                   \
+            ret=CUDAarr_##FktName##_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1],sizeC,numdims),TotalResSize,numdims,sizeC,singletonA,singletonB);  \
+        else                                                                                \
+            ret=CUDAarr_##FktName##_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[1],sizeC,numdims),TotalResSize,0,sizeC,singletonA,singletonB);  \
+        }\
     if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  
 
 
@@ -531,6 +601,20 @@ void get3DSize(int ref, int * mysize) {
             mysize[d]=cuda_array_size[ref][d];
         else
             mysize[d]=1;
+}
+
+// returns array size in 3D coordinates (expanding with ones)
+SizeND getSizeFromRefNum(int ref) {
+    int d;
+    SizeND mysize;
+    for (d=0;d<CUDA_MAXDIM;d++) {
+    if (d< cuda_array_dim[ref])
+            mysize.s[d]=cuda_array_size[ref][d];
+        else
+            mysize.s[d]=1;
+    Dbg_printf4("getSizeFromRefNum d %d ref %d mysize[d] %d\n",d,ref,mysize.s[d]);
+    }
+    return mysize;
 }
 
 // returns array size in 5D coordinates (expanding with ones)
@@ -905,6 +989,12 @@ int updateFreeArray() { // looks for the next free position to store and array
      if (dims>1)
         {mysize[0]=mysize[1];mysize[1]=tmp;}  // the bad matlab problem with x and y dimensions
  }
+
+ void swapMatlabSizeBin(unsigned char * mysize, int dims) {
+    int tmp=mysize[0];
+     if (dims>1)
+        {mysize[0]=mysize[1];mysize[1]=tmp;}  // the bad matlab problem with x and y dimensions
+ }
  
  void cudaCopySizeVec(int pos, const int * sizevec,int dims) {   // copies a matlab sizevector to the array
     double FTscale = 1.0;
@@ -1021,7 +1111,41 @@ float * cudaAllocComplex(const mxArray * arg) {   // make a new array with same 
      cuda_array_type[free_array]=scomplex;  // type tags see CUDA_TYPE definitions above
      return ret;
      }
-     
+
+ float * cudaAllocSized(const mxArray * arg, SizeND mysize, int mydims) {   // make a new array with same properties as other array
+     int ref=getCudaRefNum(arg);
+     //swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);   // pretend this is a matlab array until allocation is done
+     float * ret=cudaAllocDetailed(mydims, mysize.s, cuda_array_type[ref]);
+     //swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);   // swap back
+     //cuda_array_origFTsize[free_array]=cuda_array_origFTsize[ref]; // needs to be copied when creating another HalfFourier array
+     cuda_array_FTscale[free_array]=(float) (1.0/sqrt(getTotalSize(CUDA_MAXDIM,mysize.s)));  // to do the maginitude correction
+     cuda_array_type[free_array]=cuda_array_type[ref];  // type tags see CUDA_TYPE definitions above
+     Dbg_printf2("cudaAllocSized adress is %p\n",(void *) ret);
+     return ret;
+     }
+
+float * cudaAllocRealSized(const mxArray * arg, SizeND mysize, int mydims) {   // make a new array with same properties as other array, but ignores Complex and makes it Real
+     int ref=getCudaRefNum(arg);
+     //swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);   // pretend this is a matlab array until allocation is done
+     float * ret=cudaAllocDetailed(mydims, mysize.s, single);
+     //swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);   // swap back
+     //cuda_array_origFTsize[free_array]=cuda_array_origFTsize[ref]; // needs to be copied when creating another HalfFourier array
+     cuda_array_FTscale[free_array]=(float) (1.0/sqrt(getTotalSize(CUDA_MAXDIM,mysize.s)));  // to do the maginitude correction
+     cuda_array_type[free_array]=single;  // type tags see CUDA_TYPE definitions above
+     return ret;
+     }
+
+float * cudaAllocComplexSized(const mxArray * arg, SizeND mysize, int mydims) {   // make a new array with same properties as other array, but ignores type and makes it Complex
+     int ref=getCudaRefNum(arg);
+     //swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);   // pretend this is a matlab array until allocation is done
+     float * ret=cudaAllocDetailed(mydims, mysize.s, scomplex);
+     //swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);   // swap back
+     //cuda_array_origFTsize[free_array]=cuda_array_origFTsize[ref]; // needs to be copied when creating another HalfFourier array
+     cuda_array_FTscale[free_array]=(float) (1.0/sqrt(getTotalSize(CUDA_MAXDIM,mysize.s)));  // to do the maginitude correction
+     cuda_array_type[free_array]=scomplex;  // type tags see CUDA_TYPE definitions above
+     return ret;
+     }
+
  float * getMatlabFloatArray(const mxArray * arg, int * nd) {
   (* nd) = mxGetNumberOfDimensions(arg);
   // int * sz = mxGetDimensions(arg);
@@ -1444,7 +1568,11 @@ void mexFunction( int nlhs, mxArray *plhs[],
   if (!cuda_initialized) {
       const char * anerror=0;
       int devCount;
-      cudaGetDeviceCount(&devCount);
+      cudaError_t err;
+
+      err=cudaGetDeviceCount(&devCount);
+      checkCudaError("GetDeviceCount",err);
+      
       printf("initializing cuda ... ");
       if (devCount > 1)
       {
@@ -1639,7 +1767,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else  if (strcmp(command,"complex")==0) {      // make complex type from real type
-    CallCUDA_BinaryRealFkt(complex,cudaAllocComplex) // creates a complex array from real and imag arrays
+    CallCUDA_BinaryRealFkt(complex,cudaAllocComplexSized) // creates a complex array from real and imag arrays
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double) free_array);  
   }
@@ -2205,7 +2333,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"equals")==0) { 
-    CallCUDA_BinaryFkt(equals,cudaAllocReal)
+    CallCUDA_BinaryFkt(equals,cudaAllocRealSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2215,7 +2343,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"unequals")==0) { 
-    CallCUDA_BinaryFkt(unequals,cudaAllocReal)
+    CallCUDA_BinaryFkt(unequals,cudaAllocRealSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2230,7 +2358,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"or")==0) { 
-    CallCUDA_BinaryRealFkt(or,cudaAlloc)
+    CallCUDA_BinaryRealFkt(or,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2245,7 +2373,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"and")==0) { 
-    CallCUDA_BinaryRealFkt(and,cudaAlloc)
+    CallCUDA_BinaryRealFkt(and,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2270,7 +2398,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"smaller")==0) { 
-    CallCUDA_BinaryRealFkt(smaller,cudaAlloc)
+    CallCUDA_BinaryRealFkt(smaller,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2285,7 +2413,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"larger")==0) { 
-    CallCUDA_BinaryRealFkt(larger,cudaAlloc)
+    CallCUDA_BinaryRealFkt(larger,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2300,7 +2428,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"smallerequal")==0) { 
-    CallCUDA_BinaryRealFkt(smallerequal,cudaAlloc)
+    CallCUDA_BinaryRealFkt(smallerequal,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2315,7 +2443,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"largerequal")==0) {
-    CallCUDA_BinaryRealFkt(largerequal,cudaAlloc)
+    CallCUDA_BinaryRealFkt(largerequal,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2344,13 +2472,18 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
+  else if (strcmp(command,"power")==0) { 
+    CallCUDA_BinaryRealFkt(power,cudaAllocSized)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
   else if (strcmp(command,"times_alpha")==0) { // ---------------------------------
     CallCUDA_UnaryFktConst(times,cudaAlloc)  // return type is the propagated type
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"times")==0) { 
-    CallCUDA_BinaryFkt(times,cudaAlloc)
+    CallCUDA_BinaryFkt(times,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2360,7 +2493,8 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"plus")==0) { // -----------------array + array
-    CallCUDA_BinaryFkt(plus,cudaAlloc)
+    Dbg_printf("Before Plus\n"); 
+    CallCUDA_BinaryFkt(plus,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2375,7 +2509,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"divide")==0) { // ---------------------------------
-    CallCUDA_BinaryFkt(divide,cudaAlloc)
+    CallCUDA_BinaryFkt(divide,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2390,7 +2524,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"minus")==0) { // -----------------array - array
-    CallCUDA_BinaryFkt(minus,cudaAlloc)
+    CallCUDA_BinaryFkt(minus,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2752,7 +2886,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"max_arr")==0) { // -----------------array > array
-    CallCUDA_BinaryFkt(max,cudaAlloc)
+    CallCUDA_BinaryFkt(max,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
@@ -2776,7 +2910,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"min_arr")==0) { // -----------------array > array
-    CallCUDA_BinaryFkt(min,cudaAlloc)
+    CallCUDA_BinaryFkt(min,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }

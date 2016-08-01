@@ -65,7 +65,7 @@ system('nvcc -c cudaArith.cu -v -I/usr/local/cuda/include/')
     nBlocks.x=numb;                                 \
 else                                                \
     {nBlocks.x=(int)(sqrt((float)numb)+1);          \
-    nBlocks.y=(int)(sqrt((float)numb)+1);}}       
+    nBlocks.y=(int)(sqrt((float)numb)+1);}}
 
 // the real part is named ".x" and the imaginary ".y" in the cufftComplex datatype
 __device__ cufftComplex cuda_resultVal;   // here real and complex valued results can be stored to be then transported to the host
@@ -121,6 +121,34 @@ static struct cudaDeviceProp prop;  // Defined in cudaArith.h: contains the cuda
         _Stride *= dSize.s[_d]; }                                        \
 }
    
+// The macro below converts an ND memory position into a memory position that may have singleton dimensions
+// numdims: number of dimensions
+// posOrig: original index in ND array (without singleton)
+// isSingleton: boolean array denoting whether a dimension needs to be reduced to singleton (size 1)
+// stridesOrig: strides of the original array
+// posSingleton: resulting Singleton index which can be used
+// stridesSingleton: the strides in the result array
+// 
+// The algorithms goes through all dimensions and allways assumes that the rest of (yet untreated) dimensions is of the same type as the state variable _state: 1 = singleton dimension
+#define Original2Singleton(numdims, isSingleton, posOrig, sizesOrig, posSingleton) { \
+    posSingleton=posOrig;                                       \
+    int _d,_state=0, stridesOrig=1, stridesSingleton=1;         \
+    for (_d = 0;_d<numdims;_d++){                               \
+        if (_state == 0)    {                                   \
+            if (isSingleton.s[_d] != _state)    {               \
+                posSingleton = (posSingleton % stridesSingleton);\
+                _state = 1;}                                    \
+            else stridesSingleton *= sizesOrig.s[_d];                \
+        } else {                                                \
+            if (isSingleton.s[_d] != _state)     {              \
+                posSingleton +=  (posOrig / stridesOrig) * stridesSingleton;      \
+            	stridesSingleton *= sizesOrig.s[_d];                \
+                _state=0; }                                     \
+        }                                                       \
+        stridesOrig *= sizesOrig.s[_d];                         \
+    }                                                           \
+}                                                               \
+
 
 // The partial reduction function below projects the data along one dimension
 // the processors are assigned to the result image pixels
@@ -625,11 +653,8 @@ extern "C" const char * CUDA ## FktName(float * in, float * mask, float *  out, 
   return 0;                                                     \
 }
 
-
-
-// In the expression one can use the variables idx (for real valued arrays) and idc (for complex valued arrays)
-// -------------- caller function is also generated -------------
-#define CUDA_BinaryFkt(FktName,expression)                          \
+/*  This was for debugging purposes. Commented out for now
+#define CUDA_BinaryFktOld(FktName,expression)                          \
 __global__ void                                                     \
 FktName(float*a,float *b, float * c, int N)                         \
 {                                                                   \
@@ -637,7 +662,7 @@ FktName(float*a,float *b, float * c, int N)                         \
 	if(idx>=N) return;                                              \
 	expression                                                      \
 }                                                                   \
-extern "C" const char * CUDA ## FktName(float * a, float * b, float * c, int N)  \
+extern "C" const char * CUDA ## FktName(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB)  \
 {                                                                       \
     cudaError_t myerr;                                          \
 	int blockSize;dim3 nBlocks;                                         \
@@ -648,7 +673,50 @@ extern "C" const char * CUDA ## FktName(float * a, float * b, float * c, int N) 
       return cudaGetErrorString(myerr);                                 \
   return 0;                                                             \
 }                                                                       
-
+*/
+// In the expression one can use the variables idx (for real valued arrays) and idc (for complex valued arrays)
+// -------------- caller function is also generated -------------
+// 
+// The 2 macros below treat binary functions such as plus (as the one before)
+// but singleton dimensions will be wrapped just like in Python or DIPImage
+#define CUDA_BinaryFkt(FktName,expression)                          \
+__global__ void                                                     \
+FktName(float*a,float *b, float * c, int N)                         \
+{                                                                   \
+    int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+    int idxA=idx, idxB=idx;                                         \
+	if(idx>=N) return;                                              \
+	expression                                                      \
+}                                                                   \
+__global__ void                                                     \
+FktName ##_S(float*a,float *b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB) \
+{                                                                   \
+    int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+    int idxA,idxB;                                                  \
+	if(idx>=N) return;                                              \
+    Original2Singleton(numdims, isSingletonA, idx,sizesC,idxA)     \
+    Original2Singleton(numdims, isSingletonB, idx,sizesC,idxB)     \
+    expression                                                      \
+}                                                                   \
+extern "C" const char * CUDA ## FktName(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB)  \
+{                                                                       \
+    cudaError_t myerr;                                                  \
+	int blockSize;dim3 nBlocks;                                         \
+    myerr=cudaGetLastError();                                           \
+    if (numdims==0) {                                                            \
+    MemoryLayout(N,blockSize,nBlocks)                                   \
+	FktName<<<nBlocks,blockSize>>>(a,b,c,N);                            \
+    } else                                                              \
+    {                                                                   \
+    MemoryLayout(N,blockSize,nBlocks)                                   \
+	FktName ## _S<<<nBlocks,blockSize>>>(a,b,c,N, numdims, sizesC, isSingletonA, isSingletonB);  \
+    }                                                                   \
+    myerr=cudaGetLastError();                                           \
+    if (myerr != cudaSuccess)                                           \
+      return cudaGetErrorString(myerr);                                 \
+  return 0;                                                             \
+}                                                                       
+            
 // In the expression one can use the variables idx (for real valued arrays) 
 // -------------- caller function is also generated -------------
 #define CUDA_IndexFkt(FktName,expression)                          \
@@ -1004,7 +1072,7 @@ extern "C" const char * CUDA ## FktName(float *a, float * c, int sSize[5], int d
       return cudaGetErrorString(myerr);                                 \
   return 0;                                                             \
 }                                                                      
-
+        
 // The function below checks whether the size of allocated reduce arrays is sufficient and reallocates if needed be
 // The arrays are "accum" and "TmpRedArray"
 const char * CheckReduceAllocation(int asize) {
@@ -1136,19 +1204,19 @@ CUDA_5DFkt(carr_5dsubcpyCT_carr,int idcdt=2*(y+dOffs.s[0]+dSize.s[0]*(x+dOffs.s[
 
 
 // Power
-CUDA_BinaryFkt(arr_power_arr,c[idx]=pow(a[idx],b[idx]);)
+CUDA_BinaryFkt(arr_power_arr,c[idx]=pow(a[idxA],b[idxB]);)
 CUDA_UnaryFktConst(arr_power_const,c[idx]=pow(a[idx],b);)
 CUDA_UnaryFktConst(const_power_arr,c[idx]=pow(b,a[idx]);)
 
 // Multiplications
-CUDA_BinaryFkt(arr_times_arr,c[idx]=a[idx]*b[idx];)
+CUDA_BinaryFkt(arr_times_arr,c[idx]=a[idxA]*b[idxB];)
 CUDA_BinaryFkt(carr_times_carr,
-    int idc=2*idx;
-    float myr=a[idc]*b[idc]-a[idc+1]*b[idc+1];float myi=a[idc]*b[idc+1]+a[idc+1]*b[idc];
+    int idc=2*idx;int idcA=2*idxA;int idcB=2*idxB;
+    float myr=a[idcA]*b[idcB]-a[idcA+1]*b[idcB+1];float myi=a[idcA]*b[idcB+1]+a[idcA+1]*b[idcB];
     c[idc]=myr;c[idc+1]=myi;
 )
-CUDA_BinaryFkt(arr_times_carr,c[2*idx]=a[idx]*b[2*idx];c[2*idx+1]=a[idx]*b[2*idx+1];)
-CUDA_BinaryFkt(carr_times_arr,c[2*idx]=a[2*idx]*b[idx];c[2*idx+1]=a[2*idx+1]*b[idx];)
+CUDA_BinaryFkt(arr_times_carr,int idc=2*idx;int idcB=2*idxB;c[idc]=a[idxA]*b[idcB];c[idc+1]=a[idxA]*b[idcB+1];)
+CUDA_BinaryFkt(carr_times_arr,int idc=2*idx;int idcA=2*idxA;c[idc]=a[idcA]*b[idxB];c[idc+1]=a[idcA+1]*b[idxB];)
 //CUDA_BinaryFkt(arr_times_carr,c[2*idx]=a[idx]*b[2*idx];c[2*idx+1]=a[idx+1]*b[2*idx];)
 CUDA_UnaryFktConst(arr_times_const,c[idx]=a[idx]*b;)
 CUDA_UnaryFktConst(const_times_arr,c[idx]=a[idx]*b;)
@@ -1166,18 +1234,18 @@ CUDA_UnaryFktConstC(arr_times_Cconst,c[2*idx]=a[idx]*br;c[2*idx+1]=a[idx]*bi;)
 CUDA_UnaryFktConstC(Cconst_times_arr,c[2*idx]=br*a[idx];c[2*idx+1]=bi*a[idx];)
 
 // Divisions
-CUDA_BinaryFkt(arr_divide_arr,c[idx]=a[idx]/b[idx];)
+CUDA_BinaryFkt(arr_divide_arr,c[idx]=a[idxA]/b[idxB];)
 CUDA_BinaryFkt(carr_divide_carr,
-    int idc=2*idx;
-    float tmp=b[idc]*b[idc]+b[idc+1]*b[idc+1];
-    float myr=(a[idc]*b[idc]+a[idc+1]*b[idc+1])/tmp;float myi=(a[idc+1]*b[idc]-a[idc]*b[idc+1])/tmp;
+    int idc=2*idx;int idcA=2*idxA;int idcB=2*idxB;
+    float tmp=b[idcB]*b[idcB]+b[idcB+1]*b[idcB+1];
+    float myr=(a[idcA]*b[idcB]+a[idcA+1]*b[idcB+1])/tmp;float myi=(a[idcA+1]*b[idcB]-a[idcA]*b[idcB+1])/tmp;
     c[idc]=myr;c[idc+1]=myi;
 )
-CUDA_BinaryFkt(carr_divide_arr,c[2*idx]=a[2*idx]/b[idx];c[2*idx+1]=a[2*idx+1]/b[idx];)
+CUDA_BinaryFkt(carr_divide_arr,int idc=2*idx;int idcA=2*idxA; c[idc]=a[idcA]/b[idxB];c[idc+1]=a[idcA+1]/b[idxB];)
 CUDA_BinaryFkt(arr_divide_carr,
-    int idc=2*idx;
-    float tmp=b[idc]*b[idc]+b[idc+1]*b[idc+1];
-    float myr=(a[idx]*b[idc]+a[idx+1]*b[idc+1])/tmp;float myi=(a[idx+1]*b[idc]-a[idx]*b[idc+1])/tmp;
+    int idc=2*idx;int idcB=2*idxB;
+    float tmp=b[idcB]*b[idcB]+b[idcB+1]*b[idcB+1];
+    float myr=(a[idxA]*b[idcB]+a[idxA+1]*b[idcB+1])/tmp;float myi=(a[idxA+1]*b[idcB]-a[idxA]*b[idcB+1])/tmp;
     c[idc]=myr;c[idc+1]=myi;
 )
 CUDA_UnaryFktConst(arr_divide_const,c[idx]=a[idx]/b;)
@@ -1202,10 +1270,10 @@ CUDA_UnaryFktConstC(arr_divide_Cconst,
 CUDA_UnaryFktConstC(Cconst_divide_arr,c[2*idx]=br/a[idx];c[2*idx+1]=bi/a[idx];)
 
 // Element-wise maximum operations
-CUDA_BinaryFkt(arr_max_arr,c[idx]=a[idx]>b[idx]?a[idx]:b[idx];)
-CUDA_BinaryFkt(carr_max_carr, int idc=2*idx; if (a[idc]*a[idc]+a[idc+1]*a[idc+1] > b[idc]*b[idc]+b[idc+1]*b[idc+1]) {c[idc]=a[idc];c[idc+1]=a[idc+1];}else{ c[idc]=b[idc];c[idc+1]=b[idc+1];})
-CUDA_BinaryFkt(carr_max_arr,int idc=2*idx;if (a[idc]*a[idc]+a[idc+1]*a[idc+1] > b[idx]*b[idx]) {c[idc]=a[idc];c[idc+1]=a[idc+1];}else{ c[idc]=b[idx];c[idc+1]=0;})
-CUDA_BinaryFkt(arr_max_carr,int idc=2*idx;if (a[idx]*a[idx] > b[idc]*b[idc]+b[idc+1]*b[idc+1]) {c[idc]=a[idx];c[idc+1]=0;}else{ c[idc]=b[idc];c[idc+1]=b[idc+1];})
+CUDA_BinaryFkt(arr_max_arr,c[idx]=a[idxA]>b[idxB]?a[idxA]:b[idxB];)
+CUDA_BinaryFkt(carr_max_carr, int idc=2*idx;int idcA=2*idxA;int idcB=2*idxB; if (a[idcA]*a[idcA]+a[idcA+1]*a[idcA+1] > b[idcB]*b[idcB]+b[idcB+1]*b[idcB+1]) {c[idc]=a[idcA];c[idc+1]=a[idcA+1];}else{ c[idc]=b[idcB];c[idc+1]=b[idcB+1];})
+CUDA_BinaryFkt(carr_max_arr,int idc=2*idx;int idcA=2*idxA; if (a[idcA]*a[idcA]+a[idcA+1]*a[idcA+1] > b[idxB]*b[idxB]) {c[idc]=a[idcA];c[idc+1]=a[idcA+1];}else{ c[idc]=b[idxB];c[idc+1]=0;})
+CUDA_BinaryFkt(arr_max_carr,int idc=2*idx;int idcB=2*idxB; if (a[idxA]*a[idxA] > b[idcB]*b[idcB]+b[idcB+1]*b[idcB+1]) {c[idc]=a[idxA];c[idc+1]=0;}else{ c[idc]=b[idcB];c[idc+1]=b[idcB+1];})
 CUDA_UnaryFktConst(arr_max_const,c[idx]=a[idx]>b?a[idx]:b;)
 CUDA_UnaryFktConst(const_max_arr,c[idx]=a[idx]>b?a[idx]:b;)
 CUDA_UnaryFktConstC(carr_max_const,int idc=2*idx;if (a[idc]*a[idc]+a[idc+1]*a[idc+1] > br*br+bi*bi) {c[idc]=a[idc];c[idc+1]=a[idc+1];}else{ c[idc]=br;c[idc+1]=bi;})
@@ -1214,10 +1282,10 @@ CUDA_UnaryFktConstC(arr_max_Cconst,int idc=2*idx;if (a[idx]*a[idx] > br*br+bi*bi
 CUDA_UnaryFktConstC(Cconst_max_arr,int idc=2*idx;if (a[idx]*a[idx] > br*br+bi*bi) {c[idc]=a[idx];c[idc+1]=0;}else{ c[idc]=br;c[idc+1]=bi;})
 
 // Element-wise minimum operations
-CUDA_BinaryFkt(arr_min_arr,c[idx]=a[idx]<b[idx]?a[idx]:b[idx];)
-CUDA_BinaryFkt(carr_min_carr, int idc=2*idx; if (a[idc]*a[idc]+a[idc+1]*a[idc+1] < b[idc]*b[idc]+b[idc+1]*b[idc+1]) {c[idc]=a[idc];c[idc+1]=a[idc+1];}else{ c[idc]=b[idc];c[idc+1]=b[idc+1];})
-CUDA_BinaryFkt(carr_min_arr,int idc=2*idx;if (a[idc]*a[idc]+a[idc+1]*a[idc+1] < b[idx]*b[idx]) {c[idc]=a[idc];c[idc+1]=a[idc+1];}else{ c[idc]=b[idx];c[idc+1]=0;})
-CUDA_BinaryFkt(arr_min_carr,int idc=2*idx;if (a[idx]*a[idx] < b[idc]*b[idc]+b[idc+1]*b[idc+1]) {c[idc]=a[idx];c[idc+1]=0;}else{ c[idc]=b[idc];c[idc+1]=b[idc+1];})
+CUDA_BinaryFkt(arr_min_arr,c[idx]=a[idxA]<b[idxB]?a[idxA]:b[idxB];)
+CUDA_BinaryFkt(carr_min_carr, int idc=2*idx;int idcA=2*idxA;int idcB=2*idxB; if (a[idcA]*a[idcA]+a[idcA+1]*a[idcA+1] < b[idcB]*b[idcB]+b[idcB+1]*b[idcB+1]) {c[idc]=a[idcA];c[idc+1]=a[idcA+1];}else{ c[idc]=b[idcB];c[idc+1]=b[idcB+1];})
+CUDA_BinaryFkt(carr_min_arr,int idc=2*idx;int idcA=2*idxA; if (a[idcA]*a[idcA]+a[idcA+1]*a[idcA+1] < b[idxB]*b[idxB]) {c[idc]=a[idcA];c[idc+1]=a[idcA+1];}else{ c[idc]=b[idxB];c[idc+1]=0;})
+CUDA_BinaryFkt(arr_min_carr,int idc=2*idx;int idcB=2*idxB; if (a[idxA]*a[idxA] < b[idcB]*b[idcB]+b[idcB+1]*b[idcB+1]) {c[idc]=a[idxA];c[idc+1]=0;}else{ c[idc]=b[idcB];c[idc+1]=b[idcB+1];})
 CUDA_UnaryFktConst(arr_min_const,c[idx]=a[idx]<b?a[idx]:b;)
 CUDA_UnaryFktConst(const_min_arr,c[idx]=a[idx]<b?a[idx]:b;)
 CUDA_UnaryFktConstC(carr_min_const,int idc=2*idx;if (a[idc]*a[idc]+a[idc+1]*a[idc+1] < br*br+bi*bi) {c[idc]=a[idc];c[idc+1]=a[idc+1];}else{ c[idc]=br;c[idc+1]=bi;})
@@ -1226,10 +1294,10 @@ CUDA_UnaryFktConstC(arr_min_Cconst,int idc=2*idx;if (a[idx]*a[idx] < br*br+bi*bi
 CUDA_UnaryFktConstC(Cconst_min_arr,int idc=2*idx;if (a[idx]*a[idx] < br*br+bi*bi) {c[idc]=a[idx];c[idc+1]=0;}else{ c[idc]=br;c[idc+1]=bi;})
 
 // Additions
-CUDA_BinaryFkt(arr_plus_arr,c[idx]=a[idx]+b[idx];)
-CUDA_BinaryFkt(carr_plus_carr, int idc=2*idx; c[idc]=a[idc]+b[idc];c[idc+1]=a[idc+1]+b[idc+1];)
-CUDA_BinaryFkt(carr_plus_arr,int idc=2*idx;c[idc]=a[idc]+b[idx];c[idc+1]=a[idc+1];)
-CUDA_BinaryFkt(arr_plus_carr,int idc=2*idx;c[idc]=a[idx]+b[idc];c[idc+1]=b[idc+1];)
+CUDA_BinaryFkt(arr_plus_arr,c[idx]=a[idxA]+b[idxB];)
+CUDA_BinaryFkt(carr_plus_carr, int idc=2*idx;int idcA=2*idxA;int idcB=2*idxB; c[idc]=a[idcA]+b[idcB];c[idc+1]=a[idcA+1]+b[idcB+1];)
+CUDA_BinaryFkt(carr_plus_arr,int idc=2*idx;int idcA=2*idxA;c[idc]=a[idcA]+b[idxB];c[idc+1]=a[idcA+1];)
+CUDA_BinaryFkt(arr_plus_carr,int idc=2*idx;int idcB=2*idxB;c[idc]=a[idxA]+b[idcB];c[idc+1]=b[idcB+1];)
 CUDA_UnaryFktConst(arr_plus_const,c[idx]=a[idx]+b;)
 CUDA_UnaryFktConst(const_plus_arr,c[idx]=a[idx]+b;)
 CUDA_UnaryFktConstC(carr_plus_const,int idc=2*idx;c[idc]=a[idc]+br;c[idc+1]=a[idc+1]+bi;)
@@ -1238,10 +1306,10 @@ CUDA_UnaryFktConstC(arr_plus_Cconst,int idc=2*idx;c[idc]=a[idx]+br;c[idc+1]=bi;)
 CUDA_UnaryFktConstC(Cconst_plus_arr,int idc=2*idx;c[idc]=br+a[idx];c[idc+1]=bi;)
 
 // Subtractions
-CUDA_BinaryFkt(arr_minus_arr,c[idx]=a[idx]-b[idx];)
-CUDA_BinaryFkt(carr_minus_carr,int idc=2*idx; c[idc]=a[idc]-b[idc];c[idc+1]=a[idc+1]-b[idc+1];)
-CUDA_BinaryFkt(carr_minus_arr,int idc=2*idx;c[idc]=a[idc]-b[idx];c[idc+1]=a[idc+1];)
-CUDA_BinaryFkt(arr_minus_carr,int idc=2*idx;c[idc]=a[idx]-b[idc];c[idc+1]=-b[idc+1];)
+CUDA_BinaryFkt(arr_minus_arr,c[idx]=a[idxA]-b[idxB];)
+CUDA_BinaryFkt(carr_minus_carr,int idc=2*idx;int idcA=2*idxA;int idcB=2*idxB; c[idc]=a[idcA]-b[idcB];c[idc+1]=a[idcA+1]-b[idcB+1];)
+CUDA_BinaryFkt(carr_minus_arr,int idc=2*idx;int idcA=2*idxA;c[idc]=a[idcA]-b[idxB];c[idc+1]=a[idcA+1];)
+CUDA_BinaryFkt(arr_minus_carr,int idc=2*idx;int idcB=2*idxB;c[idc]=a[idxA]-b[idcB];c[idc+1]=-b[idcB+1];)
 CUDA_UnaryFktConst(arr_minus_const,c[idx]=a[idx]-b;)
 CUDA_UnaryFktConst(const_minus_arr,c[idx]=b-a[idx];)
 CUDA_UnaryFktConstC(carr_minus_const,int idc=2*idx;c[idc]=a[idc]-br;c[idc+1]=a[idc+1]-bi;)
@@ -1258,7 +1326,6 @@ CUDA_MaskIdx(arr_subsref_arr,c[mask_idx]=a[idx];)
 CUDA_MaskIdx(carr_subsref_arr,c[2*mask_idx]=a[2*idx]; c[2*mask_idx+1]=a[2*idx+1];)
 CUDA_MaskIdx(arr_subsasgn_arr,a[idx]=c[mask_idx];)
 CUDA_MaskIdx(carr_subsasgn_arr,a[2*idx]=c[2*mask_idx]; a[2*idx+1]=c[2*mask_idx+1];)
-
 
 // diagonal matrix generation
 CUDA_3DFkt(arr_diag_set,  int iddt=ids+dOffs.s[0]+dSize.s[0]*(ids+dOffs.s[1]); c[iddt]=a[ids];)
@@ -1289,11 +1356,11 @@ CUDA_UnaryFktConstC(carr_subsasgn_const,{((idx<N)&&(idx>=0))?(c[2*((int) a[idx])
 
 // binary logical operations
 
-CUDA_BinaryFkt(arr_or_arr,{c[idx]=(float) (a[idx]!=0) || (b[idx]!=0);})
+CUDA_BinaryFkt(arr_or_arr,{c[idx]=(float) (a[idxA]!=0) || (b[idxB]!=0);})
 CUDA_UnaryFktConst(arr_or_const,{c[idx]=(float) (a[idx]!=0) || (b!=0);})
 CUDA_UnaryFktConst(const_or_arr,{c[idx]=(float) (b!=0) || (a[idx]!=0);})
 
-CUDA_BinaryFkt(arr_and_arr,{c[idx]=(float) (a[idx]!=0) && (b[idx]!=0);})
+CUDA_BinaryFkt(arr_and_arr,{c[idx]=(float) (a[idxA]!=0) && (b[idxB]!=0);})
 CUDA_UnaryFktConst(arr_and_const,{c[idx]=(float) (a[idx]!=0) && (b!=0);})
 CUDA_UnaryFktConst(const_and_arr,{c[idx]=(float) (b!=0) && (a[idx]!=0);})
 
@@ -1305,27 +1372,27 @@ CUDA_UnaryFkt(sign_arr,c[idx]=(a[idx] > 0)?1 :((a[idx]<0)?-1:0);)
 CUDA_UnaryFkt(sign_carr,int idc=2*idx; float absc=sqrt(a[idc]*a[idc]+a[idc+1]*a[idc+1]); if (absc==0) {c[idc]=0;c[idc+1]=0;} else {c[idc]=a[idc]/absc;c[idc+1]=a[idc+1]/absc;})
 
 // Comparison
-CUDA_BinaryFkt(arr_smaller_arr,c[idx]=a[idx]<b[idx];)
+CUDA_BinaryFkt(arr_smaller_arr,c[idx]=a[idxA]<b[idxB];)
 CUDA_UnaryFktConst(arr_smaller_const,c[idx]=a[idx]<b;)
 CUDA_UnaryFktConst(const_smaller_arr,c[idx]=b<a[idx];)
 
-CUDA_BinaryFkt(arr_larger_arr,c[idx]=a[idx]>b[idx];)
+CUDA_BinaryFkt(arr_larger_arr,c[idx]=a[idxA]>b[idxB];)
 CUDA_UnaryFktConst(arr_larger_const,c[idx]=a[idx]>b;)
 CUDA_UnaryFktConst(const_larger_arr,c[idx]=b>a[idx];)
 
-CUDA_BinaryFkt(arr_smallerequal_arr,c[idx]=a[idx]<=b[idx];)
+CUDA_BinaryFkt(arr_smallerequal_arr,c[idx]=a[idxA]<=b[idxB];)
 CUDA_UnaryFktConst(arr_smallerequal_const,c[idx]=a[idx]<=b;)
 CUDA_UnaryFktConst(const_smallerequal_arr,c[idx]=b<=a[idx];)
 
-CUDA_BinaryFkt(arr_largerequal_arr,c[idx]=a[idx]>=b[idx];)
+CUDA_BinaryFkt(arr_largerequal_arr,c[idx]=a[idxA]>=b[idxB];)
 CUDA_UnaryFktConst(arr_largerequal_const,c[idx]=a[idx]>=b;)
 CUDA_UnaryFktConst(const_largerequal_arr,c[idx]=b>=a[idx];)
 
 // equals will always output a real valued array
-CUDA_BinaryFkt(arr_equals_arr,c[idx]=(a[idx]==b[idx]);)
-CUDA_BinaryFkt(carr_equals_carr, int idc=2*idx; c[idx]=(a[idc]==b[idc]) && (a[idc+1]==b[idc+1]);)
-CUDA_BinaryFkt(carr_equals_arr,int idc=2*idx; c[idx]=(a[idc]==b[idx]) && (a[idc+1] == 0);)
-CUDA_BinaryFkt(arr_equals_carr,int idc=2*idx; c[idx]=(a[idx]==b[idc]) && (b[idc+1] == 0);)
+CUDA_BinaryFkt(arr_equals_arr,c[idx]=(a[idxA]==b[idxB]);)
+CUDA_BinaryFkt(carr_equals_carr, int idcA=2*idxA;int idcB=2*idxB; c[idx]=(a[idcA]==b[idcB]) && (a[idcA+1]==b[idcB+1]);)
+CUDA_BinaryFkt(carr_equals_arr,int idcA=2*idxA; c[idx]=(a[idcA]==b[idxB]) && (a[idcA+1] == 0);)
+CUDA_BinaryFkt(arr_equals_carr,int idcB=2*idxB; c[idx]=(a[idxA]==b[idcB]) && (b[idcB+1] == 0);)
 CUDA_UnaryFktConst(arr_equals_const,c[idx]=(a[idx]==b);)
 CUDA_UnaryFktConst(const_equals_arr,c[idx]=(b==a[idx]);)
 CUDA_UnaryFktConstC(carr_equals_const,int idc=2*idx; c[idx]=(a[idc]==br) && (a[idc+1]==bi);)
@@ -1334,10 +1401,10 @@ CUDA_UnaryFktConstC(arr_equals_Cconst,c[idx]=(a[idx]==br) && (bi==0);)
 CUDA_UnaryFktConstC(Cconst_equals_arr,c[idx]=(br==a[idx]) && (bi==0);)
 
 // not equals will always output a real valued array
-CUDA_BinaryFkt(arr_unequals_arr,c[idx]=(a[idx]!=b[idx]);)
-CUDA_BinaryFkt(carr_unequals_carr, int idc=2*idx; c[idx]=(a[idc]!=b[idc]) || (a[idc+1]!=b[idc+1]);)
-CUDA_BinaryFkt(carr_unequals_arr,c[idx]=(a[2*idx]!=b[idx]) || (a[2*idx+1] != 0);)
-CUDA_BinaryFkt(arr_unequals_carr,c[idx]=(a[idx]!=b[2*idx]) || (b[2*idx+1] != 0);)
+CUDA_BinaryFkt(arr_unequals_arr,c[idx]=(a[idxA]!=b[idxB]);)
+CUDA_BinaryFkt(carr_unequals_carr, int idcA=2*idxA;int idcB=2*idxB; c[idx]=(a[idcA]!=b[idcB]) || (a[idcA+1]!=b[idcB+1]);)
+CUDA_BinaryFkt(carr_unequals_arr, int idcA=2*idxA;c[idx]=(a[idcA]!=b[idxB]) || (a[idcA+1] != 0);)
+CUDA_BinaryFkt(arr_unequals_carr,int idcB=2*idxB;c[idx]=(a[idxA]!=b[idcB]) || (b[idcB+1] != 0);)
 CUDA_UnaryFktConst(arr_unequals_const,c[idx]=(a[idx]!=b);)
 CUDA_UnaryFktConst(const_unequals_arr,c[idx]=(b!=a[idx]);)
 CUDA_UnaryFktConstC(carr_unequals_const,c[idx]=(a[2*idx]!=br) || (a[2*idx+1]!=bi);)
@@ -1398,7 +1465,7 @@ CUDA_UnaryFkt(any_arr,if (a[idx]!=0) c[0]=1;)
 CUDA_UnaryFkt(any_carr,if (a[2*idx]!=0 || a[2*idx+1]!=0) c[0]=1;)
 
 // Binary functions with real valued input returning always complex arrays
-CUDA_BinaryFkt(arr_complex_arr,c[2*idx]=a[idx];c[2*idx+1]=b[idx];)
+CUDA_BinaryFkt(arr_complex_arr,c[2*idx]=a[idxA];c[2*idx+1]=b[idxB];)
 CUDA_UnaryFktConst(arr_complex_const,c[2*idx]=a[idx];c[2*idx+1]=b;)
 CUDA_UnaryFktConst(const_complex_arr,c[2*idx]=b;c[2*idx+1]=a[idx];)
 

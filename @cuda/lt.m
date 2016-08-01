@@ -41,7 +41,10 @@ elseif prod(size(in1)) == 1 && isa(in2,'cuda')
     out.ref=cuda_cuda('alpha_smaller',in2.ref,double(in1));
     out.fromDip = in2.fromDip;  
 elseif isa(in1,'cuda') && isa(in2,'cuda')
+    if ((~in1.fromDip || ~in2.fromDip) && any(size(in1) - size(in2)))
+        error('cuda:lt of Matlab array type: Matrix dimensions must agree.')
+    end
     out.ref=cuda_cuda('smaller',in2.ref,in1.ref);
-out.fromDip = (in1.fromDip || in2.fromDip);   % If eiter was dipimage, result will be
+    out.fromDip = (in1.fromDip || in2.fromDip);   % If eiter was dipimage, result will be
 end
 out.isBinary = 1; % mark this as a binary result (needed for subsasgn)

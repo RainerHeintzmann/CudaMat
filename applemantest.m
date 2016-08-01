@@ -19,18 +19,17 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-
 function res=applemantest(usecuda)
 %minx=-2.5;maxx=1.5;miny=-2;maxy=2;
 %minx=-0.2;maxx=-0.1;miny=-1.1;maxy=-0.98;
 %minx=-0.131;maxx=-0.128;miny=-1.022;maxy=-1.0185;
 %minx=-0.76;maxx=-0.72;miny=-0.22;maxy=-0.16;
-   
+ 
 minx=-0.750;maxx=-0.743;miny=0.123;maxy=0.126; 
 %minx=-0.74;maxx=-0.731;miny=-0.22;maxy=-0.205;
 %minx=-0.733;maxx=-0.7315;miny=-0.209;maxy=-0.207;
-%res=3000;iter=700;
-res=1024;iter=500;
+res=3000;iter=700;
+%res=1024;iter=500;
 %res=4098;iter=4000;
 
 rg1=[minx:(maxx-minx)/res:maxx];
@@ -45,8 +44,8 @@ if usecuda == 2  % define a precompiled cuda function
     % The C-code below executes the mandelbrot calculation on each cuda-core. That is for each pixel of the image
     % This yields the impressive overall speedup of 54000
     ProgramText = sprintf( [ ...
-    'int n;\n' ...
-    'float myrs=a[2*idx];\n '  ...
+    'int n;\n ' ...
+    'float myrs=a[2*idx];\n'  ...
     'float myis=a[2*idx+1];\n' ...
     'float myr=myrs;\nfloat myi=myis;\n ' ...
     'float res=-1.0;\nfloat tmp;\n' ...

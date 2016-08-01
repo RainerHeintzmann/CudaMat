@@ -33,14 +33,17 @@ if isa(in1,'cuda') && prod(size(in2)) == 1
         in2=double_force(in2);
     end
     out.ref=cuda_cuda('plus_alpha',in1.ref,double(in2));
-    out.fromDip = in1.fromDip;   % If eiter was dipimage, result will be
+    out.fromDip = in1.fromDip;   % If either was dipimage, result will be
 elseif prod(size(in1)) == 1 && isa(in2,'cuda')
     if isa(in1,'cuda')
         in1=double_force(in1);
     end
     out.ref=cuda_cuda('plus_alpha',in2.ref,double(in1));
-    out.fromDip = in2.fromDip;   % If eiter was dipimage, result will be
+    out.fromDip = in2.fromDip;   % If either was dipimage, result will be
 elseif isa(in1,'cuda') && isa(in2,'cuda')
+    if (~in1.fromDip && any(size(in1) - size(in2)))
+        error('cuda:plus of Matlab type: Matrix dimensions must agree.')
+    end
     out.ref=cuda_cuda('plus',in1.ref,in2.ref);
-    out.fromDip = in1.fromDip ;   % If eiter was dipimage, result will be
+    out.fromDip = in1.fromDip ;   % If either was dipimage, result will be
 end

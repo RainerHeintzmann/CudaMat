@@ -34,6 +34,10 @@ typedef struct {
 } SizeND ;
 
 typedef struct {
+    unsigned char s[CUDA_MAXDIM];
+} BoolND ;
+
+typedef struct {
     float s[CUDA_MAXDIM];
 } VecND ;
 
@@ -90,11 +94,11 @@ externC const char * CUDAcarr_5dsubcpyCT_carr(float * a, float * c,int sSize[5],
 externC const char * CUDAarr_boolassign_const(float * a, float b, float * c, int N);
 externC const char * CUDAcarr_boolassign_const(float * a, float br, float bi,  float * c, int N);
 
-externC const char * CUDAarr_complex_arr(float * a, float * b, float * c, int N);  // real in complex out
+externC const char * CUDAarr_complex_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);  // real in complex out
 externC const char * CUDAarr_complex_const(float * a, float b, float * c, int N);  // real in complex out
 externC const char * CUDAconst_complex_arr(float * a, float b, float * c, int N);  // real in complex out
 // Power
-externC const char * CUDAarr_power_arr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_power_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 externC const char * CUDAarr_power_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_power_arr(float * a, float b, float * c, int N);
 
@@ -106,10 +110,10 @@ externC const char * CUDAany_carr(float * a, float * c, int N);  // Size of c ha
 
 
 // Multiplication
-externC const char * CUDAarr_times_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_times_carr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_times_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAarr_times_carr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_times_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_times_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_times_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_times_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 
 externC const char * CUDAarr_times_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_times_arr(float * a, float b, float * c, int N);
@@ -119,10 +123,10 @@ externC const char * CUDAarr_times_Cconst(float * a, float br, float bi, float *
 externC const char * CUDACconst_times_arr(float * a, float br, float bi, float * c, int N);
 
 // Division
-externC const char * CUDAarr_divide_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_divide_carr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_divide_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAarr_divide_carr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_divide_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_divide_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_divide_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_divide_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 
 externC const char * CUDAarr_divide_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_divide_arr(float * a, float b, float * c, int N);
@@ -132,10 +136,10 @@ externC const char * CUDAconst_divide_carr(float * a, float br, float bi, float 
 externC const char * CUDACconst_divide_arr(float * a, float br, float bi, float * c, int N);
 
 // Element-wise maximum operation
-externC const char * CUDAarr_max_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_max_carr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_max_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAarr_max_carr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_max_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_max_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_max_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_max_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 
 externC const char * CUDAarr_max_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_max_arr(float * a, float b, float * c, int N);
@@ -145,10 +149,10 @@ externC const char * CUDAarr_max_Cconst(float * a, float br, float bi, float * c
 externC const char * CUDACconst_max_arr(float * a, float br, float bi, float * c, int N);
 
 // Element-wise minimum operation
-externC const char * CUDAarr_min_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_min_carr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_min_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAarr_min_carr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_min_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_min_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_min_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_min_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 
 externC const char * CUDAarr_min_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_min_arr(float * a, float b, float * c, int N);
@@ -158,10 +162,10 @@ externC const char * CUDAarr_min_Cconst(float * a, float br, float bi, float * c
 externC const char * CUDACconst_min_arr(float * a, float br, float bi, float * c, int N);
 
 // Addition
-externC const char * CUDAarr_plus_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_plus_carr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_plus_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAarr_plus_carr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_plus_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_plus_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_plus_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_plus_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 
 externC const char * CUDAarr_plus_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_plus_arr(float * a, float b, float * c, int N);
@@ -171,10 +175,10 @@ externC const char * CUDAarr_plus_Cconst(float * a, float br, float bi, float * 
 externC const char * CUDACconst_plus_arr(float * a, float br, float bi, float * c, int N);
 
 // Subtraction
-externC const char * CUDAarr_minus_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_minus_carr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_minus_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAarr_minus_carr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_minus_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_minus_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_minus_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_minus_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 
 externC const char * CUDAarr_minus_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_minus_arr(float * a, float b, float * c, int N);
@@ -191,6 +195,7 @@ externC const char * CUDAarr_subsref_ind(float * a, float * b, float * c, int N,
 externC const char * CUDAcarr_subsref_ind(float * a, float * b, float * c, int N, int M);
 externC const char * CUDAarr_subsasgn_ind(float * a, float * b, float * c, int N, int M);
 externC const char * CUDAcarr_subsasgn_ind(float * a, float * b, float * c, int N, int M);
+// Line below: Wrapping does not make sense, so this is just for compatibility
 externC const char * CUDAarr_subsasgn_const(float * a, float b, float * c, int N);
 externC const char * CUDAarr_subsasgn_Cconst(float * a, float br, float bi, float * c, int N);
 externC const char * CUDAcarr_subsasgn_const(float * a, float br, float bi, float * c, int N);
@@ -202,22 +207,22 @@ externC const char * CUDAarr_diag_get(float * a, float * c,int sSize[3], int dSi
 externC const char * CUDAcarr_diag_get(float * a, float * c,int sSize[3], int dSize[3], int sOffs[3], int sROI[3], int dOffs[3]);
 
 // referencing and assignment using an index vector (b), N always refers to the output size. No index checking!
-externC const char * CUDAarr_subsref_vec(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_subsref_vec(float * a, float * b, float * c, int N);
-externC const char * CUDAarr_subsasgn_vec(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_subsasgn_vec(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_subsref_vec(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_subsref_vec(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_subsasgn_vec(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_subsasgn_vec(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 
 // Assigning to by another real-valued array (interpretet as boolean)
 externC const char * CUDAarr_subsasgn_arr(float * in, float * mask, float *  out, int N, int * pM);
 externC const char * CUDAcarr_subsasgn_arr(float * in, float * mask, float *  out, int N, int * pM);
 
 // or operation
-externC const char * CUDAarr_or_arr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_or_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 externC const char * CUDAarr_or_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_or_arr(float * a, float b, float * c, int N);
 
 // and operation
-externC const char * CUDAarr_and_arr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_and_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 externC const char * CUDAarr_and_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_and_arr(float * a, float b, float * c, int N);
 
@@ -229,30 +234,30 @@ externC const char * CUDAsign_arr(float * a, float * c, int N);
 externC const char * CUDAsign_carr(float * a, float * c, int N);
 
 // smaller than
-externC const char * CUDAarr_smaller_arr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_smaller_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 externC const char * CUDAarr_smaller_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_smaller_arr(float * a, float b, float * c, int N);
 
 // larger than
-externC const char * CUDAarr_larger_arr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_larger_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 externC const char * CUDAarr_larger_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_larger_arr(float * a, float b, float * c, int N);
 
 // smaller or equal
-externC const char * CUDAarr_smallerequal_arr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_smallerequal_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 externC const char * CUDAarr_smallerequal_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_smallerequal_arr(float * a, float b, float * c, int N);
 
 // larger or equal
-externC const char * CUDAarr_largerequal_arr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_largerequal_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 externC const char * CUDAarr_largerequal_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_largerequal_arr(float * a, float b, float * c, int N);
 
 // ==
-externC const char * CUDAarr_equals_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_equals_carr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_equals_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAarr_equals_carr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_equals_arr(float * a, float * b, float * c, int N, int numdims,SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_equals_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_equals_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_equals_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 
 externC const char * CUDAarr_equals_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_equals_arr(float * a, float b, float * c, int N);
@@ -262,10 +267,10 @@ externC const char * CUDAarr_equals_Cconst(float * a, float br, float bi, float 
 externC const char * CUDACconst_equals_arr(float * a, float br, float bi, float * c, int N);
 
 // !=   ~=
-externC const char * CUDAarr_unequals_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_unequals_carr(float * a, float * b, float * c, int N);
-externC const char * CUDAcarr_unequals_arr(float * a, float * b, float * c, int N);
-externC const char * CUDAarr_unequals_carr(float * a, float * b, float * c, int N);
+externC const char * CUDAarr_unequals_arr(float * a, float * b, float * c, int N, int numdims,SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_unequals_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAcarr_unequals_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_unequals_carr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 
 externC const char * CUDAarr_unequals_const(float * a, float b, float * c, int N);
 externC const char * CUDAconst_unequals_arr(float * a, float b, float * c, int N);
