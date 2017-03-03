@@ -44,3 +44,5 @@ if in.fromDip == 0  % This was a matlab object
     end
 end
 out.fromDip=1;
+out.isBinary=0; % Default
+

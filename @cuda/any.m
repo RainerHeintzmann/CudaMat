@@ -24,7 +24,6 @@ function out = any(in1)
 if isa(in1,'cuda') 
     out=cuda_cuda('any',in1.ref);  % returns a number
 end
-out.isBinary = 1; % mark this as a binary result (needed for subsasgn)
 
 %if isa(in1,'cuda')
 %     val= sum(in1~=0)>0;

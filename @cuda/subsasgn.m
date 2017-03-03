@@ -20,6 +20,10 @@
 %**************************************************************************
 %
 function out=subsasgn(in,index,val)        % DANGER !!! This still does not do a copy of the object. a=b; b(13)=17; will change "a" as well!
+if (isempty(val) && (isa(index.subs{1},'cuda') && ((~isempty(index.subs{1}.isBinary) && index.subs{1}.isBinary) || (ndims(index.subs{1})>1 && size(index.subs{1},1) > 1 && size(index.subs{1},2) > 1)))  || isempty(index.subs{1}))
+    out=in;
+   return;
+end
 if ~isa(in,'cuda')
     if isa(val,'cuda')
         out=subsasgn(in,index,single_force(val));
@@ -28,6 +32,7 @@ if ~isa(in,'cuda')
         error('Why is this the cuda subsasgn function called for non-cuda variables?');
     end
 end
+
 valsize=size(val);
 tvalsize=prod(valsize);
 if tvalsize > 1
@@ -87,6 +92,7 @@ switch index.type
                         else
                             moffs(d)= 0;   % DipImage style
                         end
+                        mstep(d)=1;
                         if length(index.subs)==1
                             msize=insize;  % assign all the sizes here, as d will only iterate over 1 direction
                         else
@@ -98,13 +104,24 @@ switch index.type
                         end
                         if isa(index.subs{d},'cuda')  % due to some funny Matlab bug which prevents calling subsref within subsref for type cuda
                             moffs(d)=getVal(index.subs{d},0);
-                            msize(d)=getVal(index.subs{d},-1)-moffs(d)+1;
+                            if (getVal(index.subs{d},-1) == moffs(d))
+                                mstep(d)=1;
+                            else
+                                mstep(d)=(getVal(index.subs{d},-1)-moffs(d)) / (length(index.subs{d})-1);
+                            end
+                            msize(d)=floor(abs(getVal(index.subs{d},-1)-moffs(d))/abs(mstep(d)))+1;
                             % isblock=0;
                         else
                             moffs(d)=index.subs{d}(1);
-                            msize(d)=index.subs{d}(end)-moffs(d)+1;
+                            if (index.subs{d}(end) == moffs(d))
+                                mstep(d)=1;
+                            else
+                                mstep(d)=(index.subs{d}(end)-moffs(d)) / (length(index.subs{d})-1);
+                            end
+                            msize(d)=floor(abs(index.subs{d}(end)-moffs(d))/abs(mstep(d)))+1;
                         end
-                        if length(index.subs{d}) ~= length([moffs(d):moffs(d)+msize(d)-1]) || sum(abs(index.subs{d}-[moffs(d):moffs(d)+msize(d)-1])) ~= 0
+                        if length(index.subs{d}) ~= abs(msize(d)) || sum(abs(index.subs{d}-[moffs(d):mstep(d):moffs(d)+mstep(d)*(length(index.subs{d})-1)])) ~= 0
+                        % if length(index.subs{d}) ~= length([moffs(d):mystep:moffs(d)+msize(d)-sign(mystep)]) || sum(abs(index.subs{d}-[moffs(d):mystep:moffs(d)+msize(d)-sign(mystep)])) ~= 0
                             isblock=0;
                         end
                     end
@@ -113,6 +130,7 @@ switch index.type
                 if in.fromDip && length(moffs) > 1
                     tmp=moffs(1);moffs(1)=moffs(2);moffs(2)=tmp;
                     tmp=msize(1);msize(1)=msize(2);msize(2)=tmp;
+                    tmp=mstep(1);mstep(1)=mstep(2);mstep(2)=tmp;
                     tmp=valsize(1);valsize(1)=valsize(2);valsize(2)=tmp;
                     tmp=insize(1);insize(1)=insize(2);insize(2)=tmp;
                 end
@@ -133,8 +151,8 @@ switch index.type
             end
             
             if isblock
-                if any((moffs + msize) > insize) || (isreal(in) && ~isreal(val))  % dataset needs expansion or change of datatype
-                    ns=max((moffs + msize), insize); % new size
+                if any((moffs + msize.*mstep) > insize) || (isreal(in) && ~isreal(val))  % dataset needs expansion or change of datatype
+                    ns=max((moffs + msize.*mstep), insize); % new size
                     if isreal(in) && isreal(val)
                         tmp=zeros_cuda2(cuda(0),ns);  % makes a new object
                     else
@@ -142,7 +160,7 @@ switch index.type
                     end
                     tmp.fromDip=in.fromDip;
                     % the line below will update the tmp array without deleting
-                    cuda_cuda('subsasgn_block',in.ref,tmp.ref,ns*0,insize,-1);  % no delete ignored
+                    cuda_cuda('subsasgn_block',in.ref,tmp.ref,ns*0,insize,-1,mstep);  % no delete ignored
                     in=tmp;
                 end
                 ddiff=length(msize)-length(valsize);
@@ -159,9 +177,9 @@ switch index.type
                     end
                 end
                 if prod(valsize) == 1   % this is a single value to assign
-                    out.ref=cuda_cuda('subsasgn_block',double(val),in.ref,moffs,msize,1);  % is a constant to assing, next delete ignored
+                    out.ref=cuda_cuda('subsasgn_block',double(val),in.ref,moffs,msize,1,mstep);  % is a constant to assing, next delete ignored
                 else
-                    out.ref=cuda_cuda('subsasgn_block',valref,in.ref,moffs,msize,0);  % is an array to assign, next delete is ignored
+                    out.ref=cuda_cuda('subsasgn_block',valref,in.ref,moffs,msize,0,mstep);  % is an array to assign, next delete is ignored
                 end
             else
                 mybool=index.subs{1};

@@ -1,4 +1,5 @@
-% cuda_compile_all : compiles all defined cuda functions into the system of cuda commands that can be executed on NVidia Graphic cards
+% cuda_compile_all(forceRecompile) : compiles all defined cuda functions into the system of cuda commands that can be executed on NVidia Graphic cards
+% forceRecompile: optional flag to force recompilation independent of the global flag cuda_to_compile.needsRecompile. Default: 0 (no recompilation forced)
 %
 % globals are used:
 % cuda_to_compile  : contains all the collected snippets to compile into a cuda toolbox
@@ -12,7 +13,10 @@
 % myreal(cuda(readim + i*readim('orka')))
 %
 
-function cuda_compile_all() 
+function cuda_compile_all(forceRecompile) 
+if nargin < 1
+    forceRecompile=0;
+end
 global cuda_to_compile;  % contains all the collected snippets to compile into a cuda toolbox
 global NVCCFLAGS;
 global CVERSION;
@@ -22,7 +26,7 @@ if ~exist('cuda_to_compile') || isempty(cuda_to_compile)
     error('Cannot compile any user defined cuda functions. None defined. Use cuda_define()');
 end
 
-if ~cuda_to_compile.needsRecompile
+if ~cuda_to_compile.needsRecompile && ~forceRecompile
     fprintf('cuda_compile_all: Nothing to recompile. Code has not changed\n')
     return;
 end
@@ -89,7 +93,7 @@ if ispc
     elseif CVERSION==12
         global CPATH;
         if isempty(CPATH)
-            CudaComp=' --cl-version 2013 -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64" "-Ic:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include" -I../../common/inc ';
+            CudaComp=' --cl-version 2013 -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\amd64" "-Ic:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include" -I../../common/inc ';
             % -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include" 
         else
             CudaComp=[' --cl-version 2013 -ccbin "' CPATH '\VC\bin\x86_amd64" "-I' CPATH '\VC\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include" -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include" '];
@@ -102,14 +106,21 @@ if ispc
         warning('No global CVERSION flag was set. Assuming version 11.0. Choices are 9, 10 or 11.')
         CudaComp=' -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include" ';
     end
-    if CudaVERSION==7
+    if CudaVERSION==8
+        MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\lib\x64" ';
+        NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin\nvcc"';
+    elseif CudaVERSION==7
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\lib\x64" ';
+        NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\bin\nvcc"';
     elseif CudaVERSION==6
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\lib\x64" ';
+        NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\bin\nvcc"';
     elseif CudaVERSION==5
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\lib\x64" ';
+        NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.0\bin\nvcc"';
     elseif CudaVERSION==4
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v4.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v4.0\lib\x64" ';
+        NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v4.0\bin\nvcc"';
     else
         warning('No global CudaVERSION flag was set. Assuming version 6. Choices are 6, 5 or 4.')
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\lib\x64" ';
@@ -121,7 +132,7 @@ if ispc
     % system('"c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat"')
     % vcvars64.bat has to be present at C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64
     % status=system(['nvcc -c ' MEXFLAGS ' ' NVCCFLAGS ' ' CudaBase 'cudaArith.cu  -I.']);
-    status=system(['nvcc -c ' MEXFLAGS ' ' NVCCFLAGS ' '  CudaComp CudaBase 'cudaArith.cu  -I. -Xcudafe "--diag_suppress=divide_by_zero"']);
+    status=system([NVCC_BIN ' -c ' MEXFLAGS ' ' NVCCFLAGS ' '  CudaComp CudaBase 'cudaArith.cu  -I. -Xcudafe "--diag_suppress=divide_by_zero"']);
     if status ~= 0
         error('nvcc command failed. Try defining the global variables CudaVERSION={4,5,6} and CVERSION={10,11} in the startup file.');
     end

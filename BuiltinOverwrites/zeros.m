@@ -1,4 +1,6 @@
-% set_zeros_cuda(doset) : sets or clears the global variable, which decides whether to use the cuda or the builtin zeros function
+% zeros : overloaded function from the cudaMat package. 
+% Decides whether the standard matlab function or the cuda version is used, depending on the state of the global use_ones_cuda variable, 
+% which can be set via the function set_ones_cuda()
 
 %***************************************************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
@@ -20,11 +22,11 @@
 %**************************************************************************
 %
 
-function set_zeros_cuda(doset)
-global use_zeros_cuda;
-global remember_use_zeros_cuda;
-if nargin<1 
-    doset=1;
-end 
-use_zeros_cuda=doset;
-remember_use_zeros_cuda=doset;
+function varargout=zeros(varargin)
+global use_ones_cuda;
+if (use_ones_cuda)
+    tmp=cuda(1.0);
+    [varargout{1:nargout}] = zeros_cuda2(tmp,varargin{:});        
+else
+    [varargout{1:nargout}] =builtin('zeros',varargin{:});  % call the standart matlab zeros function
+end

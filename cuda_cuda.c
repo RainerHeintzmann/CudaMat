@@ -109,8 +109,8 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
 #define CHECK_CUDATotalSIZESSingleton(ref1,ref2,totalResSize, sizeC, singletonA, singletonB, numdims, hasSingleton) { \
     int d;                                                                      \
     int dimsA=cuda_array_dim[ref1], dimsB=cuda_array_dim[ref2], SA,SB;          \
-    totalResSize=1;   \
-    SizeND sizeA=getSizeFromRefNum(ref1), sizeB=getSizeFromRefNum(ref2);   \
+    SizeND sizeA; SizeND sizeB;   \
+    sizeA=getSizeFromRefNum(ref1);sizeB=getSizeFromRefNum(ref2);totalResSize=1;   \
     numdims=max(dimsA,dimsB);                                                   \
     Dbg_printf4("CHECK_CUDATotalSIZESSingleton numdims %d, ref1 %d ref2 %d\n",numdims,ref1,ref2); \
     for (d=0;d<CUDA_MAXDIM;d++) {                                               \
@@ -124,7 +124,9 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
         totalResSize *= sizeC.s[d];                                               \
         if (SA != SB)                                               \
             if (SA != 1 && SB != 1)                                     \
-            { mexErrMsgTxt("cuda: Sizes are incompatible, even considering singleton dimensions. Bailing out\n");} \
+            {                                                               \
+                printf("Dimension %d, SizeA: %d, SizeB: %d\n",d,SA,SB);     \
+                mexErrMsgTxt("cuda: Sizes are incompatible, even considering singleton dimensions. Bailing out\n");} \
             else if (SA==1) {singletonA.s[d]=1;hasSingleton=1;}             \
             else {singletonB.s[d]=1;hasSingleton=1;}                              \
     }                                                                               \
@@ -627,6 +629,18 @@ void get5DSize(int ref, int * mysize) {
             mysize[d]=1;
 }
 
+// returns array size in 5D coordinates (expanding with ones)
+Size5D getSize5D(int ref) {
+    Size5D mysize;
+    int d;
+    for (d=0;d<5;d++)
+        if (d< cuda_array_dim[ref])
+            mysize.s[d]=cuda_array_size[ref][d];
+        else
+            mysize.s[d]=1;
+    return mysize; 
+}
+
 VecND VecNDFromRef(const mxArray * MatlabRef) {
     VecND ret;
     int d,dim;
@@ -678,7 +692,9 @@ int getTotalSize(int dim,const int * sizevec) {  // returns the total size in nu
     for (d=0;d<dim;d++) {
         totalsize *= sizevec[d];
         if (sizevec[d]==0)
-        { mexErrMsgTxt("cuda: detected a zero in the size of an array. (e.g. in allocation)\n"); return 0;}
+        { 
+            // mexErrMsgTxt("cuda: detected a zero in the size of an array. (e.g. in allocation)\n"); 
+          return 0;}
     }
     // Dbg_printf2("Totalsize = %d\n",totalsize);
     return totalsize;
@@ -703,9 +719,9 @@ int getTotalFloatSizeFromRef(const mxArray * arg) {   // sizes in floating point
 void CheckMemoryConsistency();   // Just declare, but no definition yet. See below
 
 void PrintMemoryOverview() {
-    int p,d,plantypenum,n;
-    int sumMem=0;
-    int sumHeap=0;
+    unsigned int p,d,plantypenum,n;
+    unsigned int sumMem=0;
+    unsigned int sumHeap=0;
     int size5d[5];
     printf("Overview of use Memory:\n");
     printf("----------------------------------------------------------------------------------\n");
@@ -714,12 +730,12 @@ void PrintMemoryOverview() {
         if (cuda_arrays[p] !=0)
         {
             get5DSize(p,size5d);
-            printf(" %4d\t%1d\t%1d\t%4d\t%4d\t%4d\t%9d\t%9d\n",p,cuda_array_type[p],cuda_array_dim[p],size5d[0],size5d[1],size5d[2],getTotalSizeFromRefNum(p),cuda_arrays[p]);
+            printf(" %4u\t%1d\t%1d\t%4d\t%4d\t%4d\t%9d\t%9d\n",p,cuda_array_type[p],cuda_array_dim[p],size5d[0],size5d[1],size5d[2],getTotalSizeFromRefNum(p),cuda_arrays[p]);
             sumMem+=getTotalSizeFromRefNum(p);
         }
 
     printf("\n--------------------------------------------------------------------------------\n");
-    printf("Overview of Memory Heap (heapsize %d, allocated %d, first_free %d, tofree %d\n",MAX_HEAP,mem_heap_allocated, mem_heap_first_free,mem_heap_pos);
+    printf("Overview of Memory Heap (heapsize %u, allocated %u, first_free %u, tofree %u\n",MAX_HEAP,mem_heap_allocated, mem_heap_first_free,mem_heap_pos);
 #ifndef UseHeap
     printf("Memory Heap is not used\n");
 #else
@@ -746,7 +762,7 @@ void PrintMemoryOverview() {
                     printf("3D plan no. %d Size: %d x %d x %d\n",n,cuda_FFTplan_sizes[n][2][plantypenum][0],cuda_FFTplan_sizes[n][2][plantypenum][1],cuda_FFTplan_sizes[n][2][plantypenum][2]);
                  }
     printf("----------------------------------------------------------------------------------\n");
-    printf("Summary: Memory used %9d, Heap %9d, Total used %9d, ?= Allocated %10d, Total: %10d, Free %10d \n",sumMem,sumHeap,sumMem+sumHeap,SumAllocated,GetDeviceProp().totalGlobalMem,GetDeviceProp().totalGlobalMem - SumAllocated);
+    printf("Summary: Memory used %9u, Heap %9u, Total used %9u, Allocated %u, Total: %u, Free %u \n",sumMem,sumHeap,sumMem+sumHeap,SumAllocated,GetDeviceProp().totalGlobalMem,GetDeviceProp().totalGlobalMem - SumAllocated);
     printf("Current Reduce Array size %9d \n",GetCurrentRedSize());
 
 }
@@ -1028,7 +1044,7 @@ int updateFreeArray() { // looks for the next free position to store and array
  float * cudaAllocDetailed(int dims, const  int * sizevec, int cuda_type) {   // make a new array
     float * p_cuda_data; // float ** pp_cuda_data=& p_cuda_data;
     int pos=updateFreeArray(),ts;
-    cudaCopySizeVec(pos,sizevec,dims);
+    cudaCopySizeVec(pos,sizevec,dims);   // copy the size information to the array
     
     cuda_array_type[pos]=cuda_type;
     
@@ -1748,6 +1764,27 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)ref);
   }
+  else if (strcmp(command,"swapSizeForceDim2")==0) {
+    int ref;
+    if (nrhs != 2) mexErrMsgTxt("cuda: swapSizeForceDim2 needs two arguments\n");
+    ref=getCudaRefNum(prhs[1]);
+    if (cuda_array_dim[ref] <2)
+        {cuda_array_dim[ref]=2;cuda_array_size[ref][1]=1;}
+    swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)ref);
+  }
+  else if (strcmp(command,"swapSizeForceDim1")==0) {
+    int ref;
+    if (nrhs != 2) mexErrMsgTxt("cuda: swapSizeForceDim1 needs two arguments\n");
+    ref=getCudaRefNum(prhs[1]);
+    if (cuda_array_dim[ref] != 2 || cuda_array_size[ref][0]!=1)
+        mexErrMsgTxt("cuda: swapSizeForceDim1 array needs to be 2D of size 1 along first dimension\n");
+    swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);
+    cuda_array_dim[ref]=1;
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)ref);
+  }
   else if (strcmp(command,"enableWarning")==0) { 
     showwarning=1;
   }
@@ -1775,21 +1812,30 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     int ref1,mask;
     float * newarr;
     int M=0,firstres=0;const char * ret=0;
+    unsigned int totalSize=0;
     if (nrhs != 3) mexErrMsgTxt("cuda: subsref_cuda needs four arguments\n");  // command, array1 , 3D offset, 3D size
     ref1=getCudaRefNum(prhs[1]);
     mask=getCudaRefNum(prhs[2]);
     if (isComplexType(mask))
         mexErrMsgTxt("subsref_cuda: tried to reference with a complex image\n");
     
+    totalSize=getTotalSizeFromRef(prhs[1]);
     newarr=cudaAlloc(prhs[1]);  // same type, and unfortunately also size, as input image
     if (isComplexType(ref1)) {
            Dbg_printf("subsref_cuda complex\n");
-           ret=CUDAcarr_subsref_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),newarr,getTotalSizeFromRef(prhs[1]), & M);
+           ret=CUDAcarr_subsref_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),newarr,totalSize, & M);
     } else {
            Dbg_printf("subsref_cuda real\n");
-           ret=CUDAarr_subsref_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),newarr,getTotalSizeFromRef(prhs[1]),& M);
+           ret=CUDAarr_subsref_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),newarr,totalSize,& M);
         } 
     Dbg_printf2("cuda: subsref_cuda: Written one-D array of size %d\n",M);
+    if (M == 0)  // This is an empty array!
+    {
+        cudaDelete(free_array);
+        if (nlhs > 0)
+            plhs[0] =  mxCreateDoubleScalar((double)-1.0);   // Indicate this to the outside world
+        return;
+    }
     if (ret) { printf("cuda: subsref_cuda"); mexErrMsgTxt(ret);}                          
     Dbg_printf("cuda: subsref_cuda\n");
 
@@ -1879,50 +1925,66 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
 
   }
   else if (strcmp(command,"subsref_block")==0) { // sub referencing a block of data
-    int ref1,dimsSoff,dimsSsize,d,ndim;
-    double * p_Soffset, * p_Ssize;
+    int ref1,dimsSoff,dimsSsize,dimsSstep,ndim,d,EndPos;
+    double * p_Soffset, * p_SROI, * p_Sstep;
     const char * ret=0;
-    int nsizes[5]={1,1,1,1,1},dOffs[5]={0,0,0,0,0},sSize[5]={1,1,1,1,1},sOffs[5]={0,0,0,0,0};
+    Size5D nsizes,sROI,dOffs,sSize,sOffs,sStep;
+    // int nsizes[5]={1,1,1,1,1},sROI[5]={1,1,1,1,1},dOffs[5]={0,0,0,0,0},sSize[5]={1,1,1,1,1},sOffs[5]={0,0,0,0,0};
     float * newarr;
-    if (nrhs != 4) mexErrMsgTxt("cuda: csubsref needs four arguments\n");  // command, array1 , 3D offset, 3D size
+    if (nrhs != 5) mexErrMsgTxt("cuda: csubsref needs four arguments\n");  // command, array1 , 3D offset, 3D size
     ref1=getCudaRefNum(prhs[1]);
     dimsSoff=(int) (mxGetM(prhs[2]) * mxGetN(prhs[2]));
     dimsSsize=(int)(mxGetM(prhs[3]) * mxGetN(prhs[3]));
+    dimsSstep=(int)(mxGetM(prhs[4]) * mxGetN(prhs[4]));
     if (dimsSoff>5)
         mexErrMsgTxt("cuda: subreferencing is only supported up to 5D. Offset vector too long.\n");
     if (dimsSsize>5)
         mexErrMsgTxt("cuda: subreferencing is only supported up to 5D. Size vector too long.\n");
+    if (dimsSstep>5)
+        mexErrMsgTxt("cuda: subreferencing is only supported up to 5D. Step vector too long.\n");
     p_Soffset=mxGetPr(prhs[2]);
-    p_Ssize=mxGetPr(prhs[3]);
-    get5DSize(ref1,sSize);
+    p_SROI=mxGetPr(prhs[3]);
+    p_Sstep=mxGetPr(prhs[4]);
+    sSize=getSize5D(ref1);  // from the reference number in 
     for (d=0;d<5;d++) {
+        dOffs.s[d]=0;
         if (d<dimsSoff)
-            sOffs[d]=(int) p_Soffset[d];
+            sOffs.s[d]=(int) p_Soffset[d];
+        else
+            sOffs.s[d]=0;
         if (d<dimsSsize)
-            nsizes[d]=(int) p_Ssize[d];
-        if (sOffs[d] < 0.0 || sOffs[d]+nsizes[d] > sSize[d]) {
-            printf("d: %d sOffs %d, sOffs+nsizes %d, sSize %d\n",d,sOffs[d], sOffs[d]+nsizes[d], sSize[d]);
-            mexErrMsgTxt("cuda: subreferencing Offset index out of range.\n"); }
-        if (nsizes[d] < 0.0)
-            mexErrMsgTxt("cuda: subreferencing Negative sizes not allowed.\n");            
+            sROI.s[d]=(int) p_SROI[d];
+        else
+            sROI.s[d]=1;
+        nsizes.s[d]=sROI.s[d];
+        if (d<dimsSstep)
+            sStep.s[d]=(int) p_Sstep[d];
+        else
+            sStep.s[d]=1;
+        EndPos=sOffs.s[d]+(nsizes.s[d]-1)*sStep.s[d];
+        if (sOffs.s[d] < 0.0 || sOffs.s[d] >= sSize.s[d] || EndPos < 0 || EndPos >= sSize.s[d]) {
+            printf("d: %d sOffs %d, EndPos %d, sSize %d\n",d,sOffs.s[d], EndPos, sSize.s[d]);
+            mexErrMsgTxt("cuda: subreferencing index out of range.\n"); }
+        if (sROI.s[d] < 0.0)
+            mexErrMsgTxt("cuda: subreferencing Negative sizes not allowed.\n");            // Negative sizes mean negative indexing
     }
     Dbg_printf("subsref_block\n");
     ndim=cuda_array_dim[ref1];  // Will not change dimensionality of array
 
-    Dbg_printf6("s1Size: %d x %d x %d x %d x %d\n",sSize[0],sSize[1],sSize[2],sSize[3],sSize[4]);
-    Dbg_printf6("nSize: %d x %d x %d x %d x %d\n",nsizes[0],nsizes[1],nsizes[2],nsizes[3],nsizes[4]);
-    Dbg_printf6("dOffs: %d x %d x %d x %d x %d\n",dOffs[0],dOffs[1],dOffs[2],dOffs[3],dOffs[4]);
+    Dbg_printf6("s1Size: %d x %d x %d x %d x %d\n",sSize.s[0],sSize.s[1],sSize.s[2],sSize.s[3],sSize.s[4]);
+    Dbg_printf6("nSize: %d x %d x %d x %d x %d\n",nsizes.s[0],nsizes.s[1],nsizes.s[2],nsizes.s[3],nsizes.s[4]);
+    Dbg_printf6("dOffs: %d x %d x %d x %d x %d\n",dOffs.s[0],dOffs.s[1],dOffs.s[2],dOffs.s[3],dOffs.s[4]);
     if (isComplexType(ref1))
-        newarr=cudaAllocDetailed(ndim,nsizes,scomplex);
+        newarr=cudaAllocDetailed(ndim,nsizes.s,scomplex);
     else
-        newarr=cudaAllocDetailed(ndim,nsizes,single);
+        newarr=cudaAllocDetailed(ndim,nsizes.s,single);
 
      if (isComplexType(ref1)) {
            Dbg_printf("subsref_block complex to complex\n");
-           ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[1]),newarr,sSize,nsizes,sOffs,nsizes,dOffs);
+           ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[1]),newarr,sSize,nsizes,sOffs,sROI,dOffs,sStep);
      } else {
            Dbg_printf("subsref_block real to real\n");
-           ret=CUDAarr_5dsubcpy_arr(getCudaRef(prhs[1]),newarr,sSize,nsizes,sOffs,nsizes,dOffs);
+           ret=CUDAarr_5dsubcpy_arr(getCudaRef(prhs[1]),newarr,sSize,nsizes,sOffs,sROI,dOffs,sStep);
         } 
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
@@ -1959,12 +2021,13 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     Dbg_printf("cuda: subsasgn_cuda_const\n");
     } 
   else if (strcmp(command,"subsasgn_block")==0) { // sub referencing a block of data
-    int ref2,constmode,dimsDoff,dimsSsize;
-    int dOffs[5]={0,0,0,0,0},sSize[5]={1,1,1,1,1},dSize[5]={1,1,1,1,1},noOffs[5]={0,0,0,0,0};
+    int ref2,constmode,dimsDoff,dimsSsize,dimsDstep;
+    Size5D sSize,dSize,dOffs,noOffs,dStep;
+    // int dOffs[5]={0,0,0,0,0},sSize[5]={1,1,1,1,1},dSize[5]={1,1,1,1,1},noOffs[5]={0,0,0,0,0};
     int d;
-    double * p_Doffset,* p_sSize;
+    double * p_Doffset,* p_sSize, * p_dStep;
     const char * ret=0;
-    if (nrhs != 6) mexErrMsgTxt("cuda: subsasgn_block needs six arguments\n");  // command, array1 , 3D offset, 3D size
+    if (nrhs != 7) mexErrMsgTxt("cuda: subsasgn_block needs seven arguments\n");  // command, array1 , 5D offset, 5D size, 5D step
     ref2=getCudaRefNum(prhs[2]); // destination
     constmode=(mxGetScalar(prhs[5]) > 0) ? 1 : 0;  // should prhs[2] be interpreted as a constant to assign? 0 or negative means array
     dimsDoff=(int)(mxGetM(prhs[3]) * mxGetN(prhs[3]));
@@ -1977,18 +2040,35 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         mexErrMsgTxt("cuda: subassigning is only supported up to 5D. Size vector too long.\n");
     p_sSize=mxGetPr(prhs[4]);
 
+    dimsDstep=(int)(mxGetM(prhs[6]) * mxGetN(prhs[6]));
+    if (dimsSsize>5)
+        mexErrMsgTxt("cuda: subassigning is only supported up to 5D. Size vector too long.\n");
+    p_dStep=mxGetPr(prhs[6]);
+
     for (d=0;d<5;d++) {
+        noOffs.s[d]=0;
         if (d<dimsDoff)
-            dOffs[d]=(int) p_Doffset[d];
+            dOffs.s[d]=(int) p_Doffset[d];
+        else
+            dOffs.s[d]=0;
         if (d<dimsSsize)
-            sSize[d]=(int) p_sSize[d];
+            sSize.s[d]=(int) p_sSize[d];
+        else
+            sSize.s[d]=1;
+        if (d<dimsDstep)
+            dStep.s[d]=(int) p_dStep[d];
+        else
+            dStep.s[d]=1;
         if (d<cuda_array_dim[ref2])
-            dSize[d]=(int) cuda_array_size[ref2][d];
+            dSize.s[d]=(int) cuda_array_size[ref2][d];
+        else
+            dSize.s[d]=1;
         }
     Dbg_printf("subsasgn_block\n");
-    Dbg_printf6("sSize: %d x %d x %d x %d x %d\n",sSize[0],sSize[1],sSize[2],sSize[3],sSize[4]);
-    Dbg_printf6("dSize: %d x %d x %d x %d x %d\n",dSize[0],dSize[1],dSize[2],dSize[3],dSize[4]);
-    Dbg_printf6("dOffs: %d x %d x %d x %d x %d\n",dOffs[0],dOffs[1],dOffs[2],dOffs[3],dOffs[4]);
+    Dbg_printf6("sSize: %d x %d x %d x %d x %d\n",sSize.s[0],sSize.s[1],sSize.s[2],sSize.s[3],sSize.s[4]);
+    Dbg_printf6("dSize: %d x %d x %d x %d x %d\n",dSize.s[0],dSize.s[1],dSize.s[2],dSize.s[3],dSize.s[4]);
+    Dbg_printf6("dOffs: %d x %d x %d x %d x %d\n",dOffs.s[0],dOffs.s[1],dOffs.s[2],dOffs.s[3],dOffs.s[4]);
+    Dbg_printf6("dStep: %d x %d x %d x %d x %d\n",dStep.s[0],dStep.s[1],dStep.s[2],dStep.s[3],dStep.s[4]);
 
     if (!constmode) {
     int ref1=getCudaRefNum(prhs[1]); // source
@@ -1996,17 +2076,17 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         if (! isComplexType(ref2)) // destination needs to be complex too
             mexErrMsgTxt("cuda: trying to assign complex values to real array.\n");
         Dbg_printf("subsasgn_block complex to complex\n");
-        ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),sSize,dSize,noOffs,sSize,dOffs);
+        ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),sSize,dSize,noOffs,sSize,dOffs,dStep);
      } else {
          if (isComplexType(ref2)) // destination needs to be complex too
             {
              Dbg_printf("subsasgn_block real to complex\n");
-             ret=CUDAarr_5dsubcpy_carr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),sSize,dSize,noOffs,sSize,dOffs);
+             ret=CUDAarr_5dsubcpy_carr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),sSize,dSize,noOffs,sSize,dOffs,dStep);
             }
          else
             {
              Dbg_printf("subsasgn_block real to real\n");
-             ret=CUDAarr_5dsubcpy_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),sSize,dSize,noOffs,sSize,dOffs);
+             ret=CUDAarr_5dsubcpy_arr(getCudaRef(prhs[1]),getCudaRef(prhs[2]),sSize,dSize,noOffs,sSize,dOffs,dStep);
             }
         } 
     } else   // const mode (prhs[2] is a matlab constant to assign to array
@@ -2017,14 +2097,14 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         if (mxIsComplex(prhs[1]))
             myimag=* ((double *) (mxGetPi(prhs[1])));
         Dbg_printf("subsasgn_block complex const to complex\n");
-       ret=CUDAcconst_5dsubcpy_carr(getCudaRef(prhs[2]),(float) myreal,(float) myimag,dSize,sSize,dOffs);
+       ret=CUDAcconst_5dsubcpy_carr(getCudaRef(prhs[2]),(float) myreal,(float) myimag,dSize,sSize,dOffs,dStep);
      } else {
         double  myreal;
         if (mxIsComplex(prhs[1])) // const is complex but data is real
                 mexErrMsgTxt("cuda: trying to assign complex constant to real array.\n");
         myreal = mxGetScalar(prhs[1]);
         Dbg_printf("subsasgn_block real const to complex\n");
-        ret=CUDAconst_5dsubcpy_arr(getCudaRef(prhs[2]),(float) myreal,0.0,dSize,sSize,dOffs);
+        ret=CUDAconst_5dsubcpy_arr(getCudaRef(prhs[2]),(float) myreal,0.0,dSize,sSize,dOffs,dStep);
      }}
 
     if (nlhs > 0)
@@ -2080,8 +2160,8 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     Dbg_printf("copy\n");
   }
   else if (strcmp(command,"transpose")==0) { // transpose an array
-    int ref,conjmode,tmp;
-    int nsizes[5],ndim,noOffs[5]={0,0,0,0,0},sSize[5];
+    int ref,conjmode,tmp,ndim,d;
+    Size5D nsizes,noOffs,sSize,noStep;
     const char * ret=0;
     float * newarr;
 
@@ -2089,27 +2169,29 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     Dbg_printf("transpose\n");
     ref=getCudaRefNum(prhs[1]);
     conjmode=(mxGetScalar(prhs[2]) > 0) ? 1 : 0;  // conjugate or not, that is the question
-    get5DSize(ref,sSize);
-    get5DSize(ref,nsizes);
+    sSize=getSize5D(ref);
+    nsizes=getSize5D(ref);
     ndim=cuda_array_dim[ref];
     if (ndim<2) ndim=2;
-    tmp=nsizes[1];nsizes[1]=nsizes[0];nsizes[0]=tmp;  // swaps sizes
+    tmp=nsizes.s[1];nsizes.s[1]=nsizes.s[0];nsizes.s[0]=tmp;  // swaps sizes
+
+    for (d=0;d<5;d++) {noOffs.s[d]=0;noStep.s[d]=1; }
     
-    Dbg_printf6("sSize: %d x %d x %d x %d x %d\n",sSize[0],sSize[1],sSize[2],sSize[3],sSize[4]);
+    Dbg_printf6("sSize: %d x %d x %d x %d x %d\n",sSize.s[0],sSize.s[1],sSize.s[2],sSize.s[3],sSize.s[4]);
     if (isComplexType(ref))
-        newarr=cudaAllocDetailed(ndim,nsizes,scomplex);
+        newarr=cudaAllocDetailed(ndim,nsizes.s,scomplex);
     else
-        newarr=cudaAllocDetailed(ndim,nsizes,single);
+        newarr=cudaAllocDetailed(ndim,nsizes.s,single);
 
      if (isComplexType(ref)) {
            Dbg_printf("transpose complex to complex\n");
            if (conjmode)
-               ret=CUDAcarr_5dsubcpyCT_carr(getCudaRef(prhs[1]),newarr,sSize,nsizes,noOffs,sSize,noOffs);
+               ret=CUDAcarr_5dsubcpyCT_carr(getCudaRef(prhs[1]),newarr,sSize,nsizes,noOffs,sSize,noOffs,noStep);
            else
-               ret=CUDAcarr_5dsubcpyT_carr(getCudaRef(prhs[1]),newarr,sSize,nsizes,noOffs,sSize,noOffs);
+               ret=CUDAcarr_5dsubcpyT_carr(getCudaRef(prhs[1]),newarr,sSize,nsizes,noOffs,sSize,noOffs,noStep);
      } else {
            Dbg_printf("transpose real to real\n");
-           ret=CUDAarr_5dsubcpyT_arr(getCudaRef(prhs[1]),newarr,sSize,nsizes,noOffs,sSize,noOffs);
+           ret=CUDAarr_5dsubcpyT_arr(getCudaRef(prhs[1]),newarr,sSize,nsizes,noOffs,sSize,noOffs,noStep);
         } 
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
@@ -2195,70 +2277,69 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     Dbg_printf("cuda: diag\n");
   }
   else if (strcmp(command,"cat")==0) { // appends arrays along a direciton
-    int nsizes[5],dOffs[5],noOffs[5],s1Size[5],s2Size[5],ref1,ref2,ndim;
-    int direction;
+    Size5D nsizes,dOffs,noOffs,s1Size,s2Size,noStep;
+    int ref1,ref2,ndim,direction,d;
     const char * ret=0;
     float * newarr;
     if (nrhs != 4) mexErrMsgTxt("cuda: cat needs four arguments\n");  // command, array1 , array2, direction
     ref1=getCudaRefNum(prhs[1]);
     ref2=getCudaRefNum(prhs[2]);
     direction=(int) mxGetScalar(prhs[3]);
-    get5DSize(ref1,nsizes);get5DSize(ref1,s1Size);get5DSize(ref2,s2Size);
-    dOffs[0]=0;dOffs[1]=0;dOffs[2]=0;dOffs[3]=0;dOffs[4]=0;
-    noOffs[0]=0;noOffs[1]=0;noOffs[2]=0;noOffs[3]=0;noOffs[4]=0;
+    nsizes=getSize5D(ref1);s1Size=getSize5D(ref1);s2Size=getSize5D(ref2);
+    for (d=0;d<5;d++) {dOffs.s[d]=0;noOffs.s[d]=0;noStep.s[d]=1;}
     Dbg_printf2("append to direction: %g\n",direction);
     if (direction == 1) {
-        nsizes[0]=s1Size[0]+s2Size[0];
-        dOffs[0]=s1Size[0];
+        nsizes.s[0]=s1Size.s[0]+s2Size.s[0];
+        dOffs.s[0]=s1Size.s[0];
     } else if (direction == 2) {
-        nsizes[1]=s1Size[1]+s2Size[1];
-        dOffs[1]=s1Size[1];
+        nsizes.s[1]=s1Size.s[1]+s2Size.s[1];
+        dOffs.s[1]=s1Size.s[1];
     } else if (direction == 3) {
-        nsizes[2]=s1Size[2]+s2Size[2];
-        dOffs[2]=s1Size[2];
+        nsizes.s[2]=s1Size.s[2]+s2Size.s[2];
+        dOffs.s[2]=s1Size.s[2];
     } else if (direction == 4) {
-        nsizes[3]=s1Size[3]+s2Size[3];
-        dOffs[3]=s1Size[3];
+        nsizes.s[3]=s1Size.s[3]+s2Size.s[3];
+        dOffs.s[3]=s1Size.s[3];
     } else if (direction == 5) {
-        nsizes[4]=s1Size[4]+s2Size[4];
-        dOffs[4]=s1Size[4];
+        nsizes.s[4]=s1Size.s[4]+s2Size.s[4];
+        dOffs.s[4]=s1Size.s[4];
     } else {
         mexErrMsgTxt("cuda: cat. Direction to append along needs to be 1 (x), 2 (y), 3 (z), 4 (t) or 5 (e) \n");    
     }
     ndim=(cuda_array_dim[ref1] > cuda_array_dim[ref2]) ? cuda_array_dim[ref1] : cuda_array_dim[ref2];
     if (direction > ndim) ndim = direction;
         
-    Dbg_printf6("s1Size: %d x %d x %d x %d x %d\n",s1Size[0],s1Size[1],s1Size[2],s1Size[3],s1Size[4]);
-    Dbg_printf6("s2Size: %d x %d x %d x %d x %d\n",s2Size[0],s2Size[1],s2Size[2],s2Size[3],s2Size[4]);
-    Dbg_printf6("nSize: %d x %d x %d x %d x %d\n",nsizes[0],nsizes[1],nsizes[2],nsizes[3],nsizes[4]);
-    Dbg_printf6("dOffs: %d x %d x %d x %d x %d\n",dOffs[0],dOffs[1],dOffs[2],dOffs[3],dOffs[4]);
+    Dbg_printf6("s1Size: %d x %d x %d x %d x %d\n",s1Size.s[0],s1Size.s[1],s1Size.s[2],s1Size.s[3],s1Size.s[4]);
+    Dbg_printf6("s2Size: %d x %d x %d x %d x %d\n",s2Size.s[0],s2Size.s[1],s2Size.s[2],s2Size.s[3],s2Size.s[4]);
+    Dbg_printf6("nSize: %d x %d x %d x %d x %d\n",nsizes.s[0],nsizes.s[1],nsizes.s[2],nsizes.s[3],nsizes.s[4]);
+    Dbg_printf6("dOffs: %d x %d x %d x %d x %d\n",dOffs.s[0],dOffs.s[1],dOffs.s[2],dOffs.s[3],dOffs.s[4]);
     if (isComplexType(ref1) || isComplexType(ref2))
-        newarr=cudaAllocDetailed(ndim,nsizes,scomplex);
+        newarr=cudaAllocDetailed(ndim,nsizes.s,scomplex);
     else
-        newarr=cudaAllocDetailed(ndim,nsizes,single);
+        newarr=cudaAllocDetailed(ndim,nsizes.s,single);
 
      if (isComplexType(ref1))
         if (isComplexType(ref2)) {
            Dbg_printf("append complex to complex\n");
-           ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[1]),newarr,s1Size,nsizes,noOffs,s1Size,noOffs);
+           ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[1]),newarr,s1Size,nsizes,noOffs,s1Size,noOffs,noStep);
            if (ret) { printf("cuda: cat "); mexErrMsgTxt(ret);}                          
-           ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[2]),newarr,s2Size,nsizes,noOffs,s2Size,dOffs);
+           ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[2]),newarr,s2Size,nsizes,noOffs,s2Size,dOffs,noStep);
         } else {
            Dbg_printf("append complex to real\n");
-           ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[1]),newarr,s1Size,nsizes,noOffs,s1Size,noOffs);
+           ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[1]),newarr,s1Size,nsizes,noOffs,s1Size,noOffs,noStep);
            if (ret) { printf("cuda: cat "); mexErrMsgTxt(ret);}                          
-           ret=CUDAarr_5dsubcpy_carr(getCudaRef(prhs[2]),newarr,s2Size,nsizes,noOffs,s2Size,dOffs);
+           ret=CUDAarr_5dsubcpy_carr(getCudaRef(prhs[2]),newarr,s2Size,nsizes,noOffs,s2Size,dOffs,noStep);
         }
     else if (isComplexType(ref2)) {
            Dbg_printf("append real to complex\n");
-           ret=CUDAarr_5dsubcpy_carr(getCudaRef(prhs[1]),newarr,s1Size,nsizes,noOffs,s1Size,noOffs);
+           ret=CUDAarr_5dsubcpy_carr(getCudaRef(prhs[1]),newarr,s1Size,nsizes,noOffs,s1Size,noOffs,noStep);
            if (ret) { printf("cuda: cat "); mexErrMsgTxt(ret);}                          
-           ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[2]),newarr,s2Size,nsizes,noOffs,s2Size,dOffs);
+           ret=CUDAcarr_5dsubcpy_carr(getCudaRef(prhs[2]),newarr,s2Size,nsizes,noOffs,s2Size,dOffs,noStep);
         } else {
            Dbg_printf("append real to real\n");
-           ret=CUDAarr_5dsubcpy_arr(getCudaRef(prhs[1]),newarr,s1Size,nsizes,noOffs,s1Size,noOffs);
+           ret=CUDAarr_5dsubcpy_arr(getCudaRef(prhs[1]),newarr,s1Size,nsizes,noOffs,s1Size,noOffs,noStep);
            if (ret) { printf("cuda: cat "); mexErrMsgTxt(ret);}                          
-           ret=CUDAarr_5dsubcpy_arr(getCudaRef(prhs[2]),newarr,s2Size,nsizes,noOffs,s2Size,dOffs);
+           ret=CUDAarr_5dsubcpy_arr(getCudaRef(prhs[2]),newarr,s2Size,nsizes,noOffs,s2Size,dOffs,noStep);
         } 
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
@@ -2493,7 +2574,6 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"plus")==0) { // -----------------array + array
-    Dbg_printf("Before Plus\n"); 
     CallCUDA_BinaryFkt(plus,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
@@ -2543,6 +2623,11 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
+  else if (strcmp(command,"tan")==0) {
+    CallCUDA_UnaryRealFkt(tan,cudaAlloc)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
   else if (strcmp(command,"sinc")==0) {
     CallCUDA_UnaryFkt(sinc,cudaAlloc)
     if (nlhs > 0)
@@ -2555,6 +2640,36 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
   }
   else if (strcmp(command,"cosh")==0) {
     CallCUDA_UnaryFkt(cosh,cudaAlloc)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
+  else if (strcmp(command,"besselj_alpha")==0) {
+    CallCUDA_UnaryRealFktConst(besselj,cudaAlloc)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
+  else if (strcmp(command,"alpha_besselj")==0) {
+    CallCUDA_UnaryRealFktConstR(besselj,cudaAlloc)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
+  else if (strcmp(command,"besselj")==0) { 
+    CallCUDA_BinaryRealFkt(besselj,cudaAllocSized)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
+  else if (strcmp(command,"atan2_alpha")==0) {
+    CallCUDA_UnaryRealFktConst(atan2,cudaAlloc)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
+  else if (strcmp(command,"alpha_atan2")==0) {
+    CallCUDA_UnaryRealFktConstR(atan2,cudaAlloc)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
+  else if (strcmp(command,"atan2")==0) { 
+    CallCUDA_BinaryRealFkt(atan2,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }

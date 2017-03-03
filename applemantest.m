@@ -19,16 +19,17 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-function res=applemantest(usecuda)
+function applemantest(usecuda)
 %minx=-2.5;maxx=1.5;miny=-2;maxy=2;
 %minx=-0.2;maxx=-0.1;miny=-1.1;maxy=-0.98;
 %minx=-0.131;maxx=-0.128;miny=-1.022;maxy=-1.0185;
 %minx=-0.76;maxx=-0.72;miny=-0.22;maxy=-0.16;
  
 minx=-0.750;maxx=-0.743;miny=0.123;maxy=0.126; 
+minx=-2;maxx=1;miny=-1;maxy=1; 
 %minx=-0.74;maxx=-0.731;miny=-0.22;maxy=-0.205;
 %minx=-0.733;maxx=-0.7315;miny=-0.209;maxy=-0.207;
-res=3000;iter=700;
+res=1000;iter=700;
 %res=1024;iter=500;
 %res=4098;iter=4000;
 
@@ -68,6 +69,12 @@ if usecuda == 2  % define a precompiled cuda function
 end
 c=repmat(rg1,[length(rg2) 1]) + i*repmat(rg2',[1 length(rg1)]);
 if usecuda
+    pp=which('cuda_cuda');
+    if (isempty(pp))
+        fprintf('WARNING: There is no existing compiled cuda version. Trying to compile CudaMat by running applemantest(2)...\n');
+        applemantest(2);
+        fprintf('Now running applemantest(1) ...\n');
+    end
     c=cuda(c);
 end
 if usecuda == 2  % define a precompiled cuda function

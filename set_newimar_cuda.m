@@ -20,9 +20,11 @@
 %**************************************************************************
 %
 
-function res=set_newimar_cuda(doset)
+function set_newimar_cuda(doset)
 global use_newimar_cuda;
+global remember_use_newimar_cuda;
 if nargin<1 
     doset=1;
 end 
 use_newimar_cuda=doset;
+remember_use_newimar_cuda=doset;

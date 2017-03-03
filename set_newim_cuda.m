@@ -20,9 +20,11 @@
 %**************************************************************************
 %
 
-function res=set_newim_cuda(doset)
+function set_newim_cuda(doset)
 global use_newim_cuda;
+global  remember_use_newim_cuda;
 if nargin<1 
     doset=1;
 end 
 use_newim_cuda=doset;
+remember_use_newim_cuda=doset;

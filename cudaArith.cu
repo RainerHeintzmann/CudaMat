@@ -88,6 +88,8 @@ static struct cudaDeviceProp prop;  // Defined in cudaArith.h: contains the cuda
 
 #define Sqr(a) ((a)*(a))
 
+#define sign(x) (((x) > 0) - ((x) < 0))
+
 // below are code snippets used in other macros 
 #define Coords3DFromIdx(idx,sSize)                                      \
   int x=(idx)%sSize.s[0];                                               \
@@ -860,12 +862,6 @@ extern "C" const char * CUDA ## FktName(float * a, float * c, int N)         \
 // dx,dy,dz: destination total array sizes
 // dox,doy,doz : destination offsets
 
-// THESE STRUCT DEVINITION ARE NEEDED, AS CUDA CANNOT DEAL CORRECTLY WITH FIXED LENGTH ARRAYS IN THE ARGUMENT
-// ACCESING THEM WILL CAUSE A CRASH!
-// HOWEVER, STRUCTS WITH THE ARRAY INSIDE ARE OK
-typedef struct {
-    int s[3];
-} Size3D ;
 
 // Line below is used as an add-on to the 3d function below in case 3d assignment is needed
 #define GET3DIDD int idd=x+dOffs.s[0]+dSize.s[0]*(y+dOffs.s[1])+dSize.s[0]*dSize.s[1]*(z+dOffs.s[2]);
@@ -964,42 +960,39 @@ extern "C" const char * CUDA ## FktName(float *a, float * c, int sSize[3], int d
 
 //  Now the 5D Versions of the same code
 
-// THESE STRUCT DEVINITION ARE NEEDED, AS CUDA CANNOT DEAL CORRECTLY WITH FIXED LENGTH ARRAYS IN THE ARGUMENT
-// ACCESING THEM WILL CAUSE A CRASH!
-// HOWEVER, STRUCTS WITH THE ARRAY INSIDE ARE OK
-typedef struct {
-    int s[5];
-} Size5D ;
 
-// Line below is used as an add-on to the 3d function below in case 3d assignment is needed
-#define GET5DIDD   int idd=x+dOffs.s[0]+dSize.s[0]*(y+dOffs.s[1])+dSize.s[0]*dSize.s[1]*(z+dOffs.s[2])+dSize.s[0]*dSize.s[1]*dSize.s[2]*(t+dOffs.s[3])+dSize.s[0]*dSize.s[1]*dSize.s[2]*dSize.s[3]*(e+dOffs.s[4]);
+#define GETXYZET(aSize,idx)                                             \
+  int x=(idx)%abs(aSize.s[0]);                                          \
+  int y=(idx/aSize.s[0])%aSize.s[1];                                    \
+  int z=(idx/(aSize.s[0]*aSize.s[1]))%aSize.s[2];                       \
+  int t=(idx/(aSize.s[0]*aSize.s[1]*aSize.s[2]))%aSize.s[3];            \
+  int e=(idx/(aSize.s[0]*aSize.s[1]*aSize.s[2]*aSize.s[3]))%aSize.s[4]; \
+
+#define GET5DIDS int ids=x*sStep.s[0]+sOffs.s[0]+sSize.s[0]*(y*sStep.s[1]+sOffs.s[1])+sSize.s[0]*sSize.s[1]*(z*sStep.s[2]+sOffs.s[2])+sSize.s[0]*sSize.s[1]*sSize.s[2]*(t*sStep.s[3]+sOffs.s[3])+sSize.s[0]*sSize.s[1]*sSize.s[2]*sSize.s[3]*(e*sStep.s[4]+sOffs.s[4]);   \
+
+// Line below is used as an add-on to the 5d function below in case 5d assignment is needed
+#define GET5DIDD_STEP int idd=x*dStep.s[0]+dOffs.s[0]+dSize.s[0]*(y*dStep.s[1]+dOffs.s[1])+dSize.s[0]*dSize.s[1]*(z*dStep.s[2]+dOffs.s[2])+dSize.s[0]*dSize.s[1]*dSize.s[2]*(t*dStep.s[3]+dOffs.s[3])+dSize.s[0]*dSize.s[1]*dSize.s[2]*dSize.s[3]*(e*dStep.s[4]+dOffs.s[4]);
+
+#define GET5DIDD int idd=x+dOffs.s[0]+dSize.s[0]*(y+dOffs.s[1])+dSize.s[0]*dSize.s[1]*(z+dOffs.s[2])+dSize.s[0]*dSize.s[1]*dSize.s[2]*(t+dOffs.s[3])+dSize.s[0]*dSize.s[1]*dSize.s[2]*dSize.s[3]*(e+dOffs.s[4]);
 
 #define CUDA_5DFkt(FktName,expressions)                                 \
 __global__ void                                                         \
-FktName(float *a, float *c, Size5D sSize,Size5D dSize,Size5D sOffs, Size5D sROI, Size5D dOffs) \
+FktName(float *a, float *c, Size5D sSize,Size5D dSize,Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep) \
 {                                                                     \
   int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   int N=sROI.s[0]*sROI.s[1]*sROI.s[2]*sROI.s[3]*sROI.s[4];            \
-  int x=(idx)%sROI.s[0];                                              \
-  int y=(idx/sROI.s[0])%sROI.s[1];                                    \
-  int z=(idx/(sROI.s[0]*sROI.s[1]))%sROI.s[2];                        \
-  int t=(idx/(sROI.s[0]*sROI.s[1]*sROI.s[2]))%sROI.s[3];              \
-  int e=(idx/(sROI.s[0]*sROI.s[1]*sROI.s[2]*sROI.s[3]))%sROI.s[4];    \
-  int ids=x+sOffs.s[0]+sSize.s[0]*(y+sOffs.s[1])+sSize.s[0]*sSize.s[1]*(z+sOffs.s[2])+sSize.s[0]*sSize.s[1]*sSize.s[2]*(t+sOffs.s[3])+sSize.s[0]*sSize.s[1]*sSize.s[2]*sSize.s[3]*(e+sOffs.s[4]);   \
+  GETXYZET(sROI,idx)                                                      \
+  GET5DIDS;                                                               \
   if(idx>=N) return;                                                  \
   expressions                                                            \
 }                                                                       \
-extern "C" const char * CUDA ## FktName(float * a, float *c, int sSize[5], int dSize[5], int sOffs[5], int sROI[5], int dOffs[5])  \
+extern "C" const char * CUDA ## FktName(float * a, float *c, Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep)  \
 {                                                                       \
     cudaError_t myerr;                                                \
-    int N=sROI[0]*sROI[1]*sROI[2]*sROI[3]*sROI[4];                      \
+    int N=sROI.s[0]*sROI.s[1]*sROI.s[2]*sROI.s[3]*sROI.s[4];                      \
 	int blockSize;dim3 nBlocks;                                         \
-    Size5D sS,dS,sO,sR,dO;                                              \
-    int d;                                                              \
-    for (d=0;d<5;d++)                                                   \
-        {sS.s[d]=sSize[d];dS.s[d]=dSize[d];sO.s[d]=sOffs[d];sR.s[d]=sROI[d];dO.s[d]=dOffs[d];} \
-   MemoryLayout(N,blockSize,nBlocks)                                     \
-	FktName<<<nBlocks,blockSize>>>(a,c,sS,dS,sO,sR,dO); \
+    MemoryLayout(N,blockSize,nBlocks)                                     \
+	FktName<<<nBlocks,blockSize>>>(a,c,sSize,dSize,sOffs,sROI,dOffs,sStep); \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
       return cudaGetErrorString(myerr);                                 \
@@ -1010,30 +1003,22 @@ extern "C" const char * CUDA ## FktName(float * a, float *c, int sSize[5], int d
 
 #define CUDA_5DAsgFkt(FktName,expressions)                                  \
 __global__ void                                                         \
-FktName(float *c, float br, float bi, Size5D dSize, Size5D dROI, Size5D dOffs) \
+FktName(float *c, float br, float bi, Size5D dSize, Size5D dROI, Size5D dOffs, Size5D dStep) \
 {                                                                       \
   int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   int N=dROI.s[0]*dROI.s[1]*dROI.s[2]*dROI.s[3]*dROI.s[4];              \
-  int x=(idx)%dROI.s[0];                                               \
-  int y=(idx/dROI.s[0])%dROI.s[1];                                    \
-  int z=(idx/(dROI.s[0]*dROI.s[1]))%dROI.s[2];                       \
-  int t=(idx/(dROI.s[0]*dROI.s[1]*dROI.s[2]))%dROI.s[3];              \
-  int e=(idx/(dROI.s[0]*dROI.s[1]*dROI.s[2]*dROI.s[3]))%dROI.s[4];    \
-  int idd=x+dOffs.s[0]+dSize.s[0]*(y+dOffs.s[1])+dSize.s[0]*dSize.s[1]*(z+dOffs.s[2])+dSize.s[0]*dSize.s[1]*dSize.s[2]*(t+dOffs.s[3])+dSize.s[0]*dSize.s[1]*dSize.s[2]*dSize.s[3]*(e+dOffs.s[4]);   \
+  GETXYZET(dROI,idx)                                                      \
+  GET5DIDD_STEP                                                                \
   if(idx>=N) return;                                                    \
    expressions                                                            \
 }                                                                       \
-extern "C" const char * CUDA ## FktName(float * c, float br, float bi, int dSize[5], int dROI[5], int dOffs[5])  \
+extern "C" const char * CUDA ## FktName(float * c, float br, float bi, Size5D dSize, Size5D dROI, Size5D dOffs, Size5D dStep)  \
 {                                                                       \
     cudaError_t myerr;                                                \
-    int N=dROI[0]*dROI[1]*dROI[2]*dROI[3]*dROI[4];                      \
+    int N=dROI.s[0]*dROI.s[1]*dROI.s[2]*dROI.s[3]*dROI.s[4];            \
 	int blockSize;dim3 nBlocks;                                         \
-    Size5D dR,dS,dO;                                                    \
-    int d;                                                              \
-    for (d=0;d<5;d++)                                                   \
-        {dS.s[d]=dSize[d];dR.s[d]=dROI[d];dO.s[d]=dOffs[d];}            \
    MemoryLayout(N,blockSize,nBlocks)                                     \
-	FktName<<<nBlocks,blockSize>>>(c,br,bi,dS,dR,dO);                   \
+	FktName<<<nBlocks,blockSize>>>(c,br,bi,dSize,dROI,dOffs,dStep);       \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
       return cudaGetErrorString(myerr);                                 \
@@ -1046,12 +1031,8 @@ __global__ void                                                         \
 FktName(float *a, float *c, Size5D dSize, Size5D sSize)       \
 {                                                                       \
   int idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
-  int N=dSize.s[0]*dSize.s[1]*dSize.s[2]*dSize.s[3]*dSize.s[4];                               \
-  int x=(idd)%dSize.s[0];                                                \
-  int y=(idd/dSize.s[0])%dSize.s[1];                                    \
-  int z=(idd/(dSize.s[0]*dSize.s[1]))%dSize.s[2];                       \
-  int t=(idd/(dSize.s[0]*dSize.s[1]*dSize.s[2]))%dSize.s[3];              \
-  int e=(idd/(dSize.s[0]*dSize.s[1]*dSize.s[2]*dSize.s[3]))%dSize.s[4];    \
+  int N=dSize.s[0]*dSize.s[1]*dSize.s[2]*dSize.s[3]*dSize.s[4];         \
+  GETXYZET(dSize,idd)                                                   \
   int ids=x%sSize.s[0]+sSize.s[0]*(y%sSize.s[1])+sSize.s[0]*sSize.s[1]*(z%sSize.s[2]) + sSize.s[0]*sSize.s[1]*sSize.s[2]*(t%sSize.s[3])+sSize.s[0]*sSize.s[1]*sSize.s[2]*sSize.s[3]*(e%sSize.s[4]); \
   if(idd>=N) return;                                                    \
   expressions                                                           \
@@ -1434,6 +1415,8 @@ CUDA_UnaryFkt(sin_carr,int idc=2*idx; c[idc]=sin(a[idc])*cosh(a[idc+1]);c[idc+1]
 CUDA_UnaryFkt(cos_arr,c[idx]= cos(a[idx]);)
 CUDA_UnaryFkt(cos_carr,int idc=2*idx; c[idc]=cos(a[idc])*cosh(a[idc+1]);c[idc+1]=sin(a[idc])*sinh(a[idc+1]);)
 
+CUDA_UnaryFkt(tan_arr,c[idx]= tan(a[idx]);)
+
 CUDA_UnaryFkt(sinh_arr,c[idx]= sinh(a[idx]);)
 CUDA_UnaryFkt(sinh_carr,int idc=2*idx; c[idc]=sinh(a[idc])*cos(a[idc+1]);c[idc+1]=cosh(a[idc])*sin(a[idc+1]);)
 
@@ -1443,6 +1426,16 @@ CUDA_UnaryFkt(cosh_carr,int idc=2*idx; c[idc]=cosh(a[idc])*cos(a[idc+1]);c[idc+1
 CUDA_UnaryFkt(sinc_arr, c[idx]= (a[idx] != 0) ? sin(a[idx])/a[idx] : 1.0;)
 CUDA_UnaryFkt(sinc_carr,int idc=2*idx; c[idc]=0;c[idc+1]=0;) 
 // c[idc]= (a[idc] == 0) ? sin(a[idc])*cosh(a[idc+1])/a[idc] : cosh(a[idc+1]);c[idc+1]= (a[idc] == 0) ? cos(a[idc])*sinh(a[idc+1])/a[idc] : sinh(a[idc+1]);)
+
+// besselj, but order will be integer only:
+CUDA_BinaryFkt(arr_besselj_arr,{c[idx]=jnf(int(a[idxA]),b[idxB]);})
+CUDA_UnaryFktConst(arr_besselj_const,{c[idx]=jnf(int(a[idx]),b);})
+CUDA_UnaryFktConst(const_besselj_arr,{c[idx]=jnf(int(b),a[idx]);})
+
+// atan2 only for real inputs
+CUDA_BinaryFkt(arr_atan2_arr,{c[idx]=atan2(b[idx],a[idx]);})
+CUDA_UnaryFktConst(arr_atan2_const,{c[idx]=atan2(a[idx],b);})
+CUDA_UnaryFktConst(const_atan2_arr,{c[idx]=atan2(b,a[idx]);})
 
 CUDA_UnaryFkt(log_arr,c[idx]=log(a[idx]);)
 CUDA_UnaryFkt(log_carr,c[2*idx]=log(a[2*idx]);c[2*idx+1]=0;)   //  not implemented

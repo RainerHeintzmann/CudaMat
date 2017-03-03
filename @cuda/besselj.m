@@ -1,4 +1,4 @@
-% rdivide(in1,in2) : elementwise division
+% besselj(order, argument) : besselj function. See matlab documentation. order can only be integer!
 
 %************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
@@ -19,33 +19,30 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-function out=rdivide(in1,in2)
+function out=besselj(in1,in2)
 out=cuda();
-ts1=prod(size(in1));
-ts2=prod(size(in2));
-if ts1 > 1 && ~isa(in1,'cuda')
+if prod(size(in1)) > 1 && ~isa(in1,'cuda')
     in1=cuda(in1);
 end
-if ts2 > 1 && ~isa(in2,'cuda')
+if prod(size(in2)) > 1 && ~isa(in2,'cuda')
     in2=cuda(in2);
 end
 
-if isa(in1,'cuda') && ts2 == 1
+if isa(in1,'cuda') && prod(size(in2)) == 1
     if isa(in2,'cuda')
         in2=double_force(in2);
     end
-    out.ref=cuda_cuda('divide_alpha',in1.ref,double(in2));
-    out.fromDip = in1.fromDip ;   % If eiter was dipimage, result will be
-elseif ts1 == 1 && isa(in2,'cuda')
+    out.ref=cuda_cuda('besselj_alpha',in1.ref,double(in2));
+    out.fromDip = in1.fromDip;  
+elseif prod(size(in1)) == 1 && isa(in2,'cuda')
     if isa(in1,'cuda')
         in1=double_force(in1);
     end
-    out.ref=cuda_cuda('alpha_divide',in2.ref,double(in1));
-    out.fromDip = in2.fromDip;   % If eiter was dipimage, result will be
+    out.ref=cuda_cuda('alpha_besselj',in2.ref,double(in1));
+    out.fromDip = in2.fromDip;  
 elseif isa(in1,'cuda') && isa(in2,'cuda')
-
     if ((~in1.fromDip || ~in2.fromDip) && any(size(in1) - size(in2)))
-        error('cuda:gt of Matlab array type: Matrix dimensions must agree.')
+        error('cuda:besselj of Matlab array type: Matrix dimensions must agree.')
     end
     
     didSwap1=0;didSwap2=0;
@@ -56,7 +53,7 @@ elseif isa(in1,'cuda') && isa(in2,'cuda')
         cuda_cuda('swapSizeForceDim2',in2.ref);didSwap2=1;
     end
     
-    out.ref=cuda_cuda('divide',in1.ref,in2.ref);
+    out.ref=cuda_cuda('besselj',in2.ref,in1.ref);
 
     if didSwap1
         cuda_cuda('swapSizeForceDim1',in1.ref);
@@ -66,3 +63,4 @@ elseif isa(in1,'cuda') && isa(in2,'cuda')
     end        
     out.fromDip = (in1.fromDip || in2.fromDip);   % If eiter was dipimage, result will be
 end
+out.isBinary = 1; % mark this as a binary result (needed for subsasgn)

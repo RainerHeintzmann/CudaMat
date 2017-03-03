@@ -64,7 +64,9 @@ classdef cuda < handle
             end
         end
         function delete(in)
-            cuda_cuda('delete',in.ref);
+            if in.ref > 0
+                cuda_cuda('delete',in.ref);
+            end
         end
         function display(in)
             % global use_zeros_cuda;

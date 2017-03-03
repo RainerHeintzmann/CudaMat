@@ -48,6 +48,22 @@ elseif isa(in1,'cuda') && isa(in2,'cuda')
     if ((~in1.fromDip || ~in2.fromDip) && any(size(in1) - size(in2)))
         error('cuda:complex of Matlab array type: Matrix dimensions must agree.')
     end
+    
+    didSwap1=0;didSwap2=0;
+    if in1.fromDip == 1 && ndims(in1) == 1 && ndims(in2) > 1
+        cuda_cuda('swapSizeForceDim2',in1.ref);didSwap1=1;
+    end
+    if in2.fromDip == 1 && ndims(in2) == 1 && ndims(in1) > 1
+        cuda_cuda('swapSizeForceDim2',in2.ref);didSwap2=1;
+    end
+    
     out.ref=cuda_cuda('complex',in1.ref,in2.ref);
+
+    if didSwap1
+        cuda_cuda('swapSizeForceDim1',in1.ref);
+    end        
+    if didSwap2
+        cuda_cuda('swapSizeForceDim1',in2.ref);
+    end        
     out.fromDip = (in1.fromDip || in2.fromDip);   % If eiter was dipimage, result will be
 end

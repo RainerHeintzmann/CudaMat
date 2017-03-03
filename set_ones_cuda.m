@@ -20,9 +20,11 @@
 %**************************************************************************
 %
 
-function res=set_ones_cuda(doset)
+function set_ones_cuda(doset)
 global use_ones_cuda;
+global remember_use_ones_cuda;
 if nargin<1 
     doset=1;
 end 
 use_ones_cuda=doset;
+remember_use_ones_cuda=doset;

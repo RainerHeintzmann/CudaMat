@@ -1,6 +1,6 @@
-% set_zeros_cuda(doset) : sets or clears the global variable, which decides whether to use the cuda or the builtin zeros function
+% uplus(in) : unary plus to a cuda object on the card. Is actually an empty function returning the input
 
-%***************************************************************************
+%************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
 %   heintzmann@gmail.com                                                  *
 %                                                                         *
@@ -19,12 +19,9 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-
-function set_zeros_cuda(doset)
-global use_zeros_cuda;
-global remember_use_zeros_cuda;
-if nargin<1 
-    doset=1;
-end 
-use_zeros_cuda=doset;
-remember_use_zeros_cuda=doset;
+function out = uplus(in1)
+if isa(in1,'cuda') 
+	out=in1;
+else
+    error('unary minus: Unknown datatype');
+end

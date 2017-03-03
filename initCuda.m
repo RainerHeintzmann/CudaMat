@@ -1,3 +1,8 @@
+% initCuda(useGenerators,useDoubleCuda, useCula)  : initializes the CudaMat toolbox
+% useGenerators : a flag describing wether all the generator functions (xxm,yy,zz,rr,ramp,phiphi,rand) should be producing cuda output. This can be individually changed. See set_rr_cuda().
+% useDoubleCuda : a flag describing 
+% useCula : a flag describing whether the Cula toolbox (with eigenvector routine) should be used and is installed.
+%
 function initCuda(useGenerators,useDoubleCuda, useCula)
 global nocula; nocula=1;
 global use_zeros_cuda; use_zeros_cuda=0;
@@ -6,6 +11,7 @@ global use_rand_cuda; use_rand_cuda=0;
 global use_newim_cuda; use_newim_cuda=0;
 global use_newimar_cuda; use_newimar_cuda=0;
 global use_xyz_cuda; use_xyz_cuda=0;
+global use_ramp_cuda; use_ramp_cuda=0;
 global use_double_cuda; 
 global cuda_enabled; cuda_enabled=1;
 
@@ -40,6 +46,7 @@ if useGenerators
     use_newim_cuda=1;
     use_newimar_cuda=1;
     use_xyz_cuda=1;
+    use_ramp_cuda=1;
 end
 
 use_double_cuda=useDoubleCuda;

@@ -41,7 +41,7 @@ for pos=1:length(varargin)
         varargin{pos}=cuda(varargin{pos});
 end
 out.fromDip = varargin{1}.fromDip;
-out.isBinary = varargin{1}.isBinary; % mark this as a binary result (needed for subsasgn)
+out.isBinary = (isempty(varargin{1}.isBinary) || varargin{1}.isBinary); % mark this as a binary result (needed for subsasgn)
 out.ref= varargin{1}.ref;
 
 if varargin{1}.fromDip
@@ -65,6 +65,6 @@ for m=2:size(varargin,2)
         cuda_cuda('delete',refold);
     end
     out.fromDip = out.fromDip || varargin{m}.fromDip; % If eiter was dipimage, result will be
-    out.isBinary = out.isBinary && varargin{m}.isBinary;
+    out.isBinary = out.isBinary && (isempty(varargin{m}.isBinary) || varargin{m}.isBinary);
 end
 end

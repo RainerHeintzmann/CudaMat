@@ -54,13 +54,13 @@ function cuda_define(FktName, FktType, Comment, CoreCommandsReal, CoreCommandsCp
 % CUDA_UnaryFktConstC(arr_unequals_Cconst,c[idx]=(a[idx]!=br) || (bi!=0);)
 % CUDA_UnaryFktConstC(Cconst_unequals_arr,c[idx]=(br!=a[idx]) || (bi!=0);)
 % CUDA_BinaryFkt(arr_unequals_arr,c[idx]=(a[idx]!=b[idx]);)
-if nargin < 5
+if nargin < 5 || isempty(CoreCommandsCpxReal)
     CoreCommandsCpxReal='';
 end
-if nargin < 6
+if nargin < 6 || isempty(CoreCommandsRealCpx)
     CoreCommandsRealCpx='';
 end
-if nargin < 7
+if nargin < 7 || isempty(CoreCommandsCpxCpx)
     CoreCommandsCpxCpx='';
 end
 switch(FktType)
@@ -115,6 +115,7 @@ if exist('cuda_to_compile') && ~isempty(cuda_to_compile)
     myindex=find(strcmp(cuda_to_compile.name,FktName));
     if isempty(myindex)   % This function has not already been defined
         myindex=length(cuda_to_compile.name)+1;  % append a new element
+        cuda_to_compile.needsRecompile=1;
     else
         fprintf('WARNING: Redefining cuda function %s, which was already defined\n',FktName);
     end
@@ -129,19 +130,19 @@ end
     if ~isfield(cuda_to_compile,'needsRecompile')
         cuda_to_compile.needsRecompile=0;
     end
-    if myindex==length(cuda_to_compile.name)+1 || ~isfield(cuda_to_compile,'coreCommandsReal') || ~strcmp(cuda_to_compile.coreCommandsReal{myindex},CoreCommandsReal)
+    if cuda_to_compile.needsRecompile || ~isfield(cuda_to_compile,'coreCommandsReal') || ~strcmp(cuda_to_compile.coreCommandsReal{myindex},CoreCommandsReal)
         cuda_to_compile.coreCommandsReal{myindex} = CoreCommandsReal;
         cuda_to_compile.needsRecompile = 1;
     end
-    if myindex==length(cuda_to_compile.name)+1 || ~isfield(cuda_to_compile,'coreCommandsCpxReal') || ~strcmp(cuda_to_compile.coreCommandsCpxReal{myindex},CoreCommandsCpxReal)
+    if cuda_to_compile.needsRecompile || ~isfield(cuda_to_compile,'coreCommandsCpxReal') || ~strcmp(cuda_to_compile.coreCommandsCpxReal{myindex},CoreCommandsCpxReal)
         cuda_to_compile.coreCommandsCpxReal{myindex} = CoreCommandsCpxReal;
         cuda_to_compile.needsRecompile = 1;
     end
-    if myindex==length(cuda_to_compile.name)+1 || ~isfield(cuda_to_compile,'coreCommandsRealCpx') || ~strcmp(cuda_to_compile.coreCommandsRealCpx{myindex},CoreCommandsRealCpx)
+    if cuda_to_compile.needsRecompile || ~isfield(cuda_to_compile,'coreCommandsRealCpx') || ~strcmp(cuda_to_compile.coreCommandsRealCpx{myindex},CoreCommandsRealCpx)
         cuda_to_compile.coreCommandsRealCpx{myindex} = CoreCommandsRealCpx;
         cuda_to_compile.needsRecompile = 1;
     end
-    if myindex==length(cuda_to_compile.name)+1 || ~isfield(cuda_to_compile,'coreCommandsCpxCpx') || ~strcmp(cuda_to_compile.coreCommandsCpxCpx{myindex},CoreCommandsCpxCpx)
+    if cuda_to_compile.needsRecompile || ~isfield(cuda_to_compile,'coreCommandsCpxCpx') || ~strcmp(cuda_to_compile.coreCommandsCpxCpx{myindex},CoreCommandsCpxCpx)
         cuda_to_compile.coreCommandsCpxCpx{myindex} = CoreCommandsCpxCpx;
         cuda_to_compile.needsRecompile = 1;
     end

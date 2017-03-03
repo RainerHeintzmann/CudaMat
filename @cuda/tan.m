@@ -1,6 +1,6 @@
-% set_zeros_cuda(doset) : sets or clears the global variable, which decides whether to use the cuda or the builtin zeros function
+% cos(in1) : cosine function for cuda arrays
 
-%***************************************************************************
+%************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
 %   heintzmann@gmail.com                                                  *
 %                                                                         *
@@ -20,11 +20,11 @@
 %**************************************************************************
 %
 
-function set_zeros_cuda(doset)
-global use_zeros_cuda;
-global remember_use_zeros_cuda;
-if nargin<1 
-    doset=1;
-end 
-use_zeros_cuda=doset;
-remember_use_zeros_cuda=doset;
+function out = tan(in1)
+out=cuda();
+if isa(in1,'cuda') 
+     out.ref=cuda_cuda('tan',in1.ref);
+else
+    error('cuda tan: Unknown datatype');
+end
+out.fromDip = in1.fromDip;  

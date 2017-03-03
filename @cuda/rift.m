@@ -22,12 +22,19 @@
 function out=rift(in)
 out=cuda();
 if isa(in,'cuda') 
+    isDip=in.fromDip;
+    if ~isDip
+        in=dip_image(in);
+    end
     if strcmp(datatype(in),'scomplex')
       out.ref=cuda_cuda('rifft3d',in.ref);
     else
       error('Error using rift. Datatype needs to be scomplex');
     end
+        out.fromDip=in.fromDip;
+        if ~isDip
+            out=double(out);
+        end        
 else
     error('rift: Unsupported datatype');
 end
-out.fromDip=in.fromDip;

@@ -10,6 +10,7 @@ global use_rand_cuda;
 global use_newim_cuda; 
 global use_newimar_cuda; 
 global use_xyz_cuda; 
+global use_ramp_cuda; 
 global use_double_cuda; 
 
 global remember_use_zeros_cuda; 
@@ -18,6 +19,7 @@ global remember_use_rand_cuda;
 global remember_use_newim_cuda; 
 global remember_use_newimar_cuda; 
 global remember_use_xyz_cuda; 
+global remember_use_ramp_cuda; 
 global remember_use_double_cuda; 
 
 if (cuda_enabled == 0)
@@ -27,6 +29,7 @@ if (cuda_enabled == 0)
     use_newim_cuda=remember_use_newim_cuda;
     use_newimar_cuda=remember_use_newimar_cuda;
     use_xyz_cuda=remember_use_xyz_cuda;
+    use_ramp_cuda=remember_use_ramp_cuda;
     use_double_cuda=remember_use_double_cuda;
 end
 
@@ -36,6 +39,7 @@ clear remember_use_rand_cuda;
 clear remember_use_newim_cuda; 
 clear remember_use_newimar_cuda; 
 clear remember_use_xyz_cuda; 
+clear remember_use_ramp_cuda; 
 clear remember_use_double_cuda; 
 
 cuda_enabled=1; 

@@ -1,4 +1,4 @@
-% set_zeros_cuda(doset) : sets or clears the global variable, which decides whether to use the cuda or the builtin zeros function
+% set_ramp_cuda(doset) : sets or clears the global variable, which decides whether to use the cuda or the dipimage ramp functions
 
 %***************************************************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
@@ -20,11 +20,11 @@
 %**************************************************************************
 %
 
-function set_zeros_cuda(doset)
-global use_zeros_cuda;
-global remember_use_zeros_cuda;
+function set_ramp_cuda(doset)
+global use_ramp_cuda;
+global  remember_use_ramp_cuda;
 if nargin<1 
     doset=1;
 end 
-use_zeros_cuda=doset;
-remember_use_zeros_cuda=doset;
+use_ramp_cuda=doset;
+remember_use_ramp_cuda=doset;

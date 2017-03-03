@@ -25,7 +25,7 @@
 #define CUDA_MAXPROJ 5  // needed for projections
 #define ACCUTYPE double   // is used in cudaArith.cu and cuda_cuda.c  to define the type in which accumulation operations are computed
 
-// THESE STRUCT DEVINITION ARE NEEDED, AS CUDA CANNOT DEAL CORRECTLY WITH FIXED LENGTH ARRAYS IN THE ARGUMENT
+// THESE STRUCT DEFINITIONS ARE NEEDED, AS CUDA CANNOT DEAL CORRECTLY WITH FIXED LENGTH ARRAYS IN THE ARGUMENT
 // ACCESING THEM WILL CAUSE A CRASH!
 // HOWEVER, STRUCTS WITH THE ARRAY INSIDE ARE OK
 // Also inside a Cuda function one has to use the structure rather than an array of fixed size.
@@ -40,6 +40,14 @@ typedef struct {
 typedef struct {
     float s[CUDA_MAXDIM];
 } VecND ;
+
+typedef struct {
+    int s[5];
+} Size5D ;
+
+typedef struct {
+    int s[3];
+} Size3D ;
 
 externC unsigned long CUDAmaxSize(void);   // returns the maximal total number of threads
 externC int GetCurrentRedSize(void);  // returns the current size of the allocated ReduceArray(s).
@@ -79,16 +87,16 @@ externC const char * CUDAcarr_3dsubcpyCT_carr(float * a, float * c,int sSize[3],
 externC const char * CUDAarr_5drepcpy_arr(float * a, float * c,int sSize[5], int dSize[5]);
 externC const char * CUDAcarr_5drepcpy_carr(float * a, float * c, int sSize[5], int dSize[5]);
 
-externC const char * CUDAarr_5dsubcpy_arr(float * a, float * c,int sSize[3], int dSize[5], int sOffs[5], int sROI[5], int dOffs[5]);
-externC const char * CUDAcarr_5dsubcpy_carr(float * a, float * c,int sSize[3], int dSize[5], int sOffs[5], int sROI[5], int dOffs[5]);
-externC const char * CUDAarr_5dsubcpy_carr(float * a, float * c, int sSize[3], int dSize[5], int sOffs[5], int sROI[5], int dOffs[5]);
+externC const char * CUDAarr_5dsubcpy_arr(float * a, float * c, Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
+externC const char * CUDAcarr_5dsubcpy_carr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
+externC const char * CUDAarr_5dsubcpy_carr(float * a, float * c, Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
 
-externC const char * CUDAconst_5dsubcpy_arr(float * c, float br, float bi, int dSize[5], int dROI[5], int dOffs[5]);
-externC const char * CUDAcconst_5dsubcpy_carr(float * c, float br, float bi, int dSize[5], int dROI[5], int dOffs[5]);
+externC const char * CUDAconst_5dsubcpy_arr(float * c, float br, float bi, Size5D dSize, Size5D dROI, Size5D dOffs, Size5D dStep);
+externC const char * CUDAcconst_5dsubcpy_carr(float * c, float br, float bi,Size5D dSize, Size5D dROI, Size5D dOffs, Size5D dStep);
 
-externC const char * CUDAarr_5dsubcpyT_arr(float * a, float * c,int sSize[5], int dSize[5], int sOffs[5], int sROI[5], int dOffs[5]);
-externC const char * CUDAcarr_5dsubcpyT_carr(float * a, float * c,int sSize[5], int dSize[5], int sOffs[5], int sROI[5], int dOffs[5]);
-externC const char * CUDAcarr_5dsubcpyCT_carr(float * a, float * c,int sSize[5], int dSize[5], int sOffs[5], int sROI[5], int dOffs[5]);
+externC const char * CUDAarr_5dsubcpyT_arr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
+externC const char * CUDAcarr_5dsubcpyT_carr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
+externC const char * CUDAcarr_5dsubcpyCT_carr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
 
 // 
 externC const char * CUDAarr_boolassign_const(float * a, float b, float * c, int N);
@@ -304,6 +312,10 @@ externC const char * CUDAsin_carr(float * a, float * c, int N);
 externC const char * CUDAcos_arr(float * a, float * c, int N);
 externC const char * CUDAcos_carr(float * a, float * c, int N);
 
+externC const char * CUDAtan_arr(float * a, float * c, int N);
+
+// externC const char * CUDAtan_carr(float * a, float * c, int N);
+
 externC const char * CUDAsinc_arr(float * a, float * c, int N);
 externC const char * CUDAsinc_carr(float * a, float * c, int N);
 
@@ -315,6 +327,14 @@ externC const char * CUDAcosh_carr(float * a, float * c, int N);
 
 externC const char * CUDAabs_arr(float * a, float * c, int N);
 externC const char * CUDAabs_carr(float * a, float * c, int N);
+
+externC const char * CUDAarr_besselj_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_besselj_const(float * a, float b, float * c, int N);
+externC const char * CUDAconst_besselj_arr(float * a, float b, float * c, int N);
+
+externC const char * CUDAarr_atan2_arr(float * a, float * b, float * c, int N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
+externC const char * CUDAarr_atan2_const(float * a, float b, float * c, int N);
+externC const char * CUDAconst_atan2_arr(float * a, float b, float * c, int N);
 
 externC const char * CUDAlog_arr(float * a, float * c, int N);
 externC const char * CUDAlog_carr(float * a, float * c, int N);

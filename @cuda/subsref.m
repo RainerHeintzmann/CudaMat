@@ -28,6 +28,10 @@ switch index.type
                 error('cuda subreferencing: Arrays have to have equal number of dimensions');
             elseif norm(size(in)-size(index.subs{1}))==0
                 varargout{1}.ref=cuda_cuda('subsref_cuda',in.ref,index.subs{1}.ref);
+               	if varargout{1}.ref < 0  % empty sub-reference. Did not allocate.
+                    varargout{1}=[];
+                    return;
+                end
             else
                 error('cuda subreferencing: Array sizes have to be equal');
             end
@@ -58,6 +62,7 @@ switch index.type
                         else
                             moffs(d)= 0;   % DipImage style
                         end
+                        mstep(d)=1;
                         if length(index.subs)==1
                             msize=size(in);  % assign all the sizes here, as d will only iterate over 1 direction
                         else
@@ -67,13 +72,24 @@ switch index.type
                     else
                         if isa(index.subs{d},'cuda')  % due to some funny Matlab bug which prevents calling subsref within subsref for type cuda
                             moffs(d)=getVal(index.subs{d},0);
-                            msize(d)=getVal(index.subs{d},-1)-moffs(d)+1;
                             % isblock=0;
+                            if (getVal(index.subs{d},-1) == moffs(d))
+                                mstep(d)=1;
+                            else
+                                mstep(d)=(getVal(index.subs{d},-1)-moffs(d)) / (length(index.subs{d})-1);
+                            end
+                            msize(d)=floor(abs(getVal(index.subs{d},-1)-moffs(d))/abs(mstep(d)))+1;
                         else
                             moffs(d)=index.subs{d}(1);
-                            msize(d)=index.subs{d}(end)-moffs(d)+1;
+                            msize(d)=abs(index.subs{d}(end)-moffs(d))+1;
+                            if (index.subs{d}(end) == moffs(d))
+                                mstep(d)=1;
+                            else
+                                mstep(d)=(index.subs{d}(end)-moffs(d)) / (length(index.subs{d})-1);
+                            end
+                            msize(d)=floor(abs(index.subs{d}(end)-moffs(d))/abs(mstep(d)))+1;
                         end
-                        if length(index.subs{d}) ~= msize(d) || sum(abs(index.subs{d}-[moffs(d):moffs(d)+msize(d)-1])) ~= 0
+                        if length(index.subs{d}) ~= abs(msize(d)) || sum(abs(index.subs{d}-[moffs(d):mstep(d):moffs(d)+mstep(d)*(length(index.subs{d})-1)])) ~= 0
                             isblock=0;
                         end
                     end
@@ -81,13 +97,14 @@ switch index.type
                 if in.fromDip && length(moffs) > 1
                     tmp=moffs(1);moffs(1)=moffs(2);moffs(2)=tmp;
                     tmp=msize(1);msize(1)=msize(2);msize(2)=tmp;
+                    tmp=mstep(1);mstep(1)=mstep(2);mstep(2)=tmp;
                 end
                 if in.fromDip == 0
                     moffs=moffs-1;
                 end
             end
             if isblock
-                varargout{1}.ref=cuda_cuda('subsref_block',in.ref,moffs,msize);
+                varargout{1}.ref=cuda_cuda('subsref_block',in.ref,moffs,msize,mstep);
             else
                 if length(index.subs) > 1
                 	error('cuda subreferencing: subreferencing with multidimensional non-block vectors not yet implemented');
