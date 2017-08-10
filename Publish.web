@@ -1,0 +1,7 @@
+#! /bin/bash
+# current Version to upload is given by command line argument
+# example call : ./Publish.web 1_0_03
+tar -czf CudaMat.tgz *.c *.cu *.h *.m *.ics *.mex* *.html *.so Makefile License.txt Publish.web COPYING @cuda
+cp CudaMat.tgz CudaMat$1.tgz
+# scp -r *.html CudaMat.tgz CudaMat$1.tgz login.gwdg.de:~/www/CudaMat/
+cp -R *.html CudaMat.tgz CudaMat$1.tgz ~/UniJenaWWW/CudaMat/
