@@ -263,7 +263,7 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
 //  ----------------- Unary function  ------AllocCommand determines whether the result type is that same, complex or real ----------
 #define CallCUDA_UnaryFkt(FktName,AllocCommand)                                             \
     const char *ret=0;                                                                      \
-    if (nrhs != 2) mexErrMsgTxt("cuda: " #FktName " needs one argument\n");              \
+    if (nrhs != 2) mexErrMsgTxt("cuda: " #FktName " needs one argument\n");                 \
         if (isComplexType(getCudaRefNum(prhs[1]))) {                                        \
             Dbg_printf("cuda: complex array " #FktName "\n");                               \
             ret=CUDA##FktName##_carr(getCudaRef(prhs[1]),AllocCommand(prhs[1]),getTotalSizeFromRef(prhs[1]));    \
@@ -273,6 +273,41 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
             if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");} \
     } 
 
+// Snippet below expects a vector(CUDA_MAXDIM) and an array as input and generates an array as output. E.g. circshift
+#define CallCUDA_ArrVecFkt(FktName,AllocCommand)                                            \
+int dims_sizes,nshifts[CUDA_MAXDIM], dsize[CUDA_MAXDIM],d,tsize=1,ref;                      \
+    double * dshifts;float * newarr=0;                                                      \
+    const char * ret;                                                                       \
+                                                                                            \
+    if (nrhs != 3) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");              \
+    dims_sizes=(int)(mxGetM(prhs[2]) * mxGetN(prhs[2])); dshifts=mxGetPr(prhs[2]);          \
+    if (dims_sizes >= CUDA_MAXDIM)                                                          \
+        mexErrMsgTxt("cuda: " #FktName " to many dimensions (>CUDA_MAXDIM)\n");             \
+                                                                                            \
+    ref=getCudaRefNum(prhs[1]);                                                             \
+                                                                                            \
+    for (d=0;d<CUDA_MAXDIM;d++) {                                                           \
+         if (d<dims_sizes)                                                                  \
+            nshifts[d]=(int) dshifts[d];                                                    \
+         else                                                                               \
+             nshifts[d]=0;                                                                  \
+         if (d<cuda_array_dim[ref])                                                         \
+             dsize[d]=cuda_array_size[ref][d];                                              \
+         else                                                                               \
+             dsize[d]=0;                                                                    \
+    }                                                                                       \
+    Dbg_printf5("" #FktName " with size %d, shifts %d %d %d\n",dims_sizes,nshifts[0],nshifts[1],nshifts[2]);    \
+    if (nrhs != 3) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");                 \
+                                                                                            \
+    if (isComplexType(ref)) {                                                               \
+        ret=CUDAcarr_##FktName##_vec(getCudaRef(prhs[1]),nshifts,AllocCommand(prhs[1]),dsize,getTotalSizeFromRef(prhs[1])); \
+        if (ret!=(const char *) cudaSuccess) { printf("cuda complex " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  \
+    } else {                                                                                \
+        ret=CUDAarr_##FktName##_vec(getCudaRef(prhs[1]),nshifts,AllocCommand(prhs[1]),dsize,getTotalSizeFromRef(prhs[1])); \
+        if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  \
+    }                                                                                       \
+    Dbg_printf("" #FktName "\n");                                                           \
+                                                                                         
 
 
 static const char * ERROR_NAMES[]={
@@ -1590,15 +1625,15 @@ CheckMemoryConsistency();
   }
   else if (strcmp(command,"newarr")==0) { // creates a new array with given sizes and assigns a constant to it. Does not need an input array!
     int dims_sizes;
-    int nsizes[10];
+    int nsizes[CUDA_MAXDIM];
     int d,tsize=1;
     double * dsizes;
     float * newarr=0;
     if (nrhs != 3) mexErrMsgTxt("cuda: newarr needs three arguments\n");  
     dims_sizes=(int)(mxGetM(prhs[1]) * mxGetN(prhs[1]));
     dsizes=mxGetPr(prhs[1]);
-    if (dims_sizes >= 10)
-        mexErrMsgTxt("cuda: newarr to many dimensions (>10)\n");  
+    if (dims_sizes >= CUDA_MAXDIM)
+        mexErrMsgTxt("cuda: newarr to many dimensions (>CUDA_MAXDIM)\n");  
     for (d=0;d<dims_sizes;d++) {nsizes[d]=(int) dsizes[d];tsize *= nsizes[d];}
     Dbg_printf5("newarray with dimension %d, sizes %d %d %d\n",dims_sizes,nsizes[0],nsizes[1],nsizes[2]);
 
@@ -2076,48 +2111,11 @@ CheckMemoryConsistency();
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
-  else if (strcmp(command,"circshift")==0) { // --------------------------------------------
-    int dims_sizes;
-    int nshifts[CUDA_MAXDIM], dsize[CUDA_MAXDIM];
-    int d,tsize=1;
-    double * dshifts;
-    float * newarr=0;
-    int ref;
-    const char * ret;
-
-    if (nrhs != 3) mexErrMsgTxt("cuda: circshift needs three arguments\n");  
-    dims_sizes=(int)(mxGetM(prhs[2]) * mxGetN(prhs[2]));
-    dshifts=mxGetPr(prhs[2]);
-    if (dims_sizes >= CUDA_MAXDIM)
-        mexErrMsgTxt("cuda: circshift to many dimensions (>CUDA_MAXDIM)\n");  
+  else if (strcmp(command,"circshift")==0) { // - vector of CUDA_MAXDIM as input and an array .. outputs the shifted array
+    CallCUDA_ArrVecFkt(circshift,cudaAlloc)
     
-    ref=getCudaRefNum(prhs[1]);                                                         
-    
-    for (d=0;d<CUDA_MAXDIM;d++) 
-        {
-         if (d<dims_sizes)
-            nshifts[d]=(int) dshifts[d];
-         else
-             nshifts[d]=0;
-         if (d<cuda_array_dim[ref])
-             dsize[d]=cuda_array_size[ref][d];
-         else
-             dsize[d]=0;
-        }
-    Dbg_printf5("circshift with size %d, shifts %d %d %d\n",dims_sizes,nshifts[0],nshifts[1],nshifts[2]);
-    if (nrhs != 3) mexErrMsgTxt("cuda: circshift needs three arguments\n");        
-
-    if (isComplexType(ref)) {
-        ret=CUDAcarr_circshift_vec(getCudaRef(prhs[1]),nshifts,cudaAllocComplex(prhs[1]),dsize,getTotalSizeFromRef(prhs[1]));
-        if (ret!=(const char *) cudaSuccess) { printf("cuda complex circshift: %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error circshift: Bailing out");}  \
-    } else {
-        ret=CUDAarr_circshift_vec(getCudaRef(prhs[1]),nshifts,cudaAllocReal(prhs[1]),dsize,getTotalSizeFromRef(prhs[1]));
-        if (ret!=(const char *) cudaSuccess) { printf("cuda circshift: %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error circshift: Bailing out");}  \
-    }
-
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
-    Dbg_printf("cirshift\n");
   }
   else if (strcmp(command,"fftshift")==0) { // -----------------like in matlab
       int ref,mode,mydim,size3d=0;
