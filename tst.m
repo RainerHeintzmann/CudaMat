@@ -1,0 +1,1 @@
+a=cuda(readim('orka'))+cuda(readim('sophie'))
