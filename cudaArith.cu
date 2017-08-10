@@ -338,12 +338,11 @@ extern "C" const char * CUDA ## FktName(float * a, int N, float * resp) \
 {                                                               \
   float res;                                                    \
   int CUIMAGE_REDUCE_BLOCKS=NBLOCKS(N,CUIMAGE_REDUCE_THREADS);  \
-  int status=0;                                                 \
   float * accum = (float *) malloc(CUIMAGE_REDUCE_BLOCKS*sizeof(float));\
   if (! accum)                                                  \
     return "Malloc failed";                                     \
   if (! TmpRedArray)                                            \
-  status=cudaMalloc((void **) &TmpRedArray, 2*CUIMAGE_REDUCE_BLOCKS*sizeof(float));  \
+  cudaMalloc((void **) &TmpRedArray, 2*CUIMAGE_REDUCE_BLOCKS*sizeof(float));  \
                                                                 \
   dim3 threadBlock(CUIMAGE_REDUCE_THREADS);                     \
   dim3 blockGrid(CUIMAGE_REDUCE_BLOCKS);                        \
@@ -352,7 +351,9 @@ extern "C" const char * CUDA ## FktName(float * a, int N, float * resp) \
   if (cudaGetLastError() != cudaSuccess)                        \
       return cudaGetErrorString(cudaGetLastError());            \
                                                                 \
-  status=cudaMemcpy(accum, TmpRedArray, CUIMAGE_REDUCE_BLOCKS*sizeof(float), cudaMemcpyDeviceToHost);\
+  cudaMemcpy(accum, TmpRedArray, CUIMAGE_REDUCE_BLOCKS*sizeof(float), cudaMemcpyDeviceToHost);\
+  if (cudaGetLastError() != cudaSuccess)                        \
+      return cudaGetErrorString(cudaGetLastError());            \
                                                                 \
   res = accum[0];                                               \
   for (int ii=1; ii < CUIMAGE_REDUCE_BLOCKS; ii++)  {           \
@@ -407,7 +408,9 @@ extern "C" const char * CUDA ## FktName(float * a, int N, float * resp) \
     return "Malloc failed";                                     \
                                                                 \
   if (! TmpRedArray)                                            \
-  status=cudaMalloc((void **) &TmpRedArray, 2*CUIMAGE_REDUCE_BLOCKS*sizeof(float));  \
+  cudaMalloc((void **) &TmpRedArray, 2*CUIMAGE_REDUCE_BLOCKS*sizeof(float));  \
+  if (cudaGetLastError() != cudaSuccess)                        \
+      return cudaGetErrorString(cudaGetLastError());            \
                                                                 \
   dim3 threadBlock(CUIMAGE_REDUCE_THREADS);                     \
   dim3 blockGrid(CUIMAGE_REDUCE_BLOCKS);                        \
@@ -416,7 +419,9 @@ extern "C" const char * CUDA ## FktName(float * a, int N, float * resp) \
   if (cudaGetLastError() != cudaSuccess)                        \
       return cudaGetErrorString(cudaGetLastError());            \
                                                                 \
-  status=cudaMemcpy(accum, TmpRedArray, 2*CUIMAGE_REDUCE_BLOCKS*sizeof(float), cudaMemcpyDeviceToHost);\
+  cudaMemcpy(accum, TmpRedArray, 2*CUIMAGE_REDUCE_BLOCKS*sizeof(float), cudaMemcpyDeviceToHost);\
+  if (cudaGetLastError() != cudaSuccess)                        \
+      return cudaGetErrorString(cudaGetLastError());            \
                                                                 \
   res = accum[0];                                               \
   resI = accum[1];                                              \
@@ -472,7 +477,9 @@ extern "C" const char * CUDA ## FktName(float * a, int N, float * resp) \
     return "Malloc failed";                                     \
                                                                 \
   if (! TmpRedArray)                                            \
-  status=cudaMalloc((void **) &TmpRedArray, 2*CUIMAGE_REDUCE_BLOCKS*sizeof(float));  \
+  cudaMalloc((void **) &TmpRedArray, 2*CUIMAGE_REDUCE_BLOCKS*sizeof(float));  \
+  if (cudaGetLastError() != cudaSuccess)                        \
+      return cudaGetErrorString(cudaGetLastError());            \
                                                                 \
   dim3 threadBlock(CUIMAGE_REDUCE_THREADS);                     \
   dim3 blockGrid(CUIMAGE_REDUCE_BLOCKS);                        \
@@ -481,7 +488,9 @@ extern "C" const char * CUDA ## FktName(float * a, int N, float * resp) \
   if (cudaGetLastError() != cudaSuccess)                        \
       return cudaGetErrorString(cudaGetLastError());            \
                                                                 \
-  status=cudaMemcpy(accum, TmpRedArray, 2*CUIMAGE_REDUCE_BLOCKS*sizeof(float), cudaMemcpyDeviceToHost);\
+  cudaMemcpy(accum, TmpRedArray, 2*CUIMAGE_REDUCE_BLOCKS*sizeof(float), cudaMemcpyDeviceToHost);\
+  if (cudaGetLastError() != cudaSuccess)                        \
+      return cudaGetErrorString(cudaGetLastError());            \
                                                                 \
   res = accum[0];                                               \
   resI = accum[1];                                              \
