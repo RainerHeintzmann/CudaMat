@@ -13,6 +13,6 @@ try
 catch
 end
 
-global cuda_to_compile
-cuda_to_compile.needsRecompile=1;
+InvalidateCuda();  % cuda_to_compile.needsRecompile=1;
+
 cuda_compile_all;

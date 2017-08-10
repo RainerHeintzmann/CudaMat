@@ -30,6 +30,9 @@ Linux:
 system('nvcc -c cudaArith.cu -v -I/usr/local/cuda/include/')
  */
 
+// To suppress the unused variable argument for ARM targets
+#pragma diag_suppress 177
+
 #include <cuda.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -58,6 +61,7 @@ system('nvcc -c cudaArith.cu -v -I/usr/local/cuda/include/')
 
 #define NBLOCKSL(N,blockSize) 1
 // min((N/blockSize+(N%blockSize==0?0:1)),prop.maxGridSize[0])
+
 
 #define MemoryLayout(N,blockSize,nBlocks)	blockSize=prop.maxThreadsPerBlock; \
 { int numb=NBLOCKS(N,blockSize);                    \
@@ -676,6 +680,7 @@ extern "C" const char * CUDA ## FktName(float * a, float * b, float * c, int N, 
   return 0;                                                             \
 }                                                                       
 */
+
 // In the expression one can use the variables idx (for real valued arrays) and idc (for complex valued arrays)
 // -------------- caller function is also generated -------------
 // 
@@ -718,7 +723,58 @@ extern "C" const char * CUDA ## FktName(float * a, float * b, float * c, int N, 
       return cudaGetErrorString(myerr);                                 \
   return 0;                                                             \
 }                                                                       
-            
+
+// In the expression one can use the variables idx (for real valued arrays) and idc (for complex valued arrays)
+// -------------- caller function is also generated -------------
+// 
+// The 2 macros below treat functions with an arbitrary number of reference arrays
+// but singleton dimensions will be wrapped just like in Python or DIPImage
+
+#define CUDA_NArgsFkt(FktName,expression,NArgs)                     \
+typedef struct {                                                    \
+    float * s[NArgs];                                                  \
+} FktName ##_ARGTYPE ;                                             \
+__global__ void                                                     \
+FktName(FktName ##_ARGTYPE f,float * c, int N)                         \
+{                                                                   \
+    int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+    int idxArg[NArgs],myarg;                                        \
+	if(idx>=N) return;                                              \
+     for (myarg=0;myarg<NArgs;myarg++)                              \
+        idxArg[myarg]=idx;                                          \
+	expression                                                      \
+}                                                                   \
+__global__ void                                                     \
+FktName ##_S(FktName ##_ARGTYPE f,float * c, int N, int numdims, SizeND sizesC, BoolND isSingleton[NArgs]) \
+{                                                                   \
+    int idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+    int idxArg[NArgs],myarg;                                              \
+	if(idx>=N) return;                                              \
+    for (myarg=0;myarg<NArgs;myarg++)                               \
+        {Original2Singleton(numdims, isSingleton[NArgs], idx,sizesC,idxArg[myarg]) }\
+    expression                                                      \
+}                                                                   \
+extern "C" const char * CUDA ## FktName(float * f[NArgs], float * c, int N, int numdims, SizeND sizesC, BoolND isSingleton[NArgs])  \
+{                                                                       \
+    cudaError_t myerr;                                                  \
+	int blockSize,n;dim3 nBlocks;                                         \
+    FktName ##_ARGTYPE F;                                               \
+    for (n=0;n<NArgs;n++) F.s[n]=f[n];                                  \
+    myerr=cudaGetLastError();                                           \
+    if (numdims==0) {                                                   \
+    MemoryLayout(N,blockSize,nBlocks)                                   \
+	FktName<<<nBlocks,blockSize>>>(F,c,N);                            \
+    } else                                                              \
+    {                                                                   \
+    MemoryLayout(N,blockSize,nBlocks)                                   \
+	FktName ## _S<<<nBlocks,blockSize>>>(F,c,N, numdims, sizesC, isSingleton);  \
+    }                                                                   \
+    myerr=cudaGetLastError();                                           \
+    if (myerr != cudaSuccess)                                           \
+      return cudaGetErrorString(myerr);                                 \
+  return 0;                                                             \
+}                                                                       
+
 // In the expression one can use the variables idx (for real valued arrays) 
 // -------------- caller function is also generated -------------
 #define CUDA_IndexFkt(FktName,expression)                          \

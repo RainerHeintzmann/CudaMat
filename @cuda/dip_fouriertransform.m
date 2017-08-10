@@ -23,20 +23,33 @@
 %**************************************************************************
 %
 function out=dip_fouriertransform(in,direction,transformdir)
-if nargin<2
+if nargin<2 || isempty(direction)
     direction='forward';
+end
+
+switch direction
+    case 'forward',
+        mode =2;  % transform with correct scaling
+    case 'inverse',
+        mode =-2;  % transform with correct scaling
+    otherwise,
+        error('cuda: dip_fouriertransform. Unknown transform direction. Use forward or inverse.')
 end
 
 if in.fromDip ~= 1
     in=dip_image(in);
 end
-if length(transformdir)>3 && (transformdir(4) == 1)
+
+if sum(transformdir>0) > 3 || (length(transformdir)>3 && (sum(transformdir(4:end)) ~= 0))
     error('cuda dip_fouriertransform only supported up to 3 dimensions');
 end
+
 if length(transformdir)>3 && (transformdir(4) == 0)
-    myres={};
+    myres=cell(1,size(in,4));
     for e=0:size(in,4)-1
-        myin = SubSlice(in,4,e);
+        mysize=size(in);
+        mysize(4)=[];
+        myin = reshape(SubSlice(in,4,e),mysize);
         myres{e+1}=dip_fouriertransform(myin,direction,transformdir(1:3));    
     end
     out=cat(4,myres{:});
@@ -48,7 +61,21 @@ if length(transformdir<3)
     transformdir = [transformdir zeros(1,3-length(transformdir))];  % append zeros
 end
 transformdir=(transformdir > 0);
+
 tmp=transformdir(2);transformdir(2)=transformdir(1);transformdir(1)=tmp;  % To deal with the fact that CudaMat has the sizes 1 and 2 the other way than DipImage.
+
+if (1)  % new code
+    out=cuda();
+    if isa(in,'cuda')
+        out.ref=cuda_cuda('fft3d',in.ref,mode,double(transformdir));  % double cast is very important here. Otherwise datatype does not match
+    else
+        error('fft: Unsupported datatype');
+    end
+    out.fromDip=in.fromDip;
+    
+    return;
+end
+
 
 mz=cuda_cuda('getSize',in.ref); % size(in);
 if length(mz<3)

@@ -38,7 +38,7 @@
 % see also : the code of the appleman program for argument appleman(2)
 
 
-function cuda_define(FktName, FktType, Comment, CoreCommandsReal, CoreCommandsCpxReal, CoreCommandsRealCpx, CoreCommandsCpxCpx) 
+function cuda_define(FktName, FktType, Comment, CoreCommandsReal, CoreCommandsCpxReal, CoreCommandsRealCpx, CoreCommandsCpxCpx, NArgs) 
 %           'CUDA_MaskIdx': Takes one array and a mask index vector as input. The latter can be used to modify the result inside the mask
 %           'CUDA_PartRedMask' : Takes one array (a) as input and reduces it to a scalar
 %           'CUDA_PartRedMaskCpx' : Takes a complex array (a) as input and reduces it to a complex scalar
@@ -62,6 +62,9 @@ if nargin < 6 || isempty(CoreCommandsRealCpx)
 end
 if nargin < 7 || isempty(CoreCommandsCpxCpx)
     CoreCommandsCpxCpx='';
+end
+if nargin < 8 || isempty(NArgs)
+    NArgs = 1;
 end
 switch(FktType)
     case 'CUDA_UnaryFkt'  % A cuda function that takes one array (a) as input and has one result array.
@@ -105,6 +108,34 @@ switch(FktType)
         cu_snippet = sprintf('%s(arr_%s_arr,%s) \n%s(arr_%s_carr,%s)\n%s(carr_%s_arr,%s)\n%s(carr_%s_carr,%s)\n',FktType,FktName,CoreCommandsReal,FktType,FktName,CoreCommandsRealCpx,FktType,FktName,CoreCommandsCpxReal,FktType,FktName,CoreCommandsCpxCpx);
         h_snippet = sprintf('externC const char * CUDAarr_%s_arr(float * a, float * b, float * c, int N);\nexternC const char * CUDAarr_%s_carr(float * a, float * b, float * c, int N);\nexternC const char * CUDAcarr_%s_arr(float * a, float * b, float * c, int N);\nexternC const char * CUDAcarr_%s_carr(float * a, float * b, float * c, int N);\n\n',FktName,FktName,FktName,FktName);
 
+    case 'CUDA_NArgsFkt'  % Takes any number of arrays (f1 ... Fn) as input and has one (c) as output
+        AllArgs = sprintf('f%d,',[1:NArgs]);  % f1,f2,f3, ...
+        AllArgs(end)=[];
+        m_snippet = sprintf('%% [fwd,grad] = %s(%s)   : User defined cuda function. %s\n',FktName,AllArgs,Comment);
+        m_snippet = sprintf('%s function [fwd,grad] = %s(%s)\n',m_snippet,FktName,AllArgs);
+        m_snippet = sprintf('%s allcuda=1;anyDip=0;\n',m_snippet);
+        for n=1:NArgs
+            m_snippet = sprintf('%s if prod(size(f%d)) > 1 && ~isa(f%d,''cuda'')  \n error(''%s: Automatic conversion to cuda not allowed due to in-place operations.'');f%d=cuda(f%d); \n end\n',m_snippet,n,n,FktName,n,n);
+            m_snippet = sprintf('%s allcuda= allcuda && isa(f%d,''cuda'');\n',m_snippet,n);
+            m_snippet = sprintf('%s anyDip= anyDip || f%d.fromDip;\n',m_snippet,n);
+        end
+        m_snippet = sprintf('%s if allcuda \n',m_snippet);
+        AllArgsRef = sprintf('f%d.ref,',[1:NArgs]);  % f1,f2,f3, ...
+        AllArgsRef(end)=[];
+        m_snippet = sprintf('%s    ref=cuda_cuda(''%s'',%s); \n',m_snippet,FktName,AllArgsRef);
+        m_snippet = sprintf('%s else \n',m_snippet);
+        m_snippet = sprintf('%s    error(''%s: Needs arrays to be cuda as input''); \n',m_snippet,FktName);
+        m_snippet = sprintf('%s end \n',m_snippet);
+        m_snippet = sprintf('%s grad=cuda(ref,anyDip);   \n',m_snippet);
+        m_snippet = sprintf('%s fwd=f1;  %% this was modified in the cuda code \n',m_snippet);
+
+        c_snippet = sprintf('else if (strcmp(command,"%s")==0) {\n CallCUDA_NArgsFkt(%s,cudaAlloc,%d)\n', FktName,FktName,NArgs);
+        c_snippet = sprintf('%s if (nlhs > 0) \n',c_snippet);
+        c_snippet = sprintf('%s     plhs[0] =  mxCreateDoubleScalar((double)free_array); \n',c_snippet);
+        c_snippet = sprintf('%s Dbg_printf("cuda: %s\");\n} \n',c_snippet,FktName);
+
+        cu_snippet = sprintf('%s(arr_%s_NArgs,%s,%d) \n',FktType,FktName,CoreCommandsReal,NArgs);
+        h_snippet = sprintf('externC const char * CUDAarr_%s_NArgs(float * f[%d], float * c, int N, int numdims, SizeND sizesC, BoolND isSingleton[%d]);\n',FktName,NArgs,NArgs);
     otherwise
         error('cuda_define: Unknown Function Type!');
 end

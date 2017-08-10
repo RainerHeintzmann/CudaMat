@@ -75,10 +75,10 @@ fprintf(fd,h_text);
 fclose(fd);
 
 addpath(UserBase);
-try
-    cuda_shutdown;
-catch
-end
+% try
+%     cuda_shutdown;
+% catch
+% end
 CurrentPath=pwd;
 cd(UserBase)
 if (0)
