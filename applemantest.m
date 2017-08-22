@@ -27,8 +27,9 @@ function applemantest(usecuda)
  
 % minx=-0.750;maxx=-0.743;miny=0.123;maxy=0.126; 
 minx=-2;maxx=1;miny=-1;maxy=1; % full Mandelbrod set
-%minx=-0.74;maxx=-0.731;miny=-0.22;maxy=-0.205;
-%minx=-0.733;maxx=-0.7315;miny=-0.209;maxy=-0.207;
+
+minx=-0.74;maxx=-0.731;miny=-0.22;maxy=-0.205;
+minx=-0.733;maxx=-0.7315;miny=-0.209;maxy=-0.207;
 %res=1000;iter=700;
 res=6000;iter=1000;
 %res=1024;iter=500;

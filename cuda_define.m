@@ -87,7 +87,7 @@ switch(FktType)
         c_snippet = sprintf('%s Dbg_printf("cuda: %s\");\n} \n',c_snippet,FktName);
 
         cu_snippet = sprintf('%s(%s_arr,%s) \n%s(%s_carr,%s)\n',FktType,FktName,CoreCommandsReal,FktType,FktName,CoreCommandsCpxReal);
-        h_snippet = sprintf('externC const char * CUDA%s_arr(float * a, float * c, int N);\nexternC const char * CUDA%s_carr(float * a, float * c, int N);\n\n',FktName,FktName);
+        h_snippet = sprintf('externC const char * CUDA%s_arr(float * a, float * c, size_t N);\nexternC const char * CUDA%s_carr(float * a, float * c, size_t N);\n\n',FktName,FktName);
     case 'CUDA_BinaryFkt'  % Takes two arrays (a and b) as input and has one (c) as output
         m_snippet = sprintf('%% out = %s(in1,in2)   : User defined cuda function. %s\n',FktName,Comment);
         m_snippet = sprintf('%s function out = %s(in1,in2)\n',m_snippet,FktName);
@@ -106,7 +106,7 @@ switch(FktType)
         c_snippet = sprintf('%s Dbg_printf("cuda: %s\");\n} \n',c_snippet,FktName);
 
         cu_snippet = sprintf('%s(arr_%s_arr,%s) \n%s(arr_%s_carr,%s)\n%s(carr_%s_arr,%s)\n%s(carr_%s_carr,%s)\n',FktType,FktName,CoreCommandsReal,FktType,FktName,CoreCommandsRealCpx,FktType,FktName,CoreCommandsCpxReal,FktType,FktName,CoreCommandsCpxCpx);
-        h_snippet = sprintf('externC const char * CUDAarr_%s_arr(float * a, float * b, float * c, int N);\nexternC const char * CUDAarr_%s_carr(float * a, float * b, float * c, int N);\nexternC const char * CUDAcarr_%s_arr(float * a, float * b, float * c, int N);\nexternC const char * CUDAcarr_%s_carr(float * a, float * b, float * c, int N);\n\n',FktName,FktName,FktName,FktName);
+        h_snippet = sprintf('externC const char * CUDAarr_%s_arr(float * a, float * b, float * c, size_t N);\nexternC const char * CUDAarr_%s_carr(float * a, float * b, float * c, size_t N);\nexternC const char * CUDAcarr_%s_arr(float * a, float * b, float * c, size_t N);\nexternC const char * CUDAcarr_%s_carr(float * a, float * b, float * c, size_t N);\n\n',FktName,FktName,FktName,FktName);
 
     case 'CUDA_NArgsFkt'  % Takes any number of arrays (f1 ... Fn) as input and has one (c) as output
         AllArgs = sprintf('f%d,',[1:NArgs]);  % f1,f2,f3, ...
@@ -135,7 +135,7 @@ switch(FktType)
         c_snippet = sprintf('%s Dbg_printf("cuda: %s\");\n} \n',c_snippet,FktName);
 
         cu_snippet = sprintf('%s(arr_%s_NArgs,%s,%d) \n',FktType,FktName,CoreCommandsReal,NArgs);
-        h_snippet = sprintf('externC const char * CUDAarr_%s_NArgs(float * f[%d], float * c, int N, int numdims, SizeND sizesC, BoolND isSingleton[%d]);\n',FktName,NArgs,NArgs);
+        h_snippet = sprintf('externC const char * CUDAarr_%s_NArgs(float * f[%d], float * c, size_t N, int numdims, SizeND sizesC, BoolND isSingleton[%d]);\n',FktName,NArgs,NArgs);
     otherwise
         error('cuda_define: Unknown Function Type!');
 end
