@@ -46,6 +46,7 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
 #include "cuda_runtime.h"
 #include "cublas.h"
 #define externC
+
 #include "cudaArith.h"
 #include "matrix.h"
 #include "stdio.h"
@@ -629,7 +630,7 @@ static void * mem_heap[MAX_HEAP];   // memory which  can be reused if size match
 static size_t memsize_heap[MAX_HEAP];  // sizes in bytes
 static size_t mem_heap_pos=0;        // position of the next entry to free from the heap
 static size_t mem_heap_first_free=0;        // position of the next entry to free from the heap
-static size_t mem_heap_allocated=0;  // filling of the heap
+static int mem_heap_allocated=0;  // filling of the heap. Has to allow negative size!
 #endif
 
 /**************************************************************************/

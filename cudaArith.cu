@@ -37,6 +37,7 @@ system('nvcc -c cudaArith.cu -v -I/usr/local/cuda/include/')
 #include <stdio.h>
 #include <stddef.h>
 #include <math.h>
+
 #ifndef NAN   // should be part of math.h
 #define NAN (0.0/0.0)
 #endif
@@ -1684,12 +1685,12 @@ extern "C" int CUDAarr_times_const_checkerboard(float * a, float b, float * c, s
 /// cyclicly rotates datastack cyclic into positive direction in all coordinates by (dx,dy,dz) voxels
 /// simple version with all processors dealing with exactly one element
 __global__ void
-rotate2(float*a,float b, float * c, size_t sx,size_t sy,size_t sz, size_t dx, size_t dy, size_t dz)
+rotate2(float*a,float b, float * c, size_t sx,size_t sy,size_t sz, long long dx, long long dy, long long dz)
 {
   size_t ids=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x); // id of this processor
-  size_t x=(ids + dx)%sx;  // advance by the offset steps along the chain
-  size_t y=(ids/sx + dy)%sy;
-  size_t z=(ids/(sx*sy) + dz)%sz;
+  long long x=(ids + dx)%sx;  // advance by the offset steps along the chain
+  long long y=(ids/sx + dy)%sy;
+  long long z=(ids/(sx*sy) + dz)%sz;
   size_t idd=x+sx*y+sx*sy*z;
   if(ids>=sx*sy*sz) return;
   // float tmp = a[ids];
@@ -1800,7 +1801,8 @@ size_t gcd(size_t a, size_t b) // greatest commod divisor by recursion
 
 extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, size_t * sizes, int dims, int complex,int direction)  // multiplies with a constand and cyclilcally rotates the array using the chain algorithm
 {
-    size_t sx=1,sy=1,sz=1;
+    // printf("TestING\n");   % Does NOT work!
+    long long sx=1,sy=1,sz=1;
     if (dims>0)
         sx=sizes[0];
     if (dims>1)
@@ -1808,16 +1810,16 @@ extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, size_t 
     if (dims>2)
         sz=sizes[2]; 
 
-    size_t dx=(sx+direction*sx/2)%sx,dy=(sy+direction*sy/2)%sy,dz=(sz+direction*sz/2)%sz;  // how much to cyclically rotate
+    long long dx=(sx+direction*sx/2)%sx,dy=(sy+direction*sy/2)%sy,dz=(sz+direction*sz/2)%sz;  // how much to cyclically rotate
     if (complex) {sx=sx*2;dx=dx*2;}
     //printf("sx %d sy %d dx %d dy %d\n",sx,sy,dx,dy);
 
     // calculate the length of each swapping chain
-    size_t ux=gcd(sx,dx);  // unit cell in x. Any repeat along y directions will be also a repeat in x. Chain length is sx/ux
+    long long ux=gcd(sx,dx);  // unit cell in x. Any repeat along y directions will be also a repeat in x. Chain length is sx/ux
     // size_t lx=sx/ux; // how many accesses to get one round in x
-    size_t uy=gcd(((sx/ux)*dy%sy),sy); // how many times must the first chain be repeated to form a longer chain. This defines unit cell y
-    size_t uz=gcd(((sy/uy)*dz%sz),sz); // similar for z
-    size_t length=sx*sy*sz/(ux*uy*uz);  // chain length
+    long long uy=gcd(((sx/ux)*dy%sy),sy); // how many times must the first chain be repeated to form a longer chain. This defines unit cell y
+    long long uz=gcd(((sy/uy)*dz%sz),sz); // similar for z
+    long long length=sx*sy*sz/(ux*uy*uz);  // chain length
 
     // in one dimension the gcd=greatest common divisor, would mean that one has to start task at position 0 ... gcd-1
     // in several dimensions even completing one round leaving a spacing at gcd does not mean that this is a complete loop
@@ -1829,7 +1831,7 @@ extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, size_t 
     struct cudaDeviceProp prop;
     int status=cudaGetDeviceProperties(&prop,dev);
 
-    size_t m=1;
+    long long m=1;
     if (ux>uy)
         m=ux;
     else
@@ -1844,11 +1846,12 @@ extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, size_t 
     
     //    rotate<<<nBlocks,blockSize>>>(a,b,c,sx,sy,sz,dx,dy,dz,ux,uy,uz);  // get unit cell sizes
 
-    size_t N=sx*sy*sz; // includes the space for coomplex numbers
+    size_t N=sx*sy*sz; // includes the space for complex numbers
 	size_t blockSize;dim3 nBlocks;                                         
                                                                 //    printf("BlockSize %d, ux %d, uy %d, uz %d\n",blockSize,ux,uy,uz);
     // unfortunately we have to do it out of place.
     MemoryLayout(N,blockSize,nBlocks)                                    
+    // printf("rotate 2 call: (%zd %zd %zd %lld %lld %lld)\n",sx,sy,sz,dx,dy,dz);
     if (a == c)
     {
         float * d =0;
