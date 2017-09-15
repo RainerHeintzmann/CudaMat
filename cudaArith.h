@@ -34,6 +34,10 @@ typedef struct {
 } SizeND ;
 
 typedef struct {
+    long long s[CUDA_MAXDIM];
+} IntND ;  // for integer shifts that can be positive or negative
+
+typedef struct {
     unsigned char s[CUDA_MAXDIM];
 } BoolND ;
 

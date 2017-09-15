@@ -103,9 +103,10 @@ static struct cudaDeviceProp prop;  // Defined in cudaArith.h: contains the cuda
 
 #define IdxFromCoords3D(x,y,z,dSize,dOffs) \
   unsigned size_t idd=x+dOffs.s[0]+dSize.s[0]*(y+dOffs.s[1])+dSize.s[0]*dSize.s[1]*(z+dOffs.s[2]);  \
-  
+
+
 #define CoordsNDFromIdx(idx,sSize,pos)                                  \
-   SizeND pos;                                               \
+   IntND pos;                                               \
    { size_t resid=idx;                                               \
   for(int _d=0;_d<CUDA_MAXDIM;_d++)                                     \
       if (resid > 0)                                                    \
@@ -115,13 +116,17 @@ static struct cudaDeviceProp prop;  // Defined in cudaArith.h: contains the cuda
           pos.s[_d]=0;                                                    \
   }
 
+// since the c- modula function does not wrap to positive number we define our own modula function
+#define MyModulo(x,N) (((x) % (N) + (N)) % (N))
+
 #define IdxNDFromCoords(pos,dSize,idd)                                   \
   (idd)=0;                                                              \
   {                                                                     \
   size_t _Stride=1;                                                \
   for(int _d=0;_d<CUDA_MAXDIM;_d++)                                      \
   if (dSize.s[_d]>0) {                                                   \
-              {(idd) += (pos.s[_d] % dSize.s[_d]) *_Stride;}  \
+              long long N=dSize.s[_d];                                  \
+              {(idd) += MyModulo(pos.s[_d],N) *_Stride;}  \
         _Stride *= dSize.s[_d]; }                                        \
 }
 // This was removed when changed from int to size_t to accomodate 64 bits properly:
@@ -1540,8 +1545,8 @@ CUDA_UnaryFkt(isnan_carr,c[idx]=(float) (isnan(a[2*idx])||isnan(a[2*idx+1]));)  
 CUDA_UnaryFkt(isinf_arr,c[idx]=(float) isinf(a[idx]);)
 CUDA_UnaryFkt(isinf_carr,c[idx]=(float) (isinf(a[2*idx])||isinf(a[2*idx+1]));)   // is infinite
 
-CUDA_UnaryFktIntVec(arr_circshift_vec,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]-=b.s[_d];}size_t ids=0;IdxNDFromCoords(pos,sSize,ids);c[idx]=a[ids];)  // a[idx]
-CUDA_UnaryFktIntVec(carr_circshift_vec,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]-=b.s[_d];}size_t ids=0;IdxNDFromCoords(pos,sSize,ids);c[2*idx]=a[2*ids];c[2*idx+1]=a[2*ids+1];)
+CUDA_UnaryFktIntVec(arr_circshift_vec,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]-=b.s[_d];}long long ids=0;IdxNDFromCoords(pos,sSize,ids);c[idx]=a[ids];)  // a[idx]
+CUDA_UnaryFktIntVec(carr_circshift_vec,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]-=b.s[_d];}long long ids=0;IdxNDFromCoords(pos,sSize,ids);c[2*idx]=a[2*ids];c[2*idx+1]=a[2*ids+1];)
 
 // In code below, the loop runs over the source dimensions. The array sizes are still set to the source sizes and will be (again) adjusted later
 CUDA_UnaryFktIntVec(arr_permute_vec,{int _d;SizeND posnew; SizeND dSize; CoordsNDFromIdx(idx,sSize,pos);

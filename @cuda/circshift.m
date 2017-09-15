@@ -22,8 +22,15 @@
 function out = circshift(in,shifts)
 out=cuda();
 if isa(in,'cuda') 
+    if (~in.fromDip && size(shifts,2)>1)
+        tmp=shifts(1);shifts(1)=shifts(2);shifts(2)=tmp;
+    end
+    if (size(in,1) == 1 && size(shifts,2)==1)  % This is some funny special case that Matlab implements
+        shifts=[0 shifts];  % Interprete in only this case as a shift along the vector
+    else
     if (size(shifts,2)>1)
         tmp=shifts(1);shifts(1)=shifts(2);shifts(2)=tmp;
+    end
     end
      out.ref=cuda_cuda('circshift',in.ref,shifts);
 else

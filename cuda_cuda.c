@@ -492,12 +492,12 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
 
 // Snippet below expects a vector(CUDA_MAXDIM) and an array as input and generates an array as output. E.g. circshift
 #define CallCUDA_ArrVecFkt(FktName,AllocCommand,SetToVal)                                   \
-size_t dims_sizes,nshifts[CUDA_MAXDIM], dsize[CUDA_MAXDIM],d,tsize=1,ref;                      \
+size_t dims_sizes,nshifts[CUDA_MAXDIM], dsize[CUDA_MAXDIM],d,tsize=1,ref;                   \
     double * dshifts;float * newarr=0;                                                      \
     const char * ret;                                                                       \
                                                                                             \
     if (nrhs != 3) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");              \
-    dims_sizes=(size_t)(mxGetM(prhs[2]) * mxGetN(prhs[2])); dshifts=mxGetPr(prhs[2]);          \
+    dims_sizes=(size_t)(mxGetM(prhs[2]) * mxGetN(prhs[2])); dshifts=mxGetPr(prhs[2]);       \
     if (dims_sizes > CUDA_MAXDIM)                                                           \
         mexErrMsgTxt("cuda: " #FktName " to many dimensions (>CUDA_MAXDIM)\n");             \
                                                                                             \
@@ -505,7 +505,7 @@ size_t dims_sizes,nshifts[CUDA_MAXDIM], dsize[CUDA_MAXDIM],d,tsize=1,ref;       
                                                                                             \
     for (d=0;d<CUDA_MAXDIM;d++) {                                                           \
          if (d<dims_sizes)                                                                  \
-            nshifts[d]=(size_t) dshifts[d];                                                    \
+            nshifts[d]=(size_t) dshifts[d];                                                 \
          else                                                                               \
              nshifts[d]=SetToVal;                                                           \
          if (d<cuda_array_dim[ref])                                                         \
