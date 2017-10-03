@@ -36,6 +36,17 @@ if size(varargin,2)==1  % only copy (transport) the input to output
         out=varargin{1};
     end
 else
+mysize=size(varargin{1});
+mysize(direction)=0;
+for m=2:size(varargin,2)
+    sz=size(varargin{m});
+    sz(direction)=0;
+    if any(mysize-sz)
+        fprintf('cuda\\cat: argument #%d does not agree to the size of the first argument.\n',m)
+        error('cuda\\cat sizes along all but the append direction have to be equal!');
+    end
+end
+
 out=cuda();
 for pos=1:length(varargin)
         varargin{pos}=cuda(varargin{pos});

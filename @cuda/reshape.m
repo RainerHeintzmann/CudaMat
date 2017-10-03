@@ -30,20 +30,24 @@ if prod(ns) ~= prod(s)
     error('cuda: reshape Totalsize is not compatible.')
 end
 if in.fromDip
-      if (length(s) > 1)
+      if (length(s) > 1 && ((length(ns)<2) || any(s(1:2) ~= ns(1:2))))  % only in this condition we really need to go down this ugly road and copy data around
           out=permute(in,[2 1 3:ndims(in)]);  % Very ugly ! Why is this necessary?
+          cuda_cuda('setSize',out.ref,ns);   % this is a modification of the size of the now existing array. Use with care!    
+          if (length(ns) > 1)
+              out=permute(out,[2 1 3:ndims(out)]);  % Very ugly ! Why is this necessary?
+          end
       else
-         out=copy(in); % will create a copy
-      end
-     cuda_cuda('setSize',out.ref,ns);   % this is a modification of the size of the now existing array. Use with care!    
-      if (length(ns) > 1)
-          out=permute(out,[2 1 3:ndims(out)]);  % Very ugly ! Why is this necessary?
+        out=in; % copy(in); % will create a copy
+        if (length(ns) > 1)
+            tmp=ns(1);ns(1)=ns(2);ns(2)=tmp;
+        end
+        cuda_cuda('setSize',out.ref,ns);   % this is a modification of the size of the now existing array. Use with care!    
       end
 else
     if length(ns) < 2
         error('cuda: sizevector must have at least two elements (matlab style)');
     end
-    out=copy(in); % will create a copy
+    out=in; % copy(in); % will create a copy
     cuda_cuda('setSize',out.ref,ns);
 end
 

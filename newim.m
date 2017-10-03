@@ -26,7 +26,7 @@ function res=newim(varargin)
 global use_newim_cuda;
 global diphandle_newim;
 if (use_newim_cuda)
-    tmp=cuda(0);
+    tmp=cuda();  % this serves to call the cuda version
     res= newim_cuda2(tmp,varargin{:});        
 else
     if nargin >= 1 && isa(varargin{1},'cuda')
