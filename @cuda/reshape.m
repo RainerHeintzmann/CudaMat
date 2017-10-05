@@ -47,7 +47,7 @@ else
     if length(ns) < 2
         error('cuda: sizevector must have at least two elements (matlab style)');
     end
-    out=in; % copy(in); % will create a copy
+    out=copy(in); % will create a copy
     cuda_cuda('setSize',out.ref,ns);
 end
 

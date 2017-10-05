@@ -53,8 +53,8 @@ typedef struct {
     size_t s[3];
 } Size3D ;
 
-externC unsigned long CUDAmaxSize(void);   // returns the maximal total number of threads
-externC int GetCurrentRedSize(void);  // returns the current size of the allocated ReduceArray(s).
+externC size_t CUDAmaxSize(void);   // returns the maximal total number of threads
+externC size_t GetCurrentRedSize(void);  // returns the current size of the allocated ReduceArray(s).
 externC int GetMaxThreads(void);  // returns the maximal number of threads per block
 externC int ReduceThreadsDef(void);
 externC long GetMaxBlocksX(void);  // returns the maxmimal number of blocks along X

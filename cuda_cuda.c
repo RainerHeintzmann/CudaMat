@@ -773,12 +773,13 @@ size_t getTotalSize(const int dim,const size_t * sizevec) {  // returns the tota
     size_t totalsize=1,d;
     for (d=0;d<dim;d++) {
         totalsize *= sizevec[d];
+        Dbg_printf4("Dimension %d, size %lld, total %lld\n",d,sizevec[d],totalsize);
         if (sizevec[d]==0)
         { 
             // mexErrMsgTxt("cuda: detected a zero in the size of an array. (e.g. in allocation)\n"); 
           return 0;}
     }
-    // Dbg_printf2("Totalsize = %d\n",totalsize);
+    Dbg_printf2("Totalsize = %d\n",totalsize);
     return totalsize;
 }
 
@@ -1254,14 +1255,37 @@ float * cudaAllocComplexSized(const mxArray * arg, SizeND mysize, int mydims) { 
   mexErrMsgTxt("cuda: getMatlabFloatArray; data is zero dimensional\n");
   return 0;
  }
+
+ void ConvertToSize_t(const mwSize * mwSizeVec, size_t * sizevec,mwSize dims) {
+     mwSize d;
+     for (d=0; d<dims;d++) {
+         if (d >= CUDA_MAXDIM)
+             mexErrMsgTxt("CudaPut: The array has more dimension than supported by CudaMat\n");
+         else
+             sizevec[d] = (size_t) mwSizeVec[d];
+     }
+ }
+
+ void ConvertToMwSize(const size_t * sizevec, mwSize * mwSizeVec, mwSize dims) {
+     mwSize d;
+     for (d=0; d<dims;d++) {
+         if (d >= CUDA_MAXDIM)
+             mexErrMsgTxt("CudaPut: The array has more dimension than supported by CudaMat\n");
+         else
+             mwSizeVec[d] = (mwSize) sizevec[d];
+     }
+ }
   
  float * cudaPut(const mxArray * arg) {   // copies Matlab array into cuda
     mwSize dims = mxGetNumberOfDimensions(arg);
-    const mwSize * sizevec = mxGetDimensions(arg);
+    const mwSize * mwSizeVec = mxGetDimensions(arg);
+    size_t sizevec[CUDA_MAXDIM];
     size_t ts,maxarr;
     int cuda_type = -1;
     float * p_cuda_data=0;
     const char * TypeName=mxGetClassName(arg);    
+
+    ConvertToSize_t(mwSizeVec,sizevec,dims);
 
     Dbg_printf2("cudaPut  Classname=%s\n",mxGetClassName(arg));
      
@@ -1269,7 +1293,7 @@ float * cudaAllocComplexSized(const mxArray * arg, SizeND mysize, int mydims) { 
         mexErrMsgTxt("cuda: Datatype for cuda arrays needs to be single precision, or single precision complex\n");
     ts=getTotalSize((const int) dims,sizevec);  // Size of the array to allocate
     maxarr=CUDAmaxSize();
-    Dbg_printf5("Total size ts = %d, dims = %d, Max Size = %d, MAXINT = %d\n",ts,dims, maxarr, INT_MAX);
+    Dbg_printf5("Total size ts = %lld, dims = %d, Max Size = %lld, MAXINT = %d\n",ts,dims, maxarr, INT_MAX);
     if (ts > maxarr)
         mexErrMsgTxt("cuda: Array too big for available number of threads\n");
     if (mxIsComplex(arg))
@@ -1379,6 +1403,7 @@ mxArray * cudaGetSize(const mxArray * arg) {  // returns a vector with sizes
     double * ar =0;
     double * ai=0;
     int custatus;
+    mwSize MyMwSize[CUDA_MAXDIM];
 
     /* Copy result back to host */
     // cudaMemcpy( ar, getCudaRef(arg), getTypeSize(arg)*getTotalSizeFromRef(arg), cudaMemcpyDeviceToHost);
@@ -1389,7 +1414,8 @@ mxArray * cudaGetSize(const mxArray * arg) {  // returns a vector with sizes
     if (totalsize*sizeof(float) < fastMemSize)
         ar=(double *) fastMem;
     else {
-        ret=mxCreateNumericArray(cuda_array_dim[ref], cuda_array_size[ref], MatlabTypeFromCuda(ref), MatlabRealCpxFromCuda(ref));
+        ConvertToMwSize(cuda_array_size[ref],MyMwSize,cuda_array_dim[ref]);
+        ret=mxCreateNumericArray(cuda_array_dim[ref], MyMwSize, MatlabTypeFromCuda(ref), MatlabRealCpxFromCuda(ref));
         ar=mxGetPr(ret); // pointer to real part of array
     }
     
@@ -1427,7 +1453,8 @@ mxArray * cudaGetSize(const mxArray * arg) {  // returns a vector with sizes
         if (totalsize==1 && (MatlabRealCpxFromCuda(ref) != mxCOMPLEX))
             ret = mxCreateDoubleScalar((double)((float *)fastMem)[0]);
         else {
-            ret=mxCreateNumericArray(cuda_array_dim[ref], cuda_array_size[ref], MatlabTypeFromCuda(ref), MatlabRealCpxFromCuda(ref));
+            ConvertToMwSize(cuda_array_size[ref],MyMwSize,cuda_array_dim[ref]);
+            ret=mxCreateNumericArray(cuda_array_dim[ref], MyMwSize, MatlabTypeFromCuda(ref), MatlabRealCpxFromCuda(ref));
             memcpy(mxGetPr(ret),fastMem,totalsize*sizeof(float));
             if (MatlabRealCpxFromCuda(ref) == mxCOMPLEX)
                 memcpy(mxGetPi(ret),fastMemI,totalsize*sizeof(float));
@@ -1796,6 +1823,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
       cudaError_t err;
       Dbg_printf2("int is %d\n",sizeof(int));
       Dbg_printf2("Long is %d\n",sizeof(long));
+      Dbg_printf2("mwSize is %d\n",sizeof(mwSize));
       Dbg_printf2("size_T is %d\n",sizeof(size_t));
 
       err=cudaGetDeviceCount(&devCount);

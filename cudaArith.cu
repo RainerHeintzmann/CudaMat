@@ -77,7 +77,7 @@ __device__ cufftComplex cuda_resultVal;   // here real and complex valued result
 __device__ int cuda_resultInt;   // here real and complex valued results can be stored to be then transported to the host
 static ACCU_ARRTYPE * TmpRedArray=0;   // This temporary array will be constructed on the device, whenever the first reduce operation is performed
 static ACCU_ARRTYPE * accum = 0;       // This is the corresponding array on the host side
-static int CurrentRedSize=0;    // Keeps track of how much reduce memory is allocated on the device
+static size_t CurrentRedSize=0;    // Keeps track of how much reduce memory is allocated on the device
 static const int MinRedBlockSize=65536;    // defines the chunks of memory (in floats) which will be used in reduce operations
 static struct cudaDeviceProp prop;  // Defined in cudaArith.h: contains the cuda Device properties. is set during initialisation
     // prop.maxThreadsPerBlock;  // 512
@@ -1155,7 +1155,7 @@ const char * CheckReduceAllocation(size_t asize) {
     return 0;
 }
 
-extern "C" int GetCurrentRedSize(void) {
+extern "C" size_t GetCurrentRedSize(void) {
     return CurrentRedSize;
 }
 
@@ -1645,7 +1645,7 @@ extern "C" const char * SetDeviceProperties(void) {
 }
 
 
-extern "C" unsigned long CUDAmaxSize(void) {
+extern "C" size_t CUDAmaxSize(void) {
     int dev=0;
     cudaGetDevice(&dev);
     struct cudaDeviceProp prop;
@@ -1656,7 +1656,7 @@ extern "C" unsigned long CUDAmaxSize(void) {
     // return prop.warpSize;   // 32
     // return prop.maxThreadsDim[0];   // 512  = max blocksize
     // return prop.maxGridSize[0];   // 65535  = max GridSize = max nBlocks?
-    return ((long)prop.maxGridSize[0])*((long)prop.maxGridSize[1])*((long)prop.maxThreadsDim[0]);   // maximally 2D grids are currently allowed.
+    return ((size_t)prop.maxGridSize[0])*((size_t)prop.maxGridSize[1])*((size_t)prop.maxThreadsDim[0]);   // maximally 2D grids are currently allowed.
 }
 
 
