@@ -157,7 +157,7 @@ if ispc
 else
     global nocula;
     if ~isempty(nocula)
-        status=system(['nvcc -c ' MEXFLAGS ' ' NVCCFLAGS ' ' CudaBase  'cudaArith.cu -I/usr/local/cuda/include/ -I.']);
+        status=system(['nvcc -c ' MEXFLAGS ' ' NVCCFLAGS ' -Xcompiler -fPIC ' CudaBase  'cudaArith.cu -I/usr/local/cuda/include/ -I.']);
         if status ~= 0
             error('nvcc command failed');
         end

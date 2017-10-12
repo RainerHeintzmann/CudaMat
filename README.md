@@ -129,9 +129,6 @@ However, it should be noted, that this does not give you the capability of recom
 Download the current version into a folder /usr/local/CudaMat/ and unpack it with tar -xzf CudaMat.tgz .
 NVidia’s cuda driver and toolkit needs to be installed according to the manufacturer’s instruction. Make sure this is really the version corresponding to
 the Cuda Toolkit.
-sudo vi /usr/local/cuda/bin/nvcc.profile
-add option “-fPIC” to nvcc.profile. The line should now read:
-INCLUDES        +=  -fPIC “-I$(TOP)/include” “-I$(TOP)/include/cudart” $(_SPACE_)
 
 To leave the X-window system under SuSe Linux, log off and the click on “menu” and select Console. The in the console (as superuser) you can run the driver installation program.
 
@@ -152,11 +149,13 @@ To fix a problem with mex compilation in Matlab, modify the file
 /usr/local/matlab2010a/bin/.matlab7rc.sh
 and modify LDPATH_PREFIX to
 LDPATH_PREFIX=’/usr/lib64′
-in all theachitechure configurations.edit
-/usr/local/MATLAB/R2010a/bin/gccopts.sh
+in all theachitechure configurations.
 
+Edit
+~/.matlab/R2016b/mex_C_glnxa64.xml
+(or in older versions: /usr/local/MATLAB/R2010a/bin/gccopts.sh)
 and delete all occurances of “-ansi” to avoid compilation problems with C++ style comments.
-type
+Type
 mex -setup
 as a standart user in Matlab, to copy the above change into the local user directory
 
