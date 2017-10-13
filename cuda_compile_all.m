@@ -36,7 +36,8 @@ h_text = '';
 
 CudaBase= which('cuda');
 CudaBase=CudaBase(1:end-12);
-UserBase=[tempdir() 'user' filesep];
+% UserBase=[tempdir() 'user' filesep];  % This causes problems in Linux with multiple users.
+UserBase=[userpath() filesep 'user' filesep];
 mkdir(UserBase); % Just in case it does not exist
 
 if isfield(cuda_to_compile,'name')
@@ -156,18 +157,22 @@ if ispc
     end
 else
     global nocula;
+    bv=[];
+    if ~ispc
+        bv = 'CFLAGS="\$CFLAGS -std=gnu99"';
+    end
     if ~isempty(nocula)
         status=system(['nvcc -c ' MEXFLAGS ' ' NVCCFLAGS ' -Xcompiler -fPIC ' CudaBase  'cudaArith.cu -I/usr/local/cuda/include/ -I.']);
         if status ~= 0
             error('nvcc command failed');
         end
-        eval(['mex ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.o -DNOCULA "-I' UserBase '" -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lcublas -lcufft -lcudart']);
+        eval(['mex ' bv ' ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.o -DNOCULA "-I' UserBase '" -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lcublas -lcufft -lcudart']);
     else
         status=system('nvcc -c cudaArith.cu -I/usr/local/cula/include/');
         if status ~= 0
             error('nvcc command failed');
         end
-        eval(['mex ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.o "-I' UserBase '" -I/usr/local/cula/include -I/usr/local/cuda/include -L/usr/local/cula/lib64 -L/usr/local/cuda/lib64 -lcublas -lcufft -lcudart -lcula']);
+        eval(['mex ' bv ' ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.o "-I' UserBase '" -I/usr/local/cula/include -I/usr/local/cuda/include -L/usr/local/cula/lib64 -L/usr/local/cuda/lib64 -lcublas -lcufft -lcudart -lcula']);
     end
 end
 cd(CurrentPath)
