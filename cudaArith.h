@@ -76,16 +76,16 @@ externC const char * CUDApmin_arr(float * a, float * mask,float * c, float * cId
 externC const char * CUDAarr_3drepcpy_arr(float *a, float * c, size_t sSize[3], size_t dSize[3]);
 externC const char * CUDAcarr_3drepcpy_carr(float *a, float * c, size_t sSize[3], size_t dSize[3]);
 
-externC const char * CUDAarr_3dsubcpy_arr(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3]);
-externC const char * CUDAcarr_3dsubcpy_carr(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3]);
-externC const char * CUDAarr_3dsubcpy_carr(float * a, float * c, size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3]);
+externC const char * CUDAarr_3dsubcpy_arr(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3]);
+externC const char * CUDAcarr_3dsubcpy_carr(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3]);
+externC const char * CUDAarr_3dsubcpy_carr(float * a, float * c, size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3]);
 
 externC const char * CUDAconst_3dsubcpy_arr(float * c, float br, float bi, size_t dSize[3], size_t dROI[3], size_t dOffs[3]);
 externC const char * CUDAcconst_3dsubcpy_carr(float * c, float br, float bi, size_t dSize[3], size_t dROI[3], size_t dOffs[3]);
 
-externC const char * CUDAarr_3dsubcpyT_arr(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3]);
-externC const char * CUDAcarr_3dsubcpyT_carr(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3]);
-externC const char * CUDAcarr_3dsubcpyCT_carr(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3]);
+externC const char * CUDAarr_3dsubcpyT_arr(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3]);
+externC const char * CUDAcarr_3dsubcpyT_carr(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3]);
+externC const char * CUDAcarr_3dsubcpyCT_carr(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3]);
 
 // 5d versions of the same
 externC const char * CUDAarr_5drepcpy_arr(float * a, float * c,size_t sSize[5], size_t dSize[5]);
@@ -213,10 +213,10 @@ externC const char * CUDAarr_subsasgn_Cconst(float * a, float br, float bi, floa
 externC const char * CUDAcarr_subsasgn_const(float * a, float br, float bi, float * c, size_t N);
 
 // diagonal matrix generation
-externC const char * CUDAarr_diag_set(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3]);
-externC const char * CUDAcarr_diag_set(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3]);
-externC const char * CUDAarr_diag_get(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3]);
-externC const char * CUDAcarr_diag_get(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3]);
+externC const char * CUDAarr_diag_set(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3]);
+externC const char * CUDAcarr_diag_set(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3]);
+externC const char * CUDAarr_diag_get(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3]);
+externC const char * CUDAcarr_diag_get(float * a, float * c,size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3]);
 
 // referencing and assignment using an index vector (b), N always refers to the output size. No index checking!
 externC const char * CUDAarr_subsref_vec(float * a, float * b, float * c, size_t N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);

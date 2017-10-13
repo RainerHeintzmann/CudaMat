@@ -37,7 +37,7 @@ h_text = '';
 CudaBase= which('cuda');
 CudaBase=CudaBase(1:end-12);
 % UserBase=[tempdir() 'user' filesep];  % This causes problems in Linux with multiple users.
-UserBase=[userpath() filesep 'user' filesep];
+UserBase=[userpath() filesep 'LocalCudaMatSrc' filesep];
 mkdir(UserBase); % Just in case it does not exist
 
 if isfield(cuda_to_compile,'name')

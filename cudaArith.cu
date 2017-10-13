@@ -942,7 +942,7 @@ FktName(float *a, float *c, Size3D sSize,Size3D dSize,Size3D sOffs, Size3D sROI,
   if(idx>=N) return;                                              \
   expressions                                                            \
 }                                                                       \
-extern "C" const char * CUDA ## FktName(float * a, float *c, size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], size_t dOffs[3])  \
+extern "C" const char * CUDA ## FktName(float * a, float *c, size_t sSize[3], size_t dSize[3], size_t sOffs[3], size_t sROI[3], long long dOffs[3])  \
 {                                                                       \
     cudaError_t myerr;                                                \
     size_t N=sROI[0]*sROI[1]*sROI[2];                                      \
