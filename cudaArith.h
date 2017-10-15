@@ -61,6 +61,7 @@ externC long GetMaxBlocksX(void);  // returns the maxmimal number of blocks alon
 externC struct cudaDeviceProp GetDeviceProp(void);  // returns the device properties of the active cuda device
 externC const char * SetDeviceProperties(void);  // initializes a static variable with the device properties
 
+externC const char * CUDAsumpos_arr(float * a, size_t N, ACCUTYPE * resp);
 externC const char * CUDAsum_arr(float * a, size_t N, ACCUTYPE * resp);
 externC const char * CUDAsum_carr(float * a, size_t N, ACCUTYPE * resp);  // N refers to nuhmber of complex entries, resp needs to point to two floats
 externC const char * CUDAmax_arr(float * a, size_t N, ACCUTYPE * resp);   // returns max and index of  maximum, resp needs to point to two floats

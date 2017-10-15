@@ -25,6 +25,10 @@ if nargin < 2
     method=2;
 end
 
+if in1.fromDip && ndims(in1)~=1
+    out=in1;
+    return;
+end
 if method == 2
     %tmpSize=cuda_cuda('getSize',in1.ref);
     %cuda_cuda('setSize',in1.ref,prod(tmpSize));  % flatten it (in case of matrices or images). NOT  CORRECT. Norm of matrix is not equal to norm of flat vector

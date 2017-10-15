@@ -43,7 +43,7 @@ elseif ts1==1 && isa(in2,'cuda')
     out.ref=cuda_cuda('times_alpha',in2.ref,double(in1));
     out.fromDip = in2.fromDip;   % If eiter was dipimage, result will be
 elseif isa(in1,'cuda') && isa(in2,'cuda')
-    if (~in1.fromDip && any(size(in1) - size(in2)))
+    if (~in1.fromDip && ~equalsizes(size(in1),size(in2)))
         error('cuda:plus of Matlab type: Matrix dimensions must agree.')
     end
 

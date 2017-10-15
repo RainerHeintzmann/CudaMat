@@ -1,4 +1,4 @@
-% max(in1) : finds the minimum of a cuda array
+% min(in1) : finds the minimum of a cuda array
 
 %************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
@@ -21,8 +21,23 @@
 %
 
 function [val,pos] = min(in1,mask,projdir)
+if nargin >2 && isa(projdir,'cuda') 
+    projdir=double_force(projdir);
+end
+    si=size(in1);
+    if ~in1.fromDip && nargin < 2
+        projdir=find(si~=1,1);  % This is the first non-singleton dimension, which MATLAB chooses to project over
+        if isempty(projdir)
+            val = cuda_cuda('getVal',in1.ref,0);
+            return;
+        else
+            [val,pos] = min(in1,[],projdir);
+            return;
+        end
+    end
+
     if nargin ~= 2 % This should be changed later as it is incorrect: A check for the datatype being binary needs to be made but cuda does not remember to be binary
-        if (nargin < 3)  % max over all pixels
+        if (nargin < 3) || prod(si) == min(si) % min over all pixels
             [val,pos]=cuda_cuda('min',in1.ref);
             pos=Idx2IdxVec(pos,cuda_cuda('getSize',in1.ref));
             if (length(pos)>1)
@@ -31,7 +46,7 @@ function [val,pos] = min(in1,mask,projdir)
         else
             inref=in1.ref;
             val=cuda();
-            val.fromDip = 1;
+            val.fromDip = in1.fromDip;
             if nargout > 1
                 pos=cuda();
                 pos.fromDip = 1;
@@ -40,19 +55,24 @@ function [val,pos] = min(in1,mask,projdir)
                 mask=cuda(mask);
             end
             for p=1:length(projdir)
-            if projdir(p) == 1
+            if projdir(p) == 1 && in1.fromDip
                 projdir(p) = 2;
-            elseif projdir(p) == 2
-                projdir(p) = 1
+            elseif projdir(p) == 2 && in1.fromDip
+                projdir(p) = 1 
+            end
+            if ~isempty(mask)
+                maskref=mask.ref;
+            else
+                maskref=[];
             end
                 if nargout > 1
                     if length(projdir) > 1
                         error('cuda/min: Can only compute position for one dimension at a time');
                     end
-                    [valref,posref]=cuda_cuda('part_min',inref,mask.ref,projdir(p));
+                    [valref,posref]=cuda_cuda('part_min',inref,maskref,projdir(p));
                     val.ref=valref;pos.ref=posref;
                 else
-                    val.ref=cuda_cuda('part_min',inref,mask.ref,projdir(p));
+                    val.ref=cuda_cuda('part_min',inref,maskref,projdir(p));
                 end
                 if p > 1
                     cuda_cuda('delete',inref);
@@ -60,7 +80,7 @@ function [val,pos] = min(in1,mask,projdir)
                 inref=val.ref;
             end
         end
-    else  % Compares arr with a max number or array
+    else  % Compares arr with a min number or array
         in2=mask;
         val=cuda();
         if prod(size(in1)) > 1 && ~isa(in1,'cuda')

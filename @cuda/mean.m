@@ -21,6 +21,9 @@
 %
 
 function [val,pos] = mean(in1,mask,projdir)
+if nargin >2 && isa(projdir,'cuda') 
+    projdir=double_force(projdir);
+end
 if isa(in1,'cuda') 
     if ((nargin>1) && (~isempty(mask)))
         if ~isa(mask,'cuda')
@@ -76,15 +79,23 @@ if isa(in1,'cuda')
         end
 
     else  % for matlab type, mask has the meaning of projdir, but only one direction allowed
+        si=size(in1);
         if (nargin < 2)  % sum over all pixels
-            projdir=1;
+            projdir=find(si~=1,1);  % This is the first non-singleton dimension, which MATLAB chooses to project over
+            if isempty(projdir)
+                val = cuda_cuda('getVal',in1.ref,0);
+                return;
+            end
         else
             projdir=mask;
+            if isa(projdir,'cuda') 
+                projdir=double_force(projdir);
+            end
+            mask=[];
         end
         if length(projdir) > 1
             error('cuda mean: Matlab type arguments can only be projected over a maximum of one dimension at a time.');
         end
-        si=size(in1);
         if prod(si) ~= max(si)
             val=cuda();
             val.ref=cuda_cuda('part_sum',in1.ref,[],projdir);

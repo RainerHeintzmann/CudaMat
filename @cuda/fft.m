@@ -34,6 +34,11 @@ if isa(in,'cuda')
         %out.ref=cuda_cuda('fft3d',in.ref,1);
         %cuda_cuda('setSize',in.ref,insize);
         %cuda_cuda('setSize',out.ref,insize);
+
+        % Unclear why this crashes!...
+        %transformdir=zeros(1,4);
+        %transformdir(2)=1;
+        %out.ref=cuda_cuda('fft3d',in.ref,1,double(transformdir));  % double cast is very important here. Otherwise datatype does not match
         error('Column-only fft for matlab type data not implemented yet. Did you want to use fft2 for 2d ffts?');
     else
         out.ref=cuda_cuda('fft3d',in.ref,1);

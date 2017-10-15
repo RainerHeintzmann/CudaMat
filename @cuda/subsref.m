@@ -120,7 +120,9 @@ switch index.type
                 varargout{1}.fromDip = in.fromDip;
             end
             if length(index.subs) == 1 && length(oldsize) > 1 % restore the old size (if changed)
-                    tmp=oldsize(1);oldsize(1)=oldsize(2);oldsize(2)=tmp;
+                    if in.fromDip
+                        tmp=oldsize(1);oldsize(1)=oldsize(2);oldsize(2)=tmp;
+                    end
                     cuda_cuda('setSize',in.ref,oldsize);
                     % cuda_cuda('setSize',varargout{1}.ref,[1 msize]);
             end

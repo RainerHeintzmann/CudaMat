@@ -1,6 +1,6 @@
-% double_force(in): conversion from cuda to double
+% castToMatlab(in): conversion from cuda to double or dip_image depending on the type
 %
-% see also: castToMatlab
+% see also: double_force
 %
 
 %***************************************************************************
@@ -22,10 +22,14 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-function out = double_force(in)
+function out = castToMatlab(in)
 if isa(in,'cuda')
     % out = double(cuda_cuda('get',in.ref));
-    out = double(cuda_cuda('get',getReference(in)));
+    if in.fromDip
+        out = dip_image(cuda_cuda('get',getReference(in)));
+    else
+        out = double(cuda_cuda('get',getReference(in)));
+    end
 else
     out=double(in);
 end

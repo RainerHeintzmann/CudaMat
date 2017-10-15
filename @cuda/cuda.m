@@ -20,7 +20,7 @@
 %**************************************************************************
 %
 
-classdef cuda < handle
+classdef (InferiorClasses = {?dip_image,?double}) cuda < handle % takes the lead over dip_image or double
     properties
         ref
         fromDip    % was this variable generated from a DipImage (or from a matlab double object)?

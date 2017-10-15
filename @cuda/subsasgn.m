@@ -56,6 +56,7 @@ if linkedNum~=0
 end
 
 insize=size(in); % tinsize=prod(insize);
+oldsize=insize;
 switch index.type
     case '()'
         out=cuda(); 
@@ -63,7 +64,8 @@ switch index.type
             mybool=index.subs{1};
             mVecSize=tvalsize;
             if mVecSize ~= 1
-                if mVecSize ~= sum(index.subs{1} ~= 0)
+                sumind=cuda_cuda('sumpos',index.subs{1}.ref);  % Bad. This should be avoided for speed reasons
+                if mVecSize ~= sumind 
                     error('subsasgn_cuda_vec : mask size does not correspond to size of vector to assign');
                 else
                     out.ref=cuda_cuda('subsasgn_cuda_vec',in.ref,index.subs{1}.ref,valref,1);
@@ -85,6 +87,14 @@ switch index.type
             isblock=0;
             if length(index.subs)>1 || ndims(in) == 1 || prod(size(index.subs{1})) == 1 || ischar(index.subs{1})  % the latter is needed as the index can be ':'
                 isblock=1;
+
+                if length(index.subs) ~= 1 && length(index.subs) ~= length(oldsize)
+                    error('cuda subreferencing: Wrong number of dimensions');
+                end
+                if length(index.subs) == 1 && length(oldsize) > 1  % trying to access multidimensional array with one index
+                    insize=prod(oldsize);
+                    cuda_cuda('setSize',in.ref,insize);
+                end
                 for d=1:length(index.subs)
                     if ischar(index.subs{d}) && index.subs{d}(1) ==':' && (size(index.subs{d}(1),2) == 1)     % User really want the whole range
                         if in.fromDip == 0
@@ -215,8 +225,15 @@ switch index.type
                 if ~isa(index.subs{1},'cuda')
                     cuda_cuda('forceDelete',subsrefnum);
                     subsrefnum=0;
+                end                
+            end
+            if length(index.subs) == 1 && length(oldsize) > 1 % restore the old size (if changed)
+                insize=oldsize;
+                if in.fromDip
+                    tmp=oldsize(1);oldsize(1)=oldsize(2);oldsize(2)=tmp;
                 end
-                
+                cuda_cuda('setSize',in.ref,oldsize);
+                % cuda_cuda('setSize',varargout{1}.ref,[1 msize]);
             end
         end
     case '.'

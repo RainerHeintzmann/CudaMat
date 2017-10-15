@@ -1,9 +1,6 @@
-% double_force(in): conversion from cuda to double
-%
-% see also: castToMatlab
-%
+% ifftn(in) : n-dimensional inverse Fourier transforms cuda dat (up to 3D)
 
-%***************************************************************************
+%************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
 %   heintzmann@gmail.com                                                  *
 %                                                                         *
@@ -22,12 +19,23 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-function out = double_force(in)
-if isa(in,'cuda')
-    % out = double(cuda_cuda('get',in.ref));
-    out = double(cuda_cuda('get',getReference(in)));
+
+function out=ifftn(in)
+out=cuda();
+if isa(in,'cuda') 
+    if in.fromDip
+        error('ifftn: Not used for datatype DipImage. Use ft or dip_fouriertransform instead!');
+    end
+    insize=size(in);
+    dims=length(insize);
+    if dims>3
+        error('ifftn is only implemented up to 3D in CudaMat');
+    else
+        out.ref=cuda_cuda('fft3d',in.ref,-1);
+    end
 else
-    out=double(in);
+    error('ifftn: Unsupported datatype');
 end
+out.fromDip=in.fromDip;
 
-
+out = out / prod(insize);   % This is a special Matlab feature...

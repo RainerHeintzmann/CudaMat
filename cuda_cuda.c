@@ -2045,8 +2045,9 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
   else  if (strcmp(command,"subsref_cuda")==0) {      // makes a copy of this area
     size_t ref1,mask;
     float * newarr;
-    size_t M=0,firstres=0;const char * ret=0;
+    size_t firstres=0;const char * ret=0;
     size_t totalSize=0;
+    size_t M=0;   // this is the cuda result size datatype
     if (nrhs != 3) mexErrMsgTxt("cuda: subsref_cuda needs four arguments\n");  // command, array1 , 3D offset, 3D size
     ref1=getCudaRefNum(prhs[1]);
     mask=getCudaRefNum(prhs[2]);
@@ -2085,7 +2086,8 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
   }
   else  if (strcmp(command,"subsasgn_cuda_vec")==0) {      // assings a vector to a masked aread in an image
     size_t ref1,mask,ref3;
-    size_t M=0;const char * ret=0;
+    const char * ret=0;
+    size_t M=0;
     if (nrhs != 5) mexErrMsgTxt("cuda: subsasgn_cuda_vec needs four arguments\n");  // command, array1 , 3D offset, 3D size
     ref1=getCudaRefNum(prhs[1]);
     mask=getCudaRefNum(prhs[2]);
@@ -3062,7 +3064,7 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
             if (sv[0] != 1) mexErrMsgTxt("cuda: fft needs dirYes vector to be oriented correctly\n");
             transvec = mxGetPr(prhs[3]); // get pointer to vector data
             dirYes=& myDirYes[0];
-            Dbg_printf4("Transform direction (transvec) Vector: %gx%gx%g \n", transvec[0],transvec[1],transvec[2]);
+            // Dbg_printf4("Transform direction (transvec) Vector: %gx%gx%g \n", transvec[0],transvec[1],transvec[2]);
             for (n=0;n<CUDA_MAXDIM;n++)
                 if (n < sv[1])
                      dirYes[n]=(int) (transvec[n] > 0.5);  // copy to integer size vector
@@ -3440,6 +3442,21 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     
     if (cublasGetError() != CUBLAS_STATUS_SUCCESS) {mexErrMsgTxt("cuda: Error computing sum\n");return;}
    Dbg_printf("cuda: sum\n");
+  }
+  else if (strcmp(command,"sumpos")==0) { // sum over array 
+    if (nrhs != 2) mexErrMsgTxt("cuda: sumpos needs two arguments\n");    
+    if (isComplexType(getCudaRefNum(prhs[1])))
+    	mexErrMsgTxt("cuda: sumpos needs a real datatyp as mask to sum over\n");    
+    else
+        if (nlhs > 0)
+        {
+            ACCUTYPE res;
+            const char * status=CUDAsumpos_arr(getCudaRef(prhs[1]),getTotalSizeFromRef(prhs[1]), &res);
+            if (status) mexErrMsgTxt(status);
+            plhs[0] =  mxCreateDoubleScalar((double) res);
+        }    
+    if (cublasGetError() != CUBLAS_STATUS_SUCCESS) {mexErrMsgTxt("cuda: Error computing sumpos\n");return;}
+   Dbg_printf("cuda: sumpos\n");
   }
   else if (strcmp(command,"norm")==0) { // norm of array 
     if (nrhs != 2) mexErrMsgTxt("cuda: norm needs two arguments\n");    

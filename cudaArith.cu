@@ -74,7 +74,7 @@ else                                                \
 
 // the real part is named ".x" and the imaginary ".y" in the cufftComplex datatype
 __device__ cufftComplex cuda_resultVal;   // here real and complex valued results can be stored to be then transported to the host
-__device__ int cuda_resultInt;   // here real and complex valued results can be stored to be then transported to the host
+__device__ size_t cuda_resultInt;   // here size-valued results can be stored to be then transported to the host
 static ACCU_ARRTYPE * TmpRedArray=0;   // This temporary array will be constructed on the device, whenever the first reduce operation is performed
 static ACCU_ARRTYPE * accum = 0;       // This is the corresponding array on the host side
 static size_t CurrentRedSize=0;    // Keeps track of how much reduce memory is allocated on the device
@@ -87,6 +87,7 @@ static struct cudaDeviceProp prop;  // Defined in cudaArith.h: contains the cuda
     // prop.maxGridSize[0];   // 65535  = max GridSize = max nBlocks?
 
 
+#define mysumpos(a,b) ((a)+((b)>0))
 #define mysum(a,b) ((a)+(b))
 #define maxCond(a,b) (((b)>(a)))
 #define minCond(a,b) (((b)<(a)))
@@ -395,7 +396,7 @@ extern "C" const char * CUDA ## FktName(float * a, size_t N, float * resp) \
 // Below is the reduction code of Wouter Caarls, modified
 // This could potentially also be run sequentially over the remaining dimension
 
-#define CUDA_FullRed(FktName, OP)                               \
+#define CUDA_FullRed(FktName, OP1,OP2)                               \
 __global__ void FktName (float *in, ACCU_ARRTYPE *out, size_t N){         \
   const size_t stride = blockDim.x * gridDim.x;                    \
   const size_t start  = IMUL(blockDim.x, blockIdx.x) + threadIdx.x;\
@@ -405,7 +406,7 @@ __global__ void FktName (float *in, ACCU_ARRTYPE *out, size_t N){         \
                                                                 \
   tmp = in[start];                                              \
   for (size_t ii=start+stride; ii < N; ii += stride)  {            \
-    tmp = OP(tmp, (ACCUTYPE) in[ii]);                             \
+    tmp = OP1(tmp, (ACCUTYPE) in[ii]);                             \
   }                                                             \
   accum[threadIdx.x]=tmp;                                       \
   __syncthreads();                                              \
@@ -416,7 +417,7 @@ __global__ void FktName (float *in, ACCU_ARRTYPE *out, size_t N){         \
     if (start+blockDim.x > N) limit=(N-start);                  \
     else limit=blockDim.x;                                      \
     for (size_t ii = 1; ii < limit; ii++) {                        \
-      res=OP(res,(ACCUTYPE) accum[ii]);                           \
+      res=OP2(res,(ACCUTYPE) accum[ii]);                           \
      }                                                          \
     out[blockIdx.x] = res;                                      \
   }                                                             \
@@ -449,7 +450,7 @@ extern "C" const char * CUDA ## FktName(float * a, size_t N, ACCUTYPE * resp) \
                                                                 \
   res = (ACCUTYPE) accum[0];                                      \
   for (size_t ii=1; ii < CUIMAGE_REDUCE_BLOCKS; ii++)  {           \
-    res=(ACCUTYPE) OP(res,(ACCUTYPE) accum[ii]);                    \
+    res=(ACCUTYPE) OP2(res,(ACCUTYPE) accum[ii]);                    \
    }                                                            \
   /* cudaFree(TmpRedArray); */                                  \
   /* free(accum); */                                            \
@@ -658,7 +659,7 @@ extern "C" const char * CUDA ## FktName(float * in, float * mask, float *  out, 
   if (myerr != cudaSuccess)                                     \
       return cudaGetErrorString(myerr);                         \
                                                                 \
-  cudaMemcpyFromSymbol(pM, cuda_resultInt, sizeof(* pM));\
+  cudaMemcpyFromSymbol(pM, cuda_resultInt, sizeof(* pM));       \
                                                                 \
   myerr=cudaGetLastError();                                     \
   if (myerr != cudaSuccess)                                     \
@@ -1183,7 +1184,8 @@ bla_ ## FktName(float*a, float * c, int N,  Size3D sSize,Size3D dSize,Size3D sOf
 //	FktName<<<nBlocks,blockSize>>>(a,c,sSize,dSize,sOffs, sROI, dOffs); \
 
 
-CUDA_FullRed(sum_arr,mysum)
+CUDA_FullRed(sumpos_arr,mysumpos,mysum)  // only sums over the number of positive values
+CUDA_FullRed(sum_arr,mysum,mysum)
 //CUDA_FullRedBin(sum_arr,mysum)
 CUDA_FullRedCpx(sum_carr,mysum)
 // CUDA_FullRed(sum_carr,res+=accum[ii];)
