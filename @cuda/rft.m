@@ -23,9 +23,9 @@ function out=rft(in)  % Attention! The size must be even. If not, the back trans
 out=cuda();
 if isa(in,'cuda') 
     isDip=in.fromDip;
-    if ~isDip
-        in=dip_image(in);
-    end
+    % if ~isDip
+    %    in=dip_image(in);
+    % end
     if strcmp(datatype(in),'sfloat')
         %isodd_biggerone=mod(size(in),2) & (size(in)>1);
         %if numel(isodd_biggerone)>3
@@ -36,11 +36,15 @@ if isa(in,'cuda')
         if in.fromDip && (mod(size(in,2),2) || size(in,2)==1) || ((~ in.fromDip) && (mod(size(in,1),2) || size(in,1)==1))
             error('Cuda rft function only accepts even size along dim 1/2 (matlab/dipImage), as the rift of the result would yield a different size');
         end
-        out.ref=cuda_cuda('rfft3d',in.ref);
+        if isDip 
+            out.ref=cuda_cuda('rfft3d',in.ref,1.0);  % 1.0: sqrt scaling.
+        else
+            out.ref=cuda_cuda('rfft3d',in.ref,0.0);  % 0.0: no scaling.
+        end
         out.fromDip=in.fromDip;
-        if ~isDip
-            out=double(out);
-        end        
+        %if ~isDip
+        %    out=double(out);
+        %end        
     else
         error('Error using rft. Datatype needs to be sfloat');
     end

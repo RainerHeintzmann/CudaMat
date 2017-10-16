@@ -3029,7 +3029,8 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     float * newarr=0;
     float FTScale;
     size_t ref;
-    int ret,n;double mode;
+    int ret,n;
+    double mode;
     int dev=0;
     int eb=0; 
     size_t ExtraBatch=1;
@@ -3118,12 +3119,14 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     size_t ref,size3d=0,dstsize3d=0;
     size_t oldsize=0;
     int mydim=0;
+    double mode=1.0;
     cufftResult status=0;
     cufftHandle myPlan;
 
-    if (nrhs != 2) mexErrMsgTxt("cuda: rfft3d needs two arguments\n");
+    if (nrhs != 3) mexErrMsgTxt("cuda: rfft3d needs two arguments\n");
     /* Execute FFT on device */
     ref=getCudaRefNum(prhs[1]);
+    mode=mxGetScalar(prhs[2]);  // 1: sqrt scaling, 2: no scaling
     myPlan=CreateFFTPlan(ref,CUFFT_R2C, NULL, NULL, NULL, NULL);
 
     //ReduceToHalfComplex(ref); // restore its size
@@ -3153,9 +3156,11 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     {   status=cufftExecR2C(myPlan, srcstart, dststart);  // Out-of-place transform
         if (status != CUFFT_SUCCESS) {printf("Error: %s\n",ERROR_NAMES[status]);mexErrMsgTxt("cuda: Error FFT failed\n");return;}
     }
-    // Multiply complex array with a constant
-    CUDAarr_times_const((float *) newarr,(float) (1/sqrt((double) size3d)),(float *) newarr,getTotalSizeFromRefNum(free_array)*2); // inplace operation, treats complex a 2 reals
 
+    // Multiply complex array with a constant
+    if (fabs(mode) == 1.0)    // 1: sqrt scaling, 2: no scaling
+        CUDAarr_times_const((float *) newarr,(float) (1/sqrt((double) size3d)),(float *) newarr,getTotalSizeFromRefNum(free_array)*2); // inplace operation, treats complex a 2 reals
+    
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
    Dbg_printf("cuda: rfft3d\n");
@@ -3166,12 +3171,14 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     size_t ref,size3d=0,dstsize3d=0;
     size_t oldsize=0;
     int mydim=0;
+    double mode=1.0;
     cufftResult status=0;
     cufftHandle myPlan;
 
-    if (nrhs != 2) mexErrMsgTxt("cuda: rifft3d needs two arguments\n");
+    if (nrhs != 3) mexErrMsgTxt("cuda: rifft3d needs three arguments\n");
     /* Execute FFT on device */
     ref=getCudaRefNum(prhs[1]);
+    mode=mxGetScalar(prhs[2]);  // 1: sqrt scaling, 2: no scaling
 
     mydim=cuda_array_dim[ref];
     if (mydim>3) mydim=3;
@@ -3200,8 +3207,14 @@ if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"d
     {   status=cufftExecC2R(myPlan, srcstart, dststart);  // Out-of-place transform  (cufftComplex *) 
         if (status != CUFFT_SUCCESS) {printf("Error: %s\n",ERROR_NAMES[status]);mexErrMsgTxt("cuda: Error rifft3d failed\n");return;}
     }
-    CUDAarr_times_const(newarr,(float) (1.0/sqrt((double)dstsize3d)),newarr,getTotalSizeFromRefNum(free_array)); // inplace operation
-  // cuda_array_FTscale[free_array]
+
+    // Multiply complex array with a constant
+    if (fabs(mode) == 1.0)    // 1: sqrt scaling, 
+        CUDAarr_times_const(newarr,(float) (1.0/sqrt((double)dstsize3d)),newarr,getTotalSizeFromRefNum(free_array)); // inplace operation
+    else if (fabs(mode) == 0.0)    // 0: scaling on the way backwards only
+        CUDAarr_times_const(newarr,(float) (1.0/((double)dstsize3d)),newarr,getTotalSizeFromRefNum(free_array)); // inplace operation
+
+    // cuda_array_FTscale[free_array]
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
    Dbg_printf("cuda: rifft3d\n");

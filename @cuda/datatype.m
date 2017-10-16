@@ -20,7 +20,7 @@
 %**************************************************************************
 %
 function out = datatype(in1)
-if isa(in1,'cuda') && in1.fromDip
+if isa(in1,'cuda') % && in1.fromDip
     if cuda_cuda('isCpx',in1.ref)
         out='scomplex';
     else
