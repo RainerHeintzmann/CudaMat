@@ -57,9 +57,11 @@ end
 
 insize=size(in); % tinsize=prod(insize);
 oldsize=insize;
+sizechanged=0;
 switch index.type
     case '()'
         out=cuda(); 
+        % referencing using a binary image
         if isa(index.subs{1},'cuda') && ((~isempty(index.subs{1}.isBinary) && index.subs{1}.isBinary) || (ndims(index.subs{1})>1 && size(index.subs{1},1) > 1 && size(index.subs{1},2) > 1))  % && index.subs{1}.fromDip % referencing with a cuda image
             mybool=index.subs{1};
             mVecSize=tvalsize;
@@ -94,6 +96,7 @@ switch index.type
                 if length(index.subs) == 1 && length(oldsize) > 1  % trying to access multidimensional array with one index
                     insize=prod(oldsize);
                     cuda_cuda('setSize',in.ref,insize);
+                    sizechanged=1;
                 end
                 for d=1:length(index.subs)
                     if ischar(index.subs{d}) && index.subs{d}(1) ==':' && (size(index.subs{d}(1),2) == 1)     % User really want the whole range
@@ -227,14 +230,6 @@ switch index.type
                     subsrefnum=0;
                 end                
             end
-            if length(index.subs) == 1 && length(oldsize) > 1 % restore the old size (if changed)
-                insize=oldsize;
-                if in.fromDip
-                    tmp=oldsize(1);oldsize(1)=oldsize(2);oldsize(2)=tmp;
-                end
-                cuda_cuda('setSize',in.ref,oldsize);
-                % cuda_cuda('setSize',varargout{1}.ref,[1 msize]);
-            end
         end
     case '.'
         fprintf('subsasgn .\n');
@@ -250,4 +245,12 @@ if tvalsize > 1
     end
 end
 
+if sizechanged % (ndims(insize)~=ndims(oldsize) || norm(insize-oldsize)~=0) && (length(index.subs) == 1 && length(oldsize) > 1) % restore the old size (if changed)
+    insize=oldsize;
+    if in.fromDip
+        tmp=oldsize(1);oldsize(1)=oldsize(2);oldsize(2)=tmp;
+    end
+    cuda_cuda('setSize',in.ref,oldsize);
+    % cuda_cuda('setSize',varargout{1}.ref,[1 msize]);
+end
 

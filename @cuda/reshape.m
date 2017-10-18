@@ -38,10 +38,15 @@ if in.fromDip
           end
       else
         out=in; % copy(in); % will create a copy
+      if (length(s) == 1 && length(ns) > 1)
+         cuda_cuda('setSize',out.ref,ns);   % this is a modification of the size of the now existing array. Use with care!    
+         out=permute(out,[2 1 3:ndims(out)]);  % Very ugly ! Why is this necessary?
+      else
         if (length(ns) > 1)
             tmp=ns(1);ns(1)=ns(2);ns(2)=tmp;
         end
         cuda_cuda('setSize',out.ref,ns);   % this is a modification of the size of the now existing array. Use with care!    
+      end
       end
 else
     if length(ns) < 2

@@ -1881,7 +1881,7 @@ CheckMemoryConsistency();
 
 Dbg_printf4("ignoreDelete state is : %d, command %s, ignoreRef: %d\n",ignoreDelete, command, ignoreRef);
 
-if ((ignoreDelete!=0) && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"delete")!=0) || ((nrhs>1) && ignoreRef != getCudaRefNum(prhs[1]))))
+if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDelete")!=0 && ((strcmp(command,"delete")!=0) || ((nrhs>1) && ignoreRef != getCudaRefNum(prhs[1]))))
 {
     if (showwarning) {
     printf("WARNING! Unwanted call command: %s: nrhs: %d, argument is %d\n",command,nrhs, getCudaRefNum(prhs[1]));
