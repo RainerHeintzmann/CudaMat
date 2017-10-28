@@ -21,6 +21,12 @@
 %
 
 function [val,pos] = min(in1,mask,projdir)
+if ~isa(in1,'cuda')
+    in1=cuda(in1);
+end
+if ~isa(mask,'cuda')
+    mask=cuda(mask);
+end
 if nargin >2 && isa(projdir,'cuda') 
     projdir=double_force(projdir);
 end
