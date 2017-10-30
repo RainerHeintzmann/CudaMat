@@ -168,11 +168,11 @@ static struct cudaDeviceProp prop;  // Defined in cudaArith.h: contains the cuda
 // the processors are assigned to the result image pixels
 // CAVE: These versions can be slow, if the resulting data has is smaller than the number of processors
 #define CUDA_PartRedMask(FktName, OP)               \
-__global__ void FktName (float *in, float *out, float * mask, size_t N, size_t dSizeX, size_t sStrideX, size_t sStrideY, size_t ProjStride, size_t ProjSize){      \
+__global__ void FktName (float *in, float *out, float * mask, size_t N, size_t ProjStride, size_t ProjSize){      \
   size_t idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   if(idd>=N) return;                                                    \
   size_t p;                                                                \
-  size_t ids=(idd%dSizeX)*sStrideX+(idd/dSizeX)*sStrideY;                  \
+  size_t ids=((idd%ProjStride) + (idd/ProjStride)*(ProjStride*ProjSize));  \
   ACCUTYPE accu=0.0;                                                       \
   int laterPix=0;                                                       \
   for (p=0;p<ProjSize;p++)                                              \
@@ -192,26 +192,18 @@ __global__ void FktName (float *in, float *out, float * mask, size_t N, size_t d
 extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, size_t sSize[CUDA_MAXPROJ], int ProjDir)\
 {                                                                       \
     cudaError_t myerr;                                                  \
-    size_t dSize[CUDA_MAXPROJ],d,N=1;                                      \
-	size_t blockSize;dim3 nBlocks;                                         \
-    size_t ProjStride=0,ProjSize=0,sStrideX=0,sStrideY=0,dSizeX=0;         \
-    for (d=0;d<CUDA_MAXPROJ;d++)  {dSize[d]=sSize[d]; }                 \
-    dSize[ProjDir-1]=1;                                                 \
-    for (d=0;d<CUDA_MAXPROJ;d++)  {N*=dSize[d];}                         \
-    if (ProjDir==1)                                                     \
-        {ProjStride=1;ProjSize=sSize[0];dSizeX=sSize[1];sStrideX=sSize[0];sStrideY=sSize[0]*sSize[1];}\
-    else if (ProjDir == 2)                                              \
-        {ProjStride=sSize[0];ProjSize=sSize[1];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0]*sSize[1];}\
-    else if (ProjDir == 3)                                              \
-        {ProjStride=sSize[0]*sSize[1];ProjSize=sSize[2];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
-    else if (ProjDir == 4)                                              \
-        {ProjStride=sSize[0]*sSize[1]*sSize[2];ProjSize=sSize[3];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
-    else if (ProjDir == 5)                                              \
-        {ProjStride=sSize[0]*sSize[1]*sSize[2]*sSize[3];ProjSize=sSize[4];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
-    else                                                                \
+    size_t d,N=1;                                                       \
+	size_t blockSize;dim3 nBlocks;                                      \
+    size_t ProjStride=1,ProjSize=1;                                     \
+    if (ProjDir>CUDA_MAXPROJ)                                           \
         return "Error: Unsupported projection direction";               \
-    MemoryLayout(N,blockSize,nBlocks)                                     \
-	FktName<<<nBlocks,blockSize>>>(a,c,mask,N,dSizeX,sStrideX,sStrideY,ProjStride,ProjSize);\
+    for (d=0;d<CUDA_MAXPROJ;d++)  {                                     \
+        if (d < ProjDir-1)  ProjStride *= sSize[d];                     \
+        if (d != ProjDir-1) N*=sSize[d];                                \
+    }                                                                   \
+    ProjSize=sSize[ProjDir-1];                                          \
+    MemoryLayout(N,blockSize,nBlocks)                                   \
+	FktName<<<nBlocks,blockSize>>>(a,c,mask,N,ProjStride,ProjSize);     \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
       return cudaGetErrorString(myerr);                                 \
@@ -220,11 +212,11 @@ extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, size_
 
 //   This is the same as the above but suited for complex numbers
 #define CUDA_PartRedMaskCpx(FktName, OP)               \
-__global__ void FktName (float *in, float *out, float * mask, size_t N, size_t dSizeX, size_t sStrideX, size_t sStrideY, size_t ProjStride, size_t ProjSize){      \
+__global__ void FktName (float *in, float *out, float * mask, size_t N, size_t ProjStride, size_t ProjSize){      \
   size_t idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   if(idd>=N) return;                                                    \
   size_t p;                                                                \
-  size_t ids=(idd%dSizeX)*sStrideX+(idd/dSizeX)*sStrideY;                  \
+  size_t ids=((idd%ProjStride) + (idd/ProjStride)*(ProjStride*ProjSize));  \
   ACCUTYPE accu=0.0;                                                       \
   ACCUTYPE accuI=0.0;                                                      \
   int laterPix=0;                                                       \
@@ -248,26 +240,18 @@ __global__ void FktName (float *in, float *out, float * mask, size_t N, size_t d
 extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, size_t sSize[3], int ProjDir)\
 {                                                                       \
      cudaError_t myerr;                                                \
-    size_t dSize[CUDA_MAXPROJ],d,N=1;                                      \
-	size_t blockSize;dim3 nBlocks;                                         \
-    size_t ProjStride=0,ProjSize=0,sStrideX=0,sStrideY=0,dSizeX=0;         \
-    for (d=0;d<CUDA_MAXPROJ;d++)  {dSize[d]=sSize[d]; }                 \
-    dSize[ProjDir-1]=1;                                                 \
-    for (d=0;d<CUDA_MAXPROJ;d++)  {N*=dSize[d];}                         \
-    if (ProjDir==1)                                                     \
-        {ProjStride=1;ProjSize=sSize[0];dSizeX=sSize[1];sStrideX=sSize[0];sStrideY=sSize[0]*sSize[1];}\
-    else if (ProjDir == 2)                                              \
-        {ProjStride=sSize[0];ProjSize=sSize[1];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0]*sSize[1];}\
-    else if (ProjDir == 3)                                              \
-        {ProjStride=sSize[0]*sSize[1];ProjSize=sSize[2];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
-    else if (ProjDir == 4)                                              \
-        {ProjStride=sSize[0]*sSize[1]*sSize[2];ProjSize=sSize[3];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
-    else if (ProjDir == 5)                                              \
-        {ProjStride=sSize[0]*sSize[1]*sSize[2]*sSize[3];ProjSize=sSize[4];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
-    else                                                                \
-        return "Error: Unsupported projection direction";                     \
-    MemoryLayout(N,blockSize,nBlocks)                                     \
-	FktName<<<nBlocks,blockSize>>>(a,c,mask,N,dSizeX,sStrideX,sStrideY,ProjStride,ProjSize);\
+    size_t d,N=1;                                                       \
+	size_t blockSize;dim3 nBlocks;                                      \
+    size_t ProjStride=1,ProjSize=1;                                     \
+    if (ProjDir>CUDA_MAXPROJ)                                           \
+        return "Error: Unsupported projection direction";               \
+    for (d=0;d<CUDA_MAXPROJ;d++)  {                                     \
+        if (d < ProjDir-1)  ProjStride *= sSize[d];                     \
+        if (d != ProjDir-1) N*=sSize[d];                                \
+    }                                                                   \
+    ProjSize=sSize[ProjDir-1];                                          \
+    MemoryLayout(N,blockSize,nBlocks)                                   \
+	FktName<<<nBlocks,blockSize>>>(a,c,mask,N,ProjStride,ProjSize);     \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
       return cudaGetErrorString(myerr);                                 \
@@ -275,13 +259,12 @@ extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, size_
 }
 
 // This partial reduction code keeps track of the index
-
 #define CUDA_PartRedMaskIdx(FktName, OP)               \
-__global__ void FktName (float *in, float *out, float * outIdx, float * mask, size_t N, size_t dSizeX, size_t sStrideX, size_t sStrideY, size_t ProjStride, size_t ProjSize){      \
+__global__ void FktName (float *in, float *out, float * outIdx, float * mask, size_t N, size_t ProjStride, size_t ProjSize){      \
   size_t idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   if(idd>=N) return;                                                    \
   size_t p;                                                                \
-  size_t ids=(idd%dSizeX)*sStrideX+(idd/dSizeX)*sStrideY;                  \
+  size_t ids=((idd%ProjStride) + (idd/ProjStride)*(ProjStride*ProjSize));  \
   float accu=0.0;                                                       \
   float accuIdx=-1;                                                     \
   int laterPix=0;                                                       \
@@ -305,26 +288,18 @@ __global__ void FktName (float *in, float *out, float * outIdx, float * mask, si
 extern "C" const char * CUDA ## FktName(float *a, float * mask, float * c, float * cIdx, size_t sSize[5], int ProjDir)\
 {                                                                       \
     cudaError_t myerr;                                                  \
-    size_t dSize[CUDA_MAXPROJ],d,N=1;                                      \
-	size_t blockSize;dim3 nBlocks;                                         \
-    size_t ProjStride=0,ProjSize=0,sStrideX=0,sStrideY=0,dSizeX=0;         \
-    for (d=0;d<CUDA_MAXPROJ;d++)  {dSize[d]=sSize[d]; }                 \
-    dSize[ProjDir-1]=1;                                                 \
-    for (d=0;d<CUDA_MAXPROJ;d++)  {N*=dSize[d];}                         \
-    if (ProjDir==1)                                                     \
-        {ProjStride=1;ProjSize=sSize[0];dSizeX=sSize[1];sStrideX=sSize[0];sStrideY=sSize[0]*sSize[1];}\
-    else if (ProjDir == 2)                                              \
-        {ProjStride=sSize[0];ProjSize=sSize[1];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0]*sSize[1];}\
-    else if (ProjDir == 3)                                              \
-        {ProjStride=sSize[0]*sSize[1];ProjSize=sSize[2];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
-    else if (ProjDir == 4)                                              \
-        {ProjStride=sSize[0]*sSize[1]*sSize[2];ProjSize=sSize[3];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
-    else if (ProjDir == 5)                                              \
-        {ProjStride=sSize[0]*sSize[1]*sSize[2]*sSize[3];ProjSize=sSize[4];dSizeX=sSize[0];sStrideX=1;sStrideY=sSize[0];}\
-    else                                                                \
+    size_t d,N=1;                                                       \
+	size_t blockSize;dim3 nBlocks;                                      \
+    size_t ProjStride=1,ProjSize=1;                                     \
+    if (ProjDir>CUDA_MAXPROJ)                                           \
         return "Error: Unsupported projection direction";               \
-    MemoryLayout(N,blockSize,nBlocks)                                     \
-	FktName<<<nBlocks,blockSize>>>(a,c,cIdx,mask,N,dSizeX,sStrideX,sStrideY,ProjStride,ProjSize);\
+    for (d=0;d<CUDA_MAXPROJ;d++)  {                                     \
+        if (d < ProjDir-1)  ProjStride *= sSize[d];                     \
+        if (d != ProjDir-1) N*=sSize[d];                                \
+    }                                                                   \
+    ProjSize=sSize[ProjDir-1];                                          \
+    MemoryLayout(N,blockSize,nBlocks)                                   \
+	FktName<<<nBlocks,blockSize>>>(a,c,cIdx,mask,N,ProjStride,ProjSize);\
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
       return cudaGetErrorString(myerr);                                 \
