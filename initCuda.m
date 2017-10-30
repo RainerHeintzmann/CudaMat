@@ -27,7 +27,11 @@ end
 
 pathstr=fileparts(mfilename('fullpath'));  % ignores name and extension
 addpath(pathstr);
-UserBase=[userpath() filesep 'LocalCudaMatSrc' filesep];
+mp=userpath();
+if mp(end)==';'
+    mp=mp(1:end-1);
+end
+UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
 % UserBase=[tempdir() 'user' filesep];
 [SUCCESS,MESSAGE,MESSAGEID] =mkdir(UserBase); % Just in case it does not exist. Ignor unsuccessful attempts
 addpath(UserBase);
