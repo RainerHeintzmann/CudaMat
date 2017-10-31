@@ -805,7 +805,7 @@ void PrintMemoryOverview() {
     size_t p,d,plantypenum,n;
     size_t sumMem=0;
     size_t sumHeap=0;
-    size_t size5d[5];
+    size_t size5d[CUDA_MAXDIM];
     printf("Overview of use Memory:\n");
     printf("----------------------------------------------------------------------------------\n");
     printf("Array# Type Dims  Size X\tY   \tZ   \tTotalSize\tAdress\n");
@@ -2122,7 +2122,7 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
     int d,ndim;
     double *p_Rep;
     float * newarr;
-    size_t dSize[5]={1,1,1,1,1},sSize[5];
+    size_t dSize[CUDA_MAXDIM]={1,1,1,1,1},sSize[CUDA_MAXDIM];
     const char * ret=0;
     if (nrhs != 3) mexErrMsgTxt("cuda: repmat needs four arguments\n");  // command, array1 , 3D offset, 3D size
     ref1=getCudaRefNum(prhs[1]);
@@ -2167,7 +2167,7 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
     double * p_Soffset, * p_SROI, * p_Sstep;
     const char * ret=0;
     Size5D nsizes,sROI,dOffs,sSize,sOffs,sStep;
-    // int nsizes[5]={1,1,1,1,1},sROI[5]={1,1,1,1,1},dOffs[5]={0,0,0,0,0},sSize[5]={1,1,1,1,1},sOffs[5]={0,0,0,0,0};
+    // int nsizes[CUDA_MAXDIM]={1,1,1,1,1},sROI[CUDA_MAXDIM]={1,1,1,1,1},dOffs[CUDA_MAXDIM]={0,0,0,0,0},sSize[CUDA_MAXDIM]={1,1,1,1,1},sOffs[CUDA_MAXDIM]={0,0,0,0,0};
     float * newarr;
     if (nrhs != 5) mexErrMsgTxt("cuda: csubsref needs four arguments\n");  // command, array1 , 3D offset, 3D size
     ref1=getCudaRefNum(prhs[1]);
@@ -2261,7 +2261,7 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
   else if (strcmp(command,"subsasgn_block")==0) { // sub referencing a block of data
     size_t ref2,constmode,dimsDoff,dimsSsize,dimsDstep;
     Size5D sSize,dSize,dOffs,noOffs,dStep;
-    // int dOffs[5]={0,0,0,0,0},sSize[5]={1,1,1,1,1},dSize[5]={1,1,1,1,1},noOffs[5]={0,0,0,0,0};
+    // int dOffs[CUDA_MAXDIM]={0,0,0,0,0},sSize[CUDA_MAXDIM]={1,1,1,1,1},dSize[CUDA_MAXDIM]={1,1,1,1,1},noOffs[CUDA_MAXDIM]={0,0,0,0,0};
     int d;
     double * p_Doffset,* p_sSize, * p_dStep;
     const char * ret=0;
@@ -2414,7 +2414,7 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
     if (ndim<2) ndim=2;
     tmp=nsizes.s[1];nsizes.s[1]=nsizes.s[0];nsizes.s[0]=tmp;  // swaps sizes
 
-    for (d=0;d<5;d++) {noOffs.s[d]=0;noStep.s[d]=1; }
+    for (d=0;d<CUDA_MAXDIM;d++) {noOffs.s[d]=0;noStep.s[d]=1; }
     
     Dbg_printf6("sSize: %d x %d x %d x %d x %d\n",sSize.s[0],sSize.s[1],sSize.s[2],sSize.s[3],sSize.s[4]);
     if (isComplexType(ref))
@@ -2527,7 +2527,7 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
     ref2=getCudaRefNum(prhs[2]);
     direction=(int) mxGetScalar(prhs[3]);
     nsizes=getSize5D(ref1);s1Size=getSize5D(ref1);s2Size=getSize5D(ref2);
-    for (d=0;d<5;d++) {dOffs.s[d]=0;noOffs.s[d]=0;noStep.s[d]=1;}
+    for (d=0;d<CUDA_MAXDIM;d++) {dOffs.s[d]=0;noOffs.s[d]=0;noStep.s[d]=1;}
     Dbg_printf2("append to direction: %g\n",direction);
     if (direction == 1) {
         nsizes.s[0]=s1Size.s[0]+s2Size.s[0];
@@ -3321,7 +3321,7 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
   else if (strcmp(command,"part_sum")==0) { // partial sum over array 
     size_t ref1;
     int ProjDir;
-    size_t sSize[5],dSize[5];
+    size_t sSize[CUDA_MAXDIM],dSize[CUDA_MAXDIM];
     float * mask = 0;float * new_array;
     if (nrhs != 4) mexErrMsgTxt("cuda: part_sum needs three arguments\n");    
     ref1=getCudaRefNum(prhs[1]);
@@ -3356,7 +3356,7 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
   else if (strcmp(command,"part_max")==0) { // partial maximum over array 
     size_t ref1,new_array_num;
     int ProjDir;
-    size_t sSize[5],dSize[5];
+    size_t sSize[CUDA_MAXDIM],dSize[CUDA_MAXDIM];
     float * mask = 0;float * new_array;
     float * new_array_idx=0;const char * status;
     if (nrhs != 4) mexErrMsgTxt("cuda: part_max needs three arguments\n");
@@ -3393,7 +3393,7 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
   else if (strcmp(command,"part_min")==0) { // partial minimum over array 
     size_t ref1,new_array_num;
     int ProjDir;
-    size_t sSize[5],dSize[5];
+    size_t sSize[CUDA_MAXDIM],dSize[CUDA_MAXDIM];
     float * mask = 0;float * new_array;
     float * new_array_idx=0;
     const char * status;
@@ -3764,6 +3764,42 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
    plhs[0] =  mxCreateDoubleScalar((double)free_array);
 
    Dbg_printf2("cuda:minus_alpha_blas %g\n",alpha);
+  }
+  else if (strcmp(command,"svd_last")==0) { // singular value decomposition along the last dimension of an array. Code by E. Soubies emmanuel.soubies@epfl.ch and stamatis.lefkimmiatis@epfl.ch
+    size_t ref1,new_array_num, dSize[CUDA_MAXDIM],LastDim,k;
+    float * new_array_Ye;  // Eigenvalues
+    float * new_array_Yv;  // Eigenvectors
+    const char * status;
+    if (nrhs != 2) mexErrMsgTxt("cuda: svd_last needs one arguments\n");
+    ref1=getCudaRefNum(prhs[1]);  // Input array
+    if (isComplexType(getCudaRefNum(prhs[1])))
+         mexErrMsgTxt("cuda svd_last: Input cannot be complex valued\n");
+
+    get5DSize(ref1,dSize);
+    Dbg_printf6("dSize is %dx%dx%dx%dx%d\n",dSize[0],dSize[1],dSize[2],dSize[3],dSize[4]);
+
+    LastDim=0;
+    for (k=0;k<CUDA_MAXDIM;k++)
+        if (dSize[k]>1)  LastDim=k;
+    if (dSize[LastDim] != 3)
+         mexErrMsgTxt("cuda svd_last: The last input dimension has to be of size 3\n");
+
+    dSize[LastDim]=1;    
+    new_array_Ye=cudaAllocDetailed(cuda_array_dim[ref1], dSize, cuda_array_type[ref1]);
+    new_array_num= free_array;
+    // if (nlhs > 1)
+    dSize[LastDim]=3;
+    new_array_Yv=cudaAllocDetailed(cuda_array_dim[ref1], dSize, cuda_array_type[ref1]);
+    
+    status=CUDAsvd_last(getCudaRef(prhs[1]), new_array_Ye,new_array_Yv, getTotalSizeFromRefNum(new_array_num));
+    if (status) mexErrMsgTxt(status);
+    
+    plhs[0] =  mxCreateDoubleScalar((double) new_array_num);
+    if (nlhs > 1)
+        plhs[1] =  mxCreateDoubleScalar((double) free_array);
+
+    if (cublasGetError() != CUBLAS_STATUS_SUCCESS) {mexErrMsgTxt("cuda: Error computing svd_last\n");return;}
+   Dbg_printf("cuda: svd_last\n");
   }
   else if (strcmp(command,"svd")==0) { // --------------------------------------------
 #ifndef NOCULA
