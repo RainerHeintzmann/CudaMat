@@ -28,7 +28,7 @@ if isa(in,'cuda')
     end
     insize=size(in);
     dims=length(insize);
-    if dims>3
+    if dims>3 && prod(insize(4:end)) > 1
         error('ifftn is only implemented up to 3D in CudaMat');
     else
         out.ref=cuda_cuda('fft3d',in.ref,-1);

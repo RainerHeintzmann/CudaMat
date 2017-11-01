@@ -45,7 +45,7 @@ elseif ts1 == 1 && isa(in2,'cuda')
 elseif isa(in1,'cuda') && isa(in2,'cuda')
 
     if ((~in1.fromDip || ~in2.fromDip) && any(size(in1) - size(in2)))
-        error('cuda:gt of Matlab array type: Matrix dimensions must agree.')
+        error('cuda:rdivide of Matlab array type: Matrix dimensions must agree.')
     end
     
     didSwap1=0;didSwap2=0;

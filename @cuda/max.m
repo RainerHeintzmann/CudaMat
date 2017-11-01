@@ -24,7 +24,7 @@ function [val,pos] = max(in1,mask,projdir)
 if ~isa(in1,'cuda')
     in1=cuda(in1);
 end
-if nargin > 1 && ~isempty(mask) && ~isa(mask,'cuda')
+if nargin >1 && ~isempty(mask) && ~isa(mask,'cuda')
     mask=cuda(mask);
 end
 if nargin >2 && isa(projdir,'cuda') 
@@ -131,4 +131,7 @@ end
             val.fromDip = in1.fromDip ;   % If eiter was dipimage, result will be
         end
     end
+if isa(val,'cuda') && ~val.fromDip
+    val=removeTrailingDims(val);  % This is a crazy Matlab thing: Trailing empty dimensions are removed. Not so in DipImage.
+end
 end

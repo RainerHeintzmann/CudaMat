@@ -131,6 +131,8 @@ switch index.type
         varargout{1}.fromDip = in.fromDip;
         if prod(size(varargout{1})) == 1
             varargout{1} = double_force(varargout{1});  % make sure this is just a matlab variable now
+        elseif ~varargout{1}.fromDip
+            varargout{1}=removeTrailingDims(varargout{1});  % This is a crazy Matlab thing: Trailing empty dimensions are removed. Not so in DipImage. 
         end
     case '.'
 %        fprintf('subsref .\n');

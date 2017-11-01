@@ -1920,3 +1920,113 @@ extern "C" int CUDAarr_times_const_scramble(float * a, float b, float * c, size_
 }
 
 
+// Here is some code for calculating the singular value decomposition of the trailing dimension in an array
+// This code is adopted from matLib3D.h by stamatis.lefkimmiatis@epfl.ch
+// and svd3D_decomp.cpp by emmanuel.soubies@epfl.ch
+
+/***************************************************************************
+  Let X be a NxMxKx6 matrix such that:
+  
+  P_mn = [X(n,m,k,1) X(n,m,k,2) X(n,m,k,3)
+          X(n,m,k,2) X(n,m,k,4) X(n,m,k,5)
+          X(n,m,k,3) X(n,m,k,5) X(n,m,k,6)] 
+          
+  is a symmetric matrix. Then the present function computes the eigenvalues
+  E(n,m,k,1) E(n,m,k,2) E(n,m,k,3) and the eigenvector 
+          V1 = [V(n,m,k,1) V(n,m,k,2)  V(n,m,k,3)] 
+          V2 = [V(n,m,k,4) V(n,m,k,5)  V(n,m,k,6)] 
+          V2 = [V(n,m,k,5) V(n,m,k,8)  V(n,m,k,9)]  
+  Hence the function outputs two matrices E of size NxMxKx3 and V of size NxMxKx9.
+  
+  Copyright (C) 2017 E. Soubies emmanuel.soubies@epfl.ch
+
+****************************************************************************/
+
+#include "matlib3D.h"
+
+__global__ void core_svd3D(float *X, float *Ye, float * Yv, size_t N){   // N is NOT the total size, but only the size excluding the last dimension (of size 3)
+  size_t idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);
+  if(idd>=N) return;
+  int k;
+    double E[3];
+	double D[3];   
+    double V[9];
+  
+        for (k=0;k<3;k++)   // get the matrix value [X(1,1) X(2,1)=X(1,2), X(2,2)]
+            V[k]=X[idd+N*k];
+        for (k = 4; k < 6; k++)
+            V[k] = X[idd+N*(k-1)];
+        for (k = 7; k < 9; k++)
+            V[k] = X[idd+N*(k-3)];
+        V[3]=X[idd+N];
+        V[6]=X[idd+N*2];
+        
+        tred2(V, D, E);
+        tql2(V, D, E);
+        
+  		for (k=0;k<3;k++)  // set result
+        	Ye[idd+N*k]=D[k];
+        
+        for (k=0;k<9;k++){
+            Yv[idd+N*k]=V[k];
+        }
+}
+
+extern "C" const char * CUDAsvd_last(float *X, float *Ye, float * Yv, size_t N)  // N is NOT the total size, but only the size excluding the last dimension (of size 3)
+{
+    cudaError_t myerr;
+	dim3 nBlocks;
+    size_t blockSize=prop.maxThreadsPerBlock / 2; // To account for the many registers needed
+    size_t numb=NBLOCKS(N,blockSize);
+    if (numb<prop.maxGridSize[0])
+        nBlocks.x=numb;
+    else
+        {nBlocks.x=(size_t)(sqrt((float)numb)+1);
+    nBlocks.y=(size_t)(sqrt((float)numb)+1);}
+
+	core_svd3D<<<nBlocks,blockSize>>>(X,Ye,Yv,N);
+    myerr=cudaGetLastError();
+    if (myerr != cudaSuccess)
+        return cudaGetErrorString(myerr);
+    return 0;
+}
+
+
+__global__ void core_svd3D_recomp(float *Y, float *E, float * V, size_t N){   // N is NOT the total size, but only the size excluding the last dimension (of size 3)
+  size_t idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);
+  if(idd>=N) return;
+  int k;
+  double ee[3];
+	double vv[9];
+	double tmp[6];  
+  
+    	for (k=0;k<3;k++)   // get the eigenvalues 
+        	ee[k]=E[idd+N*k];
+        for (k=0;k<9;k++)   // get the eigenvectors
+        	vv[k]=V[idd+N*k];
+
+        eigen3x3SymRec(tmp,vv,ee);
+  		for (k=0;k<6;k++){  // set result
+        	Y[idd+N*k]=tmp[k];
+  		}
+}
+
+extern "C" const char * CUDAsvd3D_recomp(float *Y, float *E, float * V, size_t N)  // N is NOT the total size, but only the size excluding the last dimension (of size 3)
+{
+    cudaError_t myerr;
+	dim3 nBlocks;
+    size_t blockSize=prop.maxThreadsPerBlock / 2; // To account for the many registers needed
+    size_t numb=NBLOCKS(N,blockSize);
+    if (numb<prop.maxGridSize[0])
+        nBlocks.x=numb;
+    else
+        {nBlocks.x=(size_t)(sqrt((float)numb)+1);
+    nBlocks.y=(size_t)(sqrt((float)numb)+1);}
+
+	core_svd3D_recomp<<<nBlocks,blockSize>>>(Y,E,V,N);
+    myerr=cudaGetLastError();
+    if (myerr != cudaSuccess)
+        return cudaGetErrorString(myerr);
+    return 0;
+}
+

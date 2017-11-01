@@ -24,7 +24,7 @@ function [val,pos] = mean(in1,mask,projdir)
 if ~isa(in1,'cuda')
     in1=cuda(in1);
 end
-if nargin > 1 && ~isempty(mask) && ~isa(mask,'cuda')
+if nargin >1 && ~isempty(mask) && ~isa(mask,'cuda')
     mask=cuda(mask);
 end
 if nargin >2 && isa(projdir,'cuda') 
