@@ -3765,8 +3765,8 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
 
    Dbg_printf2("cuda:minus_alpha_blas %g\n",alpha);
   }
-  else if (strcmp(command,"svd_last")==0) { // singular value decomposition along the last dimension of an array. Code by E. Soubies emmanuel.soubies@epfl.ch and stamatis.lefkimmiatis@epfl.ch
-    size_t ref1,new_array_num, dSize[CUDA_MAXDIM],LastDim,k;
+  else if (strcmp(command,"svd3D_last")==0) { // singular value decomposition along the last dimension of an array. Code by E. Soubies emmanuel.soubies@epfl.ch and stamatis.lefkimmiatis@epfl.ch
+    size_t ref1,new_array_num, dSize[CUDA_MAXDIM],LastDim,k,N;
     float * new_array_Ye;  // Eigenvalues
     float * new_array_Yv;  // Eigenvectors
     const char * status;
@@ -3781,17 +3781,19 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
     LastDim=0;
     for (k=0;k<CUDA_MAXDIM;k++)
         if (dSize[k]>1)  LastDim=k;
-    if (dSize[LastDim] != 3)
-         mexErrMsgTxt("cuda svd_last: The last input dimension has to be of size 3\n");
+    if (dSize[LastDim] != 6)
+         mexErrMsgTxt("cuda svd_last: The last input dimension has to be of size 6\n");
 
-    dSize[LastDim]=1;    
+    dSize[LastDim]=3;    // for 3 Eignevalues
     new_array_Ye=cudaAllocDetailed(cuda_array_dim[ref1], dSize, cuda_array_type[ref1]);
     new_array_num= free_array;
     // if (nlhs > 1)
-    dSize[LastDim]=3;
+    dSize[LastDim]=9;   // for the 9 components of the Eigenvectors
     new_array_Yv=cudaAllocDetailed(cuda_array_dim[ref1], dSize, cuda_array_type[ref1]);
     
-    status=CUDAsvd_last(getCudaRef(prhs[1]), new_array_Ye,new_array_Yv, getTotalSizeFromRefNum(new_array_num));
+    N = getTotalSizeFromRef(prhs[1])/6;
+    Dbg_printf2("N is %d\n",N);
+    status=CUDAsvd_last(getCudaRef(prhs[1]), new_array_Ye,new_array_Yv, N);
     if (status) mexErrMsgTxt(status);
     
     plhs[0] =  mxCreateDoubleScalar((double) new_array_num);
@@ -3800,6 +3802,46 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
 
     if (cublasGetError() != CUBLAS_STATUS_SUCCESS) {mexErrMsgTxt("cuda: Error computing svd_last\n");return;}
    Dbg_printf("cuda: svd_last\n");
+  }
+  else if (strcmp(command,"svd3D_recomp")==0) { // singular value decomposition along the last dimension of an array. Code by E. Soubies emmanuel.soubies@epfl.ch and stamatis.lefkimmiatis@epfl.ch
+    size_t ref1,ref2,dSize[CUDA_MAXDIM],LastDim,k,N;
+    float * new_array_Y;  // Eigenvalues
+    const char * status;
+    if (nrhs != 3) mexErrMsgTxt("cuda: svd_last needs two arguments\n");
+    ref1=getCudaRefNum(prhs[1]);  // Input array
+    ref2=getCudaRefNum(prhs[2]);  // Input array
+    if (isComplexType(getCudaRefNum(prhs[1])))
+         mexErrMsgTxt("cuda svd_last: Input 1 cannot be complex valued\n");
+    if (isComplexType(getCudaRefNum(prhs[2])))
+         mexErrMsgTxt("cuda svd_last: Input 2 cannot be complex valued\n");
+
+
+    get5DSize(ref1,dSize);
+    Dbg_printf6("dSize is %dx%dx%dx%dx%d\n",dSize[0],dSize[1],dSize[2],dSize[3],dSize[4]);
+
+    LastDim=0;
+    for (k=0;k<CUDA_MAXDIM;k++)
+        if (dSize[k]>1)  LastDim=k;
+    if (dSize[LastDim] != 3)
+         mexErrMsgTxt("cuda svd_last: The Eigenvalue (input1) dimension has to be of size 3\n");
+
+    get5DSize(ref2,dSize);
+    Dbg_printf6("dSize is %dx%dx%dx%dx%d\n",dSize[0],dSize[1],dSize[2],dSize[3],dSize[4]);
+    if (dSize[LastDim] != 9)
+         mexErrMsgTxt("cuda svd_last: The last Eigenvector (input2) dimension has to be of size 9\n");
+    
+    dSize[LastDim]=6;    // for 6 matrix entries
+    new_array_Y=cudaAllocDetailed(cuda_array_dim[ref1], dSize, cuda_array_type[ref1]);
+    
+    N = getTotalSizeFromRef(prhs[1])/3;
+    Dbg_printf2("N is %d\n",N);
+    status=CUDAsvd3D_recomp(new_array_Y, getCudaRef(prhs[1]), getCudaRef(prhs[2]), N);
+    if (status) mexErrMsgTxt(status);
+    
+    plhs[0] =  mxCreateDoubleScalar((double) free_array);
+
+    if (cublasGetError() != CUBLAS_STATUS_SUCCESS) {mexErrMsgTxt("cuda: Error computing svd_recomp\n");return;}
+    Dbg_printf("cuda: svd_recomp\n");
   }
   else if (strcmp(command,"svd")==0) { // --------------------------------------------
 #ifndef NOCULA

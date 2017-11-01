@@ -5,13 +5,13 @@
  * % =========================================================================*/
 
 
-__device__ double hypot2(double x, double y) {
+__device__ inline double hypot2(double x, double y) {
   return sqrt(x*x+y*y);
 }
 
 // Symmetric Householder reduction to tridiagonal form.
 
-__device__ void tred2(double V[9], double d[3], double e[3]) {
+__device__ inline void tred2(double V[9], double d[3], double e[3]) {
   
 //  This is derived from the Algol procedures tred2 by
 //  Bowdler, Martin, Reinsch, and Wilkinson, Handbook for
@@ -130,7 +130,7 @@ __device__ void tred2(double V[9], double d[3], double e[3]) {
 
 // Symmetric tridiagonal QL algorithm.
 
-__device__ void tql2(double V[9], double d[3], double e[3]) {
+__device__ inline void tql2(double V[9], double d[3], double e[3]) {
   
 //  This is derived from the Algol procedures tql2, by
 //  Bowdler, Martin, Reinsch, and Wilkinson, Handbook for
@@ -252,4 +252,11 @@ __device__ void tql2(double V[9], double d[3], double e[3]) {
   }
 }
 
-
+__device__ inline void eigen3x3SymRec(double X[6], double V[9], double E[3]){
+  X[0]=V[0]*V[0]*E[0]+V[3]*V[3]*E[1]+V[6]*V[6]*E[2];
+  X[1]=V[0]*V[1]*E[0]+V[3]*V[4]*E[1]+V[6]*V[7]*E[2];
+  X[2]=V[0]*V[2]*E[0]+V[3]*V[5]*E[1]+V[6]*V[8]*E[2];
+  X[3]=V[1]*V[1]*E[0]+V[4]*V[4]*E[1]+V[7]*V[7]*E[2];
+  X[4]=V[1]*V[2]*E[0]+V[4]*V[5]*E[1]+V[7]*V[8]*E[2];
+  X[5]=V[2]*V[2]*E[0]+V[5]*V[5]*E[1]+V[8]*V[8]*E[2];
+}

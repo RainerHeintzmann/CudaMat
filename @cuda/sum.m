@@ -23,7 +23,7 @@ function val = sum(in1,mask,projdir)
 if ~isa(in1,'cuda')
     in1=cuda(in1);
 end
-if ~isempty(mask) && ~isa(mask,'cuda')
+if nargin >1 && ~isempty(mask) && ~isa(mask,'cuda')
     mask=cuda(mask);
 end
 if nargin >2 && isa(projdir,'cuda') 
@@ -93,6 +93,9 @@ if isa(in1,'cuda')
         else
             val=cuda_cuda('sum',in1.ref);
         end
+    if isa(val,'cuda') && ~val.fromDip
+        val=removeTrailingDims(val);  % This is a crazy Matlab thing: Trailing empty dimensions are removed. Not so in DipImage.
+    end
     end
 else
     error('cuda/sum: Unknown datatype');
