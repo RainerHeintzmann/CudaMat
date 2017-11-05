@@ -18,6 +18,9 @@ ifftn = @(varargin) debugCheck('ifftn',varargin);
 fftshift = @(varargin) debugCheck('fftshift',varargin);
 ifftshift = @(varargin) debugCheck('ifftshift',varargin);
 
+svd3D_recomp = @(varargin) debugCheck('svd3D_recomp',varargin);
+svd3D_decomp = @(varargin) debugCheck('svd3D_decomp',varargin);
+
 newim = @(varargin) debugCheck('newim',varargin);
 flipdim = @(varargin) debugCheck('flipdim',varargin);
 rr = @(varargin) debugCheck('rr',varargin);
