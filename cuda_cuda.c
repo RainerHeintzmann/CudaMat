@@ -845,9 +845,8 @@ void PrintMemoryOverview() {
                     printf("3D plan no. %d Size: %d x %d x %d\n",n,cuda_FFTplan_sizes[n][2][plantypenum][0],cuda_FFTplan_sizes[n][2][plantypenum][1],cuda_FFTplan_sizes[n][2][plantypenum][2]);
                  }
     printf("----------------------------------------------------------------------------------\n");
-    printf("Summary: Memory used %9u, Heap %9u, Total used %9u, Allocated %u, Total: %u, Free %u \n",sumMem,sumHeap,sumMem+sumHeap,SumAllocated,GetDeviceProp().totalGlobalMem,GetDeviceProp().totalGlobalMem - SumAllocated);
-    printf("Current Reduce Array size %9d \n",GetCurrentRedSize());
-
+    printf("Summary: Memory used %.7g GB, Heap %.7g GB, Total used %.7g GB, Allocated %.7g GB, Total: %.7g GB, Free %.7g GB\n",sumMem/1.0E9,sumHeap/1.0E9,(sumMem+sumHeap)/1.0E9,SumAllocated/1.0E9,GetDeviceProp().totalGlobalMem/1.0E9,(GetDeviceProp().totalGlobalMem - SumAllocated)/1.0E9);
+    printf("Current Reduce Array size %9d byte\n",GetCurrentRedSize());
 }
 
 void CheckMemoryConsistency() {
