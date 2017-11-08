@@ -3,6 +3,9 @@
 % useDoubleCuda : a flag describing 
 % useCula : a flag describing whether the Cula toolbox (with eigenvector routine) should be used and is installed.
 %
+% see also:
+% setCudaSynchronize, installDebug, recompile, setCudaDevice
+%
 function initCuda(useGenerators,useDoubleCuda, useCula)
 global nocula; nocula=1;
 global use_zeros_cuda; use_zeros_cuda=0;
