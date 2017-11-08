@@ -157,7 +157,7 @@ if ispc
     else
         % mex cuda_cuda.c cudaArith.obj -Ic:\\CUDA\include\ -Ic:\\CULA\include\ -Lc:\\CUDA\lib64\ -Lc:\\CULA\lib64\ -lcublas -lcufft -lcudart -lcula
         % mex cuda_cuda.c cudaArith.obj "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v4.2\include" "-IC:\Program Files\CULA\R14\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v4.2\lib\x64" "-LC:\Program Files\CULA\R14\lib64" -lcublas -lcufft -lcudart -lcula_core -lcula_lapack
-        eval(['mex -O3 ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.obj "-I' UserBase '" ' MexComp '"-IC:\Program Files\CULA\R14\include -LC:\Program Files\CULA\R14\lib64" -lcublas -lcufft -lcudart -lcula_core -lcula_lapack']);
+        eval(['mex ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.obj "-I' UserBase '" ' MexComp '"-IC:\Program Files\CULA\R14\include -LC:\Program Files\CULA\R14\lib64" -lcublas -lcufft -lcudart -lcula_core -lcula_lapack']);
     end
 else
     global nocula;
@@ -166,7 +166,7 @@ else
         bv = 'CFLAGS="\$CFLAGS -std=gnu99"';
     end
     if ~isempty(nocula)
-        status=system(['nvcc -c ' MEXFLAGS ' ' NVCCFLAGS ' -Xcompiler -fPIC ' CudaBase  'cudaArith.cu -I/usr/local/cuda/include/ -I.']);
+        status=system(['nvcc -O3 -c ' MEXFLAGS ' ' NVCCFLAGS ' -Xcompiler -fPIC ' CudaBase  'cudaArith.cu -I/usr/local/cuda/include/ -I.']);
         if status ~= 0
             error('nvcc command failed');
         end

@@ -1392,7 +1392,7 @@ CUDA_UnaryFktConst(const_and_arr,{c[idx]=(float) (b!=0) && (a[idx]!=0);})
 CUDA_UnaryFkt(not_arr,c[idx]=(a[idx] == 0);)
 
 // Unary sign operation
-CUDA_UnaryFkt(sign_arr,c[idx]=(a[idx] > 0)?1 :((a[idx]<0)?-1:0);)
+CUDA_UnaryFkt(sign_arr,c[idx]=sign(a[idx]);)  // (a[idx] > 0)?1 :((a[idx]<0)?-1:0);
 CUDA_UnaryFkt(sign_carr,size_t idc=2*idx; float absc=sqrt(a[idc]*a[idc]+a[idc+1]*a[idc+1]); if (absc==0) {c[idc]=0;c[idc+1]=0;} else {c[idc]=a[idc]/absc;c[idc+1]=a[idc+1]/absc;})
 
 // Comparison

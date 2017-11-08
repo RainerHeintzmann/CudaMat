@@ -76,6 +76,7 @@ if exist('remMax','var') && remMax>0 && remPos < remMax
             M=max(M1,M2);
             if (D/M > 0.01)  % one percent error leads to scream
                 error('Function %s: detected disagreement of results!',fkt);
+                %  dip_image(cat(4,rem{remPos}{n},resCuda{n}))
             end
         end
         fprintf('checked function %s .. relative error to previous run is %d percent\n',fkt,D/M*100);
