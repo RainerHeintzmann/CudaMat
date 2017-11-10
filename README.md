@@ -1,6 +1,7 @@
-# CudaMat  (current version: 2.0.00 beta, 01. August 2016)
+# CudaMat 
 
 CudaMat enables fast computing on graphics cards that supports the CUDA programming language. Currently such cards are available from NVidia. CudaMat is, as much as possible, invisible to the user. The idea is that the user can transform any existing Matlab code into a CudaMat code with minimal effort. E.g. with a single line like a=cuda(a) the Matlab object ‘a’ gets transformed into a CudaMat object ‘a’. This can be checked using the matlab command whos.
+previous version (pre 2.0.0) were hosted elsewhere.
 
 # Under which conditions will CudaMat be fast?
 
