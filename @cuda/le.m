@@ -54,7 +54,7 @@ elseif isa(in1,'cuda') && isa(in2,'cuda')
         cuda_cuda('swapSizeForceDim2',in2.ref);didSwap2=1;
     end
     
-    out.ref=cuda_cuda('smallerequal',in2.ref,in1.ref);
+    out.ref=cuda_cuda('smallerequal',in1.ref,in2.ref);
 
     if didSwap1
         cuda_cuda('swapSizeForceDim1',in1.ref);

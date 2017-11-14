@@ -32,7 +32,7 @@ function out=newim_cuda2(in,varargin)
         args={varargin{1:end}};
     end
     for p=1:length(args)
-        if isa(args{p},'cuda') || isa(args{p},'dip_image')
+        if isa(args{p},'cuda') || isa(args{p},'dip_image') || ~isvector(args{p})
             args{p}=size(args{p});
         end
     end
