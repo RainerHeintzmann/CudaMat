@@ -279,6 +279,7 @@ CudaMat started with the incentive to write faster deconvolution software for mi
 * V 1.1.6beta, bug fixes. The feature to avoid copy on write was now removed, as there were too many cases where this could cause trouble in nested function calls. Better handling of Cuda-Versions introduced in MatLab.
 * V 1.1.7beta, bug fixes. xx and zz were updated.
 * V 2.0.0beta, Major version change. CudaMat now supports python-style expansions for singleton dimension for binary functions of dip_image type input. Bug fixes. Mean projections of uneven sizes had a bug.
+* V 2.1.0beta, Various bug fixes and new functionality. See changelog of GitHub for details.
 
 # Ongoing work / Future goals
 
