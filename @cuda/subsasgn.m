@@ -113,7 +113,9 @@ switch index.type
                         end
                     else
                         if isempty(index.subs{d})
-                            error('Trying to assign to an empty index')
+                            out=in;
+                            return; % do nothing
+                            % error('Trying to assign to an empty index')
                         end
                         if isa(index.subs{d},'cuda')  % due to some funny Matlab bug which prevents calling subsref within subsref for type cuda
                             moffs(d)=getVal(index.subs{d},0);
