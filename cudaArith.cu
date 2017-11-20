@@ -1016,7 +1016,7 @@ extern "C" const char * CUDA ## FktName(float *a, float * c, size_t sSize[3], si
 
 #define CUDA_5DFkt(FktName,expressions)                                 \
 __global__ void                                                         \
-FktName(float *a, float *c, Size5D sSize,Size5D dSize,Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep) \
+FktName(float *a, float *c, Size5D sSize,Size5D dSize,Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep, Size5D dStep) \
 {                                                                     \
   size_t idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
   size_t N=sROI.s[0]*sROI.s[1]*sROI.s[2]*sROI.s[3]*sROI.s[4];            \
@@ -1025,13 +1025,13 @@ FktName(float *a, float *c, Size5D sSize,Size5D dSize,Size5D sOffs, Size5D sROI,
   if(idx>=N) return;                                                  \
   expressions                                                            \
 }                                                                       \
-extern "C" const char * CUDA ## FktName(float * a, float *c, Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep)  \
+extern "C" const char * CUDA ## FktName(float * a, float *c, Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep, Size5D dStep)  \
 {                                                                       \
     cudaError_t myerr;                                                \
     size_t N=sROI.s[0]*sROI.s[1]*sROI.s[2]*sROI.s[3]*sROI.s[4];                      \
 	size_t blockSize;dim3 nBlocks;                                         \
     MemoryLayout(N,blockSize,nBlocks)                                     \
-	FktName<<<nBlocks,blockSize>>>(a,c,sSize,dSize,sOffs,sROI,dOffs,sStep); \
+	FktName<<<nBlocks,blockSize>>>(a,c,sSize,dSize,sOffs,sROI,dOffs,sStep,dStep); \
   myerr=cudaGetLastError();                                             \
   if (myerr != cudaSuccess)                                             \
       return cudaGetErrorString(myerr);                                 \
@@ -1212,9 +1212,9 @@ CUDA_3DFkt(carr_3dsubcpyCT_carr,size_t idcdt=2*(y+dOffs.s[0]+dSize.s[0]*(x+dOffs
 //getCudaRef(prhs[1]),newarr,sSize,dSize,cuda_array[newref[0]],cuda_array[newref[1]],cuda_array[newref[2]]);
 
 // Sub copying, copies a source area into a destination area. Can be used for cat and subassign
-CUDA_5DFkt(arr_5dsubcpy_arr, GET5DIDD; c[idd]=a[ids];)
-CUDA_5DFkt(carr_5dsubcpy_carr, GET5DIDD; c[2*idd]=a[2*ids];c[2*idd+1]=a[2*ids+1];)
-CUDA_5DFkt(arr_5dsubcpy_carr, GET5DIDD; c[2*idd]=a[ids];c[2*idd+1]=0;)
+CUDA_5DFkt(arr_5dsubcpy_arr, GET5DIDD_STEP; c[idd]=a[ids];)
+CUDA_5DFkt(carr_5dsubcpy_carr, GET5DIDD_STEP; c[2*idd]=a[2*ids];c[2*idd+1]=a[2*ids+1];)
+CUDA_5DFkt(arr_5dsubcpy_carr, GET5DIDD_STEP; c[2*idd]=a[ids];c[2*idd+1]=0;)
 
 // Sub copying, copies a source area into a destination area. Can be used for cat and subassign
 // These versions intoduce a transpose operation

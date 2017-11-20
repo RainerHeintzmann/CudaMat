@@ -53,6 +53,9 @@ typedef struct {
     size_t s[3];
 } Size3D ;
 
+static const Size5D Size5DOnes={1,1,1,1,1};
+static const Size5D Size5DZeros={0,0,0,0,0};
+
 externC size_t CUDAmaxSize(void);   // returns the maximal total number of threads
 externC size_t GetCurrentRedSize(void);  // returns the current size of the allocated ReduceArray(s).
 externC int GetMaxThreads(void);  // returns the maximal number of threads per block
@@ -92,16 +95,16 @@ externC const char * CUDAcarr_3dsubcpyCT_carr(float * a, float * c,size_t sSize[
 externC const char * CUDAarr_5drepcpy_arr(float * a, float * c,size_t sSize[5], size_t dSize[5]);
 externC const char * CUDAcarr_5drepcpy_carr(float * a, float * c, size_t sSize[5], size_t dSize[5]);
 
-externC const char * CUDAarr_5dsubcpy_arr(float * a, float * c, Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
-externC const char * CUDAcarr_5dsubcpy_carr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
-externC const char * CUDAarr_5dsubcpy_carr(float * a, float * c, Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
+externC const char * CUDAarr_5dsubcpy_arr(float * a, float * c, Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep, Size5D dStep);
+externC const char * CUDAcarr_5dsubcpy_carr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep, Size5D dStep);
+externC const char * CUDAarr_5dsubcpy_carr(float * a, float * c, Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep, Size5D dStep);
 
 externC const char * CUDAconst_5dsubcpy_arr(float * c, float br, float bi, Size5D dSize, Size5D dROI, Size5D dOffs, Size5D dStep);
 externC const char * CUDAcconst_5dsubcpy_carr(float * c, float br, float bi,Size5D dSize, Size5D dROI, Size5D dOffs, Size5D dStep);
 
-externC const char * CUDAarr_5dsubcpyT_arr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
-externC const char * CUDAcarr_5dsubcpyT_carr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
-externC const char * CUDAcarr_5dsubcpyCT_carr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D dStep);
+externC const char * CUDAarr_5dsubcpyT_arr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep, Size5D dStep);
+externC const char * CUDAcarr_5dsubcpyT_carr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep, Size5D dStep);
+externC const char * CUDAcarr_5dsubcpyCT_carr(float * a, float * c,Size5D sSize, Size5D dSize, Size5D sOffs, Size5D sROI, Size5D dOffs, Size5D sStep, Size5D dStep);
 
 // 
 externC const char * CUDAarr_boolassign_const(float * a, float b, float * c, size_t N);
