@@ -166,8 +166,8 @@ switch index.type
             end
             
             if isblock
-                if any((moffs + msize.*mstep) > insize) || (isreal(in) && ~isreal(val))  % dataset needs expansion or change of datatype
-                    ns=max((moffs + msize.*mstep), insize); % new size
+                if any((moffs + (msize-1).*mstep) > insize) || (isreal(in) && ~isreal(val))  % dataset needs expansion or change of datatype
+                    ns=max((moffs + (msize-1).*mstep), insize); % new size
                     if isreal(in) && isreal(val)
                         tmp=zeros_cuda2(cuda(0),ns);  % makes a new object
                     else
@@ -175,7 +175,7 @@ switch index.type
                     end
                     tmp.fromDip=in.fromDip;
                     % the line below will update the tmp array without deleting
-                    cuda_cuda('subsasgn_block',in.ref,tmp.ref,ns*0,insize,-1,mstep);  % no delete ignored
+                    cuda_cuda('subsasgn_block',in.ref,tmp.ref,ns*0,insize,-1,[]);  % no delete ignored. copy everything. No steps
                     in=tmp;
                 end
                 ddiff=length(msize)-length(valsize);
