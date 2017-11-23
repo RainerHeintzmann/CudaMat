@@ -72,7 +72,74 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
 #define Dbg_printf6(arg1,arg2,arg3,arg4,arg5,arg6) 
 #define Dbg_printf7(arg1,arg2,arg3,arg4,arg5,arg6,arg7) 
 #endif
-        
+
+// https://undocumentedmatlab.com/blog/matlabs-internal-memory-representation
+/* Definition of structure mxArray_tag for debugging purposes. Might not be fully correct 
+ * for Matlab 2006b or 2007a, but the important things are. Thanks to Peter Boettcher.
+ */
+typedef struct {
+  const char *name;
+  mxClassID class_id;
+  int vartype;
+  mxArray    *crosslink;
+  int      number_of_dims;
+  int      refcount;
+  struct {
+    unsigned int    scalar_flag : 1;
+    unsigned int    flag1 : 1;
+    unsigned int    flag2 : 1;
+    unsigned int    flag3 : 1;
+    unsigned int    flag4 : 1;
+    unsigned int    flag5 : 1;
+    unsigned int    flag6 : 1;
+    unsigned int    flag7 : 1;
+    unsigned int    private_data_flag : 1;
+    unsigned int    flag8 : 1;
+    unsigned int    flag9 : 1;
+    unsigned int    flag10 : 1;
+    unsigned int    flag11 : 4;
+    unsigned int    flag12 : 8;
+    unsigned int    flag13 : 8;
+  }   flags;
+  int  rowdim;
+  int  coldim;
+  union {
+    struct {
+      double  *pdata;       // original: void*
+      double  *pimag_data;  // original: void*
+      void    *irptr;
+      void    *jcptr;
+      int     nelements;
+      int     nfields;
+    }   number_array;
+    struct {
+      mxArray **pdata;
+      char    *field_names;
+      void    *dummy1;
+      void    *dummy2;
+      int     dummy3;
+      int     nfields;
+    }   struct_array;
+    struct {
+      void  *pdata;  /*mxGetInfo*/
+      char  *field_names;
+      char  *name;
+      int   checksum;
+      int   nelements;
+      int   reserved;
+    }  object_array;
+  }   data;
+} mxArray_tag;
+
+
+void printMem(size_t * start,int num)
+{
+    int i;
+    for (i=0;i<num;i++)
+        printf("%lx\n",start[i]);
+    printf("\n");
+}
+
 
 #ifndef NOCULA
 // #include "culadevice.h"    // Only for old Cula releases
@@ -3700,14 +3767,26 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
     if (nrhs != 2) mexErrMsgTxt("cuda: getLinkedVarAddr needs two arguments\n");
     else {
     size_t n=0;
+    unsigned long RefCnt=1;
+    // mxArray_tag * start= ((mxArray_tag *) prhs[1]);
     size_t * start= ((size_t *) prhs[1]);
+    // printf("Traced Var %d, is %s, %d, refcnt: %d\n",n,start->name,start,start->refcount);
+    // mxArray_tag * cur=((mxArray_tag *) start->crosslink);  // get next one
     size_t * cur=((size_t *) start[0]);  // get next one
+    RefCnt=start[4];
+    // printf("Traced Var %d, addr. %lx, Ref. %ld\n",n,start,RefCnt);
+    // printMem(start,5);
     while (cur != start && cur !=0) {
-        // printf("Traced Var %d, is %d\n",n,cur);
+        // printf("Traced Var %d, is %s, %d, refcnt: %d\n",n,cur->name,cur,cur->refcount);
         n+=1;
+        RefCnt=cur[4];
+        // printf("Traced Var %d, Addr. %lx, Ref. %ld\n",n,cur, RefCnt);
+        // printMem(cur,5);
+        // cur=cur->crosslink;  // iterates over the linked list until it arrives at the end
         cur=((size_t *) cur[0]);  // iterates over the linked list until it arrives at the end
     }
-    plhs[0]=mxCreateDoubleScalar((double) n);
+    // plhs[0]=mxCreateDoubleScalar((double) n);
+    plhs[0]=mxCreateDoubleScalar((double) RefCnt);
     }
   }
   else if (strcmp(command,"sprod")==0) { // matrix product
