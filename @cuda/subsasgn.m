@@ -47,11 +47,16 @@ end
 % will have to make an explicit copy now (if needed) by exploiting a Matlab
 % hack: The first pointer in the structure points to a possible linked
 % variable
-linkedNum=cuda_cuda('getLinkedVarNum',in);
-if linkedNum~=0
-    % linkedNum
-    if (1)  % if this is disabled there is a big danger of unwantedly changing variables, but a (small?) speed and memory advantage.
+
+if verLessThan('matlab','9.0')  
         in=copy(in);  % make a copy. Unfortunately this is done always, as the argument is on the function stack
+else
+    linkedNum=cuda_cuda('getLinkedVarNum',in);    
+    % linkedNum
+    if (linkedNum > 2)  % if this is disabled there is a big danger of unwantingly changing variables, but a (small?) speed and memory advantage.
+        in=copy(in);  % make a copy. Unfortunately this is done always, as the argument is on the function stack
+    else
+        % No copy since there are currently no other pointers to this variable
     end
 end
 
@@ -194,7 +199,7 @@ switch index.type
                 if prod(valsize) == 1   % this is a single value to assign
                     out.ref=cuda_cuda('subsasgn_block',double(val),in.ref,moffs,msize,1,mstep);  % is a constant to assing, next delete ignored
                 else
-                    out.ref=cuda_cuda('subsasgn_block',valref,in.ref,moffs,msize,0,mstep);  % is an array to assign, next delete is ignored
+                    out.ref=cuda_cuda('subsasgn_block',valref,in.ref,moffs,msize,0,mstep);  % is an array to assign. As no copy was generated nothing will be deleted.
                 end
             else
                 mybool=index.subs{1};
