@@ -37,7 +37,7 @@ if in.fromDip
               out=permute(out,[2 1 3:ndims(out)]);  % Very ugly ! Why is this necessary?
           end
       else
-        out=in; % copy(in); % will create a copy
+        out=copy(in); % will create a copy. Otherwise 'reshape(a,[size2d(a),1,size(a,3)])'  will permanently change the size of a.
       if (length(s) == 1 && length(ns) > 1)
          cuda_cuda('setSize',out.ref,ns);   % this is a modification of the size of the now existing array. Use with care!    
          out=permute(out,[2 1 3:ndims(out)]);  % Very ugly ! Why is this necessary?
