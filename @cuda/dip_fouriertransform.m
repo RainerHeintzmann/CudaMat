@@ -44,23 +44,23 @@ if sum(transformdir>0) > 3 || (length(transformdir)>3 && (sum(transformdir(4:end
     error('cuda dip_fouriertransform only supported up to 3 dimensions');
 end
 
-if length(transformdir)>3 && (transformdir(4) == 0)
-    myres=cell(1,size(in,4));
-    for e=0:size(in,4)-1
-        mysize=size(in);
-        mysize(4)=[];
-        myin = reshape(SubSlice(in,4,e),mysize);
-        myres{e+1}=dip_fouriertransform(myin,direction,transformdir(1:3));    
-    end
-    out=cat(4,myres{:});
-    clear myres;
-    return
-end
+% if length(transformdir)>3 && (transformdir(4) == 0)
+%     myres=cell(1,size(in,4));
+%     for e=0:size(in,4)-1
+%         mysize=size(in);
+%         mysize(4)=[];
+%         myin = reshape(SubSlice(in,4,e),mysize);
+%         myres{e+1}=dip_fouriertransform(myin,direction,transformdir(1:3));    
+%     end
+%     out=cat(4,myres{:});
+%     clear myres;
+%     return
+% end
 
-if length(transformdir<3)
+if length(transformdir)<3
     transformdir = [transformdir zeros(1,3-length(transformdir))];  % append zeros
 end
-transformdir=(transformdir > 0);
+transformdir=(transformdir > 0)*1.0;  %
 
 tmp=transformdir(2);transformdir(2)=transformdir(1);transformdir(1)=tmp;  % To deal with the fact that CudaMat has the sizes 1 and 2 the other way than DipImage.
 
