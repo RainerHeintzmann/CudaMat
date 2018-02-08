@@ -31,7 +31,7 @@ end
 pathstr=fileparts(mfilename('fullpath'));  % ignores name and extension
 addpath(pathstr);
 mp=userpath();
-if mp(end)==';'
+if mp(end)==';' || mp(end)==':'    % Windows and Linux
     mp=mp(1:end-1);
 end
 UserBase=[mp filesep 'LocalCudaMatSrc' filesep];

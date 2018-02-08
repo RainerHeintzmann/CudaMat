@@ -1713,7 +1713,7 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
         // return 0;
      }
     // printf("FFT Error codes: %d, %d, %d, %d, %d ,%d ,%d, %d, %d, %d\n",CUFFT_SUCCESS,CUFFT_INVALID_PLAN,CUFFT_ALLOC_FAILED,CUFFT_INVALID_TYPE,CUFFT_INVALID_VALUE,CUFFT_INTERNAL_ERROR, CUFFT_EXEC_FAILED, CUFFT_SETUP_FAILED, 0, CUFFT_INVALID_SIZE);
-     cuda_FFTplan_extraBatch[p][2][plantypenum] = 1;   // always set these even if they are not used.
+     cuda_FFTplan_extraBatch[p][2][plantypenum] = 1;   // always set these, even if they are not used.
      cuda_FFTplan_extraBatchStride[p][2][plantypenum] = 1;
 
      if (dirYes == NULL) {  // p contains the plan number to use     
@@ -1748,7 +1748,7 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
             TransformSizes[n]=1;
             TransformStorageSizes[n]=1;
         }
-        yesdim=tdims-1;
+        yesdim=tdims-1;  // couting backwards
         istride=1;
         idist=1;
         batchused=0;
@@ -1765,8 +1765,12 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
                 if (batchused==0 && batchstarted==0) {
                     idist *= cuda_array_size[ref][n];  // increase the distance to the next start of the FFT in case that zeros follow
                 }
-                if (cuda_FFTplan_extraBatch[p][numdims-1][plantypenum] != 1)
+                if ((numdims-1 > 2 && cuda_FFTplan_extraBatch[p][2][plantypenum] != 1) 
+                || (numdims-1 < 2 && cuda_FFTplan_extraBatch[p][numdims-1][plantypenum] != 1)) {
+                    Dbg_printf2("Problem with dirYes[%d]\n",n);
                     mexErrMsgTxt("cuda: FFT Error this particular combination of transform directions is not supported in cuda.\n");
+                    return 0;
+                }
                 AllSizes *= cuda_array_size[ref][n];
             }
             else {
@@ -1791,13 +1795,13 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
                         }
                 }
             }
-         if (n < numdims) {
-            cuda_FFTplan_sizes[p][2][plantypenum][n] = cuda_array_size[ref][n];  // save this information to compare plans later
+         //if (n < numdims) {
+            cuda_FFTplan_sizes[p][2][plantypenum][n] = cuda_array_size[ref][n];  // save this information to compare plans later. Independend of whether these are used like this
             cuda_FFTplan_dirYes[p][2][plantypenum][n] = dirYes[n]; }
-         else {
-            cuda_FFTplan_dirYes[p][2][plantypenum][n] = 0;
-            cuda_FFTplan_sizes[p][2][plantypenum][n] = 1; }
-        }
+         //else {
+         //   cuda_FFTplan_dirYes[p][2][plantypenum][n] = 0;
+         //   cuda_FFTplan_sizes[p][2][plantypenum][n] = 1; }
+         //}
         Dbg_printf5("creating partial transform plan with sizes: %dx%dx%d of type %s\n",cuda_array_size[ref][0],cuda_array_size[ref][1],cuda_array_size[ref][2],CUDA_TYPE_NAMES[cuda_array_type[ref]]);
         Dbg_printf4("Transform direction (dirYes) Vector: %dx%dx%d \n", dirYes[0],dirYes[1],dirYes[2]);
 // cufftPlanMany(cufftHandle *plan, int rank, int *n, int *inembed, int istride, int idist, int *onembed, int ostride, int odist, cufftType type, int batch);
