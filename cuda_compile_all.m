@@ -89,7 +89,10 @@ cd(UserBase)
 if (0)
     MEXFLAGS='-g';
 else
-    MEXFLAGS='';
+    global MEXFLAGS;
+    if isempty(MEXFLAGS)
+        MEXFLAGS='';
+    end
 end
 if ispc
     if CVERSION==15        % correct line 133 in the file   c:/program files/nvidia gpu computing toolkit/cuda/v9.0/include/crt/host_config.h  to #if _MSC_VER < 1600 || _MSC_VER > 1911
