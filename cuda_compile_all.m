@@ -175,7 +175,7 @@ else
         end
         eval(['mex ' bv ' ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.o -DNOCULA "-I' UserBase '" -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lcublas -lcufft -lcudart']);
     else
-        status=system('nvcc -c cudaArith.cu -I/usr/local/cula/include/');
+        status=system(['nvcc -c  ' NVCCFLAGS  ' -Xcompiler -fPIC ' CudaBase ' cudaArith.cu -I/usr/local/cula/include/  -I/usr/local/cuda/include/ -I.']);
         if status ~= 0
             error('nvcc command failed');
         end
