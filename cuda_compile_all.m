@@ -185,3 +185,7 @@ end
 cd(CurrentPath)
 cuda_to_compile.needsRecompile = 0;   % everything is up to date now.
 
+global doCopyToCudaMat;
+if ~isempty(doCopyToCudaMat) && doCopyToCudaMat
+    copyfile([UserBase filesep '*'],[CudaBase filesep 'bin' filesep])
+end
