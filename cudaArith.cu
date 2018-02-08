@@ -1367,6 +1367,13 @@ CUDA_BinaryFkt(carr_subsasg_vec,{c[2*((size_t) b[idx])]=a[2*idx];c[2*((size_t) b
 //CUDA_IndexFkt(arr_subsref_ind,{if ((idx<M)&&(idx>=0)) {size_t myind=(size_t) b[idx];((myind<N)&&(myind>=0))?(c[idx]=a[myind]):c[idx]=NAN;} else c[idx]=NAN;})
 //CUDA_IndexFkt(carr_subsref_ind,{if ((idx<M)&&(idx>=0)) {size_t myindC=2*(size_t) b[idx];((myindC<2*N)&&(myindC>=0))?(c[2*idx]=a[myindC],c[2*idx+1]=a[myindC+1]):(c[2*idx]=NAN,c[2*idx+1]=NAN);} else {c[2*idx]=NAN;c[2*idx+1]=NAN;}})
 
+// The function below accepts a 2D index matrix (b) where each row is a list of indices corresponding to this dimension. The size of this matrix should have been adapted to the longest index list.
+
+//CUDA_IndexFktND(arr_subsrefND_ind,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){if ((idx<M)) {size_t myind=(size_t) b[idx];((myind<N))?(c[idx]=a[myind]):c[idx]=NAN;} else c[idx]=NAN;})
+
+// CUDA_UnaryFktIntVec(arr_circshift_vec,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]-=b.s[_d];}long long ids=0;IdxNDFromCoords(pos,sSize,ids);c[idx]=a[ids];)  // a[idx]
+
+
 CUDA_IndexFkt(arr_subsref_ind,{if ((idx<M)) {size_t myind=(size_t) b[idx];((myind<N))?(c[idx]=a[myind]):c[idx]=NAN;} else c[idx]=NAN;})
 //CUDA_IndexFkt(carr_subsref_ind,{if ((idx<M)&&(idx>=0)) {size_t myindC=2*(size_t) b[idx];((myindC<2*N)&&(myindC>=0))?(c[2*idx]=a[myindC],c[2*idx+1]=a[myindC+1]):(c[2*idx]=NAN,c[2*idx+1]=NAN);} else {c[2*idx]=NAN;c[2*idx+1]=NAN;}})
 CUDA_IndexFkt(carr_subsref_ind,{if ((idx<M)) {size_t myindC=2*(size_t) b[idx];((myindC<2*N))?(c[2*idx]=a[myindC],c[2*idx+1]=a[myindC+1]):(c[2*idx]=NAN,c[2*idx+1]=NAN);} else {c[2*idx]=NAN;c[2*idx+1]=NAN;}})
