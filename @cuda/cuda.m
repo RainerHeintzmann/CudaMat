@@ -102,6 +102,9 @@ classdef (InferiorClasses = {?dip_image,?double}) cuda < handle % takes the lead
             end
             if nargout<=1
                 s=lhs;
+                if ~rhs.fromDip && length(s)==1
+                    s=[s 1];   % Matlab always returns size as a 2D vector
+                end
             else
                 if nargout > length(lhs)
                     lhs(end+1:nargout)=1;   % expand with one sizes
