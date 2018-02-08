@@ -107,17 +107,30 @@ switch index.type
                 varargout{1}.ref=cuda_cuda('subsref_block',in.ref,moffs,msize,mstep);
             else
                 if length(index.subs) > 1
-                	error('cuda subreferencing: subreferencing with multidimensional non-block vectors not yet implemented');
-                end
-                if in.fromDip == 0
-                    index.subs{1}=cuda(index.subs{1})-1;
+                    % error('cuda subreferencing: subreferencing with multidimensional non-block vectors not yet implemented');
+                    for d=1:5
+                        if d<=length(index.subs) && ~isempty(index.subs{d}) && ~ischar(index.subs{d})
+                            if in.fromDip == 0
+                                index.subs{d}=cuda(index.subs{d})-1;
+                            else
+                                index.subs{d}=cuda(index.subs{d});
+                            end
+                        else
+                            index.subs{d}=[];
+                        end
+                    end
+                    varargout{1}.ref=cuda_cuda('subsref_5Didx',in.ref,index.subs{1}.ref,index.subs{2}.ref,index.subs{3}.ref,index.subs{4}.ref,index.subs{5}.ref);
                 else
-                    index.subs{1}=cuda(index.subs{1});
+                    if in.fromDip == 0
+                        index.subs{1}=cuda(index.subs{1})-1;
+                    else
+                        index.subs{1}=cuda(index.subs{1});
+                    end
+                    
+                    varargout{1}.ref=cuda_cuda('subsref_1Didx',in.ref,index.subs{1}.ref);
+                    msize=size(index.subs{1},2);
+                    varargout{1}.fromDip = in.fromDip;
                 end
-
-                varargout{1}.ref=cuda_cuda('subsref_1Didx',in.ref,index.subs{1}.ref);
-                msize=size(index.subs{1},2);
-                varargout{1}.fromDip = in.fromDip;
             end
             if length(index.subs) == 1 && length(oldsize) > 1 % restore the old size (if changed)
                     if in.fromDip
