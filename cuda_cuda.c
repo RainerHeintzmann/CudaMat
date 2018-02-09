@@ -298,12 +298,15 @@ void printMem(size_t * start,int num)
     if (isComplexType(_ref2)) {mexErrMsgTxt("cuda: " #FktName " indexing with complex index arrays is not allowed\n");} \
     sizeA=getSizeFromRefNum(_ref1);                      \
     sizeC=SizeNDFromRef(prhs[3]);                           \
+    Dbg_printf7("cuda: sizes of " #FktName " are %dx%dx%d , %dx%dx%d \n",sizeA.s[0],sizeA.s[1],sizeA.s[2],sizeC.s[0],sizeC.s[1],sizeC.s[2]); \
     if (isComplexType(_ref1)) {                                     \
         Dbg_printf("cuda: complex array " #FktName " index array\n");                     \
-        ret=CUDAcarr_##FktName##_ind(getCudaRef(prhs[1]),getCudaRef(prhs[2]),cudaAllocSized(getCudaRef(prhs[1]), sizeC, cuda_array_dim[_ref1]),sizeA,sizeC,cuda_array_size[_ref2][0]); } \
+        ret=CUDAcarr_##FktName##_ind(getCudaRef(prhs[1]),getCudaRef(prhs[2]),cudaAllocSized(prhs[1], sizeC, cuda_array_dim[_ref1]),sizeA,sizeC,cuda_array_size[_ref2][0],cuda_array_dim[_ref1]); } \
     else    {                                                                            \
         Dbg_printf("cuda: array " #FktName " index array\n");                                     \
-        ret=CUDAarr_##FktName##_ind(getCudaRef(prhs[1]),getCudaRef(prhs[2]),cudaAllocSized(getCudaRef(prhs[1]), sizeC, cuda_array_dim[_ref1]),sizeA,sizeC,cuda_array_size[_ref2][0]); }\
+        Dbg_printf4("cuda: ref1 %d, ref2 %d, dim %d \n",_ref1,_ref2,cuda_array_dim[_ref1]); \
+        ret=CUDAarr_##FktName##_ind(getCudaRef(prhs[1]),getCudaRef(prhs[2]),cudaAllocSized(prhs[1], sizeC, cuda_array_dim[_ref1]),sizeA,sizeC,cuda_array_size[_ref2][0],cuda_array_dim[_ref1]); }\
+    Dbg_printf("cuda: came back \n"); \
     if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  \
                 
                 
@@ -1298,8 +1301,10 @@ float * cudaAllocComplex(const mxArray * arg) {   // make a new array with same 
 
  float * cudaAllocSized(const mxArray * arg, SizeND mysize, int mydims) {   // make a new array with same properties as other array
      size_t ref=getCudaRefNum(arg);
+     Dbg_printf2("cudaAllocSized ref is %d\n",ref);
      //swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);   // pretend this is a matlab array until allocation is done
      float * ret=cudaAllocDetailed(mydims, mysize.s, cuda_array_type[ref]);
+     Dbg_printf("Step 2\n");
      //swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);   // swap back
      //cuda_array_origFTsize[free_array]=cuda_array_origFTsize[ref]; // needs to be copied when creating another HalfFourier array
      //cuda_array_FTscale[free_array]=(float) (1.0/sqrt(getTotalSize(CUDA_MAXDIM,mysize.s)));  // to do the maginitude correction
