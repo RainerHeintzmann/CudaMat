@@ -107,7 +107,7 @@ switch index.type
                 varargout{1}.ref=cuda_cuda('subsref_block',in.ref,moffs,msize,mstep);
             else
                 if length(index.subs) > 1
-                    error('cuda subreferencing: subreferencing with multidimensional non-block vectors not yet implemented');
+                    % error('cuda subreferencing: subreferencing with multidimensional non-block vectors not yet implemented');
                     maxsize=1;
                     for d=1:ndims(in)
                         if d<=numel(index.subs) && ~isempty(index.subs{d}) && ~ischar(index.subs{d})
@@ -138,7 +138,7 @@ switch index.type
                         DestSize(d)=numel(index.subs{d});
                     end
                     varargout{1}.ref=cuda_cuda('subsref_NDidx',in.ref,IndexMatrix.ref,DestSize);
-                    cuda_cuda('delete',IndexMatrix.ref);
+                    % cuda_cuda('delete',IndexMatrix.ref);
                 else
                     if in.fromDip == 0
                         index.subs{1}=cuda(index.subs{1})-1;
