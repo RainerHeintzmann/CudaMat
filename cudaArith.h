@@ -211,6 +211,12 @@ externC const char * CUDAarr_subsref_ind(float * a, float * b, float * c, size_t
 externC const char * CUDAcarr_subsref_ind(float * a, float * b, float * c, size_t N, size_t M);
 externC const char * CUDAarr_subsasgn_ind(float * a, float * b, float * c, size_t N, size_t M);
 externC const char * CUDAcarr_subsasgn_ind(float * a, float * b, float * c, size_t N, size_t M);
+
+externC const char * CUDAarr_subsrefND_ind(float * a, float * b, float * c, SizeND SA, SizeND SC, size_t SIDX);
+externC const char * CUDAcarr_subsrefND_ind(float * a, float * b, float * c, SizeND SA, SizeND SC, size_t SIDX);
+externC const char * CUDAarr_subsasgnND_ind(float * a, float * b, float * c, SizeND SA, SizeND SC, size_t SIDX);
+externC const char * CUDAcarr_subsasgnND_ind(float * a, float * b, float * c, SizeND SA, SizeND SC, size_t SIDX);
+
 // Line below: Wrapping does not make sense, so this is just for compatibility
 externC const char * CUDAarr_subsasgn_const(float * a, float b, float * c, size_t N);
 externC const char * CUDAarr_subsasgn_Cconst(float * a, float br, float bi, float * c, size_t N);

@@ -31,6 +31,10 @@ end
 if prod(size(in2)) > 1 && ~isa(in2,'cuda')
     in2=cuda(in2);
 end
+if nargin < 2 && in1.iscpx
+    out=in1;  % nothing needs to be done
+    return;
+end
 
 if isa(in1,'cuda') && prod(size(in2)) == 1
     if isa(in2,'cuda')

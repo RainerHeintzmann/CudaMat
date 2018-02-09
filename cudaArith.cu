@@ -780,6 +780,29 @@ extern "C" const char * CUDA ## FktName(float * a, float * b, float * c, size_t 
   return 0;                                                             \
 }                                                                       
 
+// In the expression one can use the variables indices for each dimension.
+// These have to be supplied as one matrix where the lowest dimension is the index numer (destination array) and the next is the dimension.
+#define CUDA_IndexFktND(FktName,expression)                          \
+__global__ void                                                     \
+FktName(float*a,float *b, float * c, SizeND SA, SizeND SC, size_t SIDX, size_t TA, size_t TC)\
+{                                                                   \
+    size_t idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+	if(idx>=TC) return;                                              \
+	expression                                                      \
+}                                                                   \
+extern "C" const char * CUDA ## FktName(float * a, float * b, float * c, SizeND SA, SizeND SC, size_t SIDX)  \
+{                                                                       \
+    cudaError_t myerr;                                                  \
+	size_t blockSize, TA=1,TC=1;dim3 nBlocks;                             \
+    for (int d=1;d<CUDA_MAXDIM;d++) {TA*=SA.s[d];TC*=SC.s[d];}             \
+    MemoryLayout(TC,blockSize,nBlocks)                                     \
+	FktName<<<nBlocks,blockSize>>>(a,b,c,SA,SC,SIDX,TA,TC);               \
+  myerr=cudaGetLastError();                                             \
+  if (myerr != cudaSuccess)                                             \
+      return cudaGetErrorString(myerr);                                 \
+  return 0;                                                             \
+}                                                                       
+
 // --------------Macro generating operation of array with real constant -------------
 
 #define CUDA_UnaryFktConst(FktName,expression)                      \
@@ -1368,18 +1391,16 @@ CUDA_BinaryFkt(carr_subsasg_vec,{c[2*((size_t) b[idx])]=a[2*idx];c[2*((size_t) b
 //CUDA_IndexFkt(carr_subsref_ind,{if ((idx<M)&&(idx>=0)) {size_t myindC=2*(size_t) b[idx];((myindC<2*N)&&(myindC>=0))?(c[2*idx]=a[myindC],c[2*idx+1]=a[myindC+1]):(c[2*idx]=NAN,c[2*idx+1]=NAN);} else {c[2*idx]=NAN;c[2*idx+1]=NAN;}})
 
 // The function below accepts a 2D index matrix (b) where each row is a list of indices corresponding to this dimension. The size of this matrix should have been adapted to the longest index list.
-
-//CUDA_IndexFktND(arr_subsrefND_ind,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){if ((idx<M)) {size_t myind=(size_t) b[idx];((myind<N))?(c[idx]=a[myind]):c[idx]=NAN;} else c[idx]=NAN;})
-
-// CUDA_UnaryFktIntVec(arr_circshift_vec,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]-=b.s[_d];}long long ids=0;IdxNDFromCoords(pos,sSize,ids);c[idx]=a[ids];)  // a[idx]
-
+CUDA_IndexFktND(arr_subsrefND_ind,CoordsNDFromIdx(idx,SC,pos);  for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]=b[pos.s[_d]+_d*SIDX];} {long long myind=0; IdxNDFromCoords(pos,SA,myind); if ((idx<TC)) {((myind<TA))?(c[idx]=a[myind]):c[idx]=NAN;} else c[idx]=NAN;})
+CUDA_IndexFktND(carr_subsrefND_ind,CoordsNDFromIdx(idx,SC,pos); for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]=b[pos.s[_d]+_d*SIDX];} {long long myind=0; IdxNDFromCoords(pos,SA,myind); size_t myindC=2*myind; if ((idx<TC)) {((myindC<2*TA))?(c[2*idx]=a[myindC],c[2*idx+1]=a[myindC+1]):(c[2*idx]=NAN,c[2*idx+1]=NAN);} else {c[2*idx]=NAN;c[2*idx+1]=NAN;}})
+CUDA_IndexFktND(arr_subsasgnND_ind,CoordsNDFromIdx(idx,SC,pos); for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]=b[pos.s[_d]+_d*SIDX];} {long long myind=0; IdxNDFromCoords(pos,SA,myind); if ((idx<TA)) {((myind<TA))?(c[myind]=a[idx]):0;} else c[myind]=NAN;})
+CUDA_IndexFktND(carr_subsasgnND_ind,CoordsNDFromIdx(idx,SC,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]=b[pos.s[_d]+_d*SIDX];} {long long myind=0; IdxNDFromCoords(pos,SA,myind); size_t myindC=2*myind; if ((idx<TA)) {((myindC<2*TA))?(c[myindC]=a[2*idx],c[myindC+1]=a[2*idx+1]):0;} else {c[myindC]=NAN;c[myindC+1]=NAN;}})
 
 CUDA_IndexFkt(arr_subsref_ind,{if ((idx<M)) {size_t myind=(size_t) b[idx];((myind<N))?(c[idx]=a[myind]):c[idx]=NAN;} else c[idx]=NAN;})
 //CUDA_IndexFkt(carr_subsref_ind,{if ((idx<M)&&(idx>=0)) {size_t myindC=2*(size_t) b[idx];((myindC<2*N)&&(myindC>=0))?(c[2*idx]=a[myindC],c[2*idx+1]=a[myindC+1]):(c[2*idx]=NAN,c[2*idx+1]=NAN);} else {c[2*idx]=NAN;c[2*idx+1]=NAN;}})
 CUDA_IndexFkt(carr_subsref_ind,{if ((idx<M)) {size_t myindC=2*(size_t) b[idx];((myindC<2*N))?(c[2*idx]=a[myindC],c[2*idx+1]=a[myindC+1]):(c[2*idx]=NAN,c[2*idx+1]=NAN);} else {c[2*idx]=NAN;c[2*idx+1]=NAN;}})
-
 CUDA_IndexFkt(arr_subsasgn_ind,{size_t myind=(size_t) b[idx]; if ((idx<M)) {((myind<N))?(c[myind]=a[idx]):0;} else c[myind]=NAN;})
-CUDA_IndexFkt(carr_subsasgn_ind,{size_t myindC=2*(size_t) b[idx]; if ((idx<M)) {((myindC<2*N))?(c[myindC]=a[2*idx],c[myindC+1]=a[2*idx+1]):0;} else {c[idx]=NAN;c[2*idx+1]=NAN;}})
+CUDA_IndexFkt(carr_subsasgn_ind,{size_t myindC=2*(size_t) b[idx]; if ((idx<M)) {((myindC<2*N))?(c[myindC]=a[2*idx],c[myindC+1]=a[2*idx+1]):0;} else {c[myindC]=NAN;c[myindC+1]=NAN;}})
 
 CUDA_UnaryFktConst(arr_subsasgn_const,{((idx<N))?(c[(size_t) a[idx]]=b):0;})
 CUDA_UnaryFktConstC(arr_subsasgn_Cconst,{((idx<N))?(c[(size_t) a[idx]]=br):0;})  // This should not happen. If it does only the real part is kept.

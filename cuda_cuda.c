@@ -290,6 +290,23 @@ void printMem(size_t * start,int num)
         ret=CUDAarr_##FktName##_ind(getCudaRef(prhs[1]),getCudaRef(prhs[2]),AllocFkt(prhs[AllocNum]),getTotalSizeFromRef(prhs[FirstSizeNum]),getTotalSizeFromRef(prhs[2])); }\
     if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  \
 
+// Macro for index function with one list per dimension. The indices need to be given as a matrix with the longest index list dominating. The                 
+#define CallCUDA_IdxFktND(FktName)                                         \
+    const char *ret=0; size_t _ref1,_ref2; SizeND sizeA,sizeC;\
+    if (nrhs != 4) mexErrMsgTxt("cuda: " #FktName " needs four arguments\n");               \
+    _ref1=getCudaRefNum(prhs[1]);_ref2=getCudaRefNum(prhs[2]);                              \
+    if (isComplexType(_ref2)) {mexErrMsgTxt("cuda: " #FktName " indexing with complex index arrays is not allowed\n");} \
+    sizeA=getSizeFromRefNum(_ref1);                      \
+    sizeC=SizeNDFromRef(prhs[3]);                           \
+    if (isComplexType(_ref1)) {                                     \
+        Dbg_printf("cuda: complex array " #FktName " index array\n");                     \
+        ret=CUDAcarr_##FktName##_ind(getCudaRef(prhs[1]),getCudaRef(prhs[2]),cudaAllocSized(getCudaRef(prhs[1]), sizeC, cuda_array_dim[_ref1]),sizeA,sizeC,cuda_array_size[_ref2][0]); } \
+    else    {                                                                            \
+        Dbg_printf("cuda: array " #FktName " index array\n");                                     \
+        ret=CUDAarr_##FktName##_ind(getCudaRef(prhs[1]),getCudaRef(prhs[2]),cudaAllocSized(getCudaRef(prhs[1]), sizeC, cuda_array_dim[_ref1]),sizeA,sizeC,cuda_array_size[_ref2][0]); }\
+    if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  \
+                
+                
 #define CallCUDA_IdxFktConst(FktName,AllocFkt)                                            \
     const char *ret=0;                                                                      \
     size_t ref;                                                                                \
@@ -790,6 +807,7 @@ Size5D getSize5D(size_t ref) {
     return mysize; 
 }
 
+// Constructs a floating point ND vector from a Matlab reference
 VecND VecNDFromRef(const mxArray * MatlabRef) {
     VecND ret;
     int d,dim;
@@ -803,6 +821,7 @@ VecND VecNDFromRef(const mxArray * MatlabRef) {
     return ret;
 }
 
+// Constructs an integer size vector from a Matlab reference
 SizeND SizeNDFromRef(const mxArray * MatlabRef) {
     SizeND ret;
     int d,dim;
@@ -2698,6 +2717,17 @@ if ((ignoreDelete!=0) && strcmp(command,"setSize")!=0 && strcmp(command,"forceDe
         if (newref[d] >= 0)
                 cudaDelete(newref[d]); // delete these arrays again
     }    
+  }
+  else if (strcmp(command,"subsref_NDidx")==0) {   // reference with a matrix where lowest dimension corresponds to vectors of indices
+    CallCUDA_IdxFktND(subsrefND)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
+  else if (strcmp(command,"subsasgn_NDidx")==0) {   // assing with a matrix where lowest dimension corresponds to vectors of indices
+    CallCUDA_IdxFktND(subsasgnND)
+    ignoreDelete=1;ignoreRef=free_array;   // the next delete command will be ignored
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"subsref_1Didx")==0) {   // just reference with a one-dimensional index already as a cuda array.
     if (isComplexType(getCudaRefNum(prhs[1]))) {
