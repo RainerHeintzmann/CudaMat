@@ -193,6 +193,9 @@ switch index.type
                     if (prod(msize) == prod(valsize))  % a(:) = 2Dimage;
                         % tmp=msize(1);msize(1)=msize(2);msize(2)=tmp;
                         tmp=valsize(1);valsize(1)=valsize(2);valsize(2)=tmp;  % In matlab (and DipImage) the 1D vector to assign can have either row or column orientation. The destination determines where it goes.
+                        if sum(abs(msize-valsize)) ~= 0 
+                            error('subsassgn: Sizes of source and destination region not matching (even after transposing the vector to assign.)');
+                        end
                     else
                         error('subsassgn: Sizes of source and destination region not matching');
                     end
