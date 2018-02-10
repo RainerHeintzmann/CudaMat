@@ -621,6 +621,24 @@ void printMem(size_t * start,int num)
             if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");} \
     } 
 
+//  ----------------- Unary function  ------AllocCommand determines whether the result type is that same, complex or real ----------
+#define CallCUDA_UnaryFktSizeConst(FktName,AllocFkt)                                    \
+    const char *ret=0;SizeND SC,SA;float * pC;size_t refA;                                                 \
+    if (nrhs != 4) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");                 \
+        double alpha = mxGetScalar(prhs[2]);                                                \
+        refA=getCudaRefNum(prhs[1]);                                                        \
+        SC=SizeNDFromRef(prhs[3]);                                                          \
+        SA=getSizeFromRefNum(refA);                                          \
+        pC=AllocFkt(prhs[1], SC, cuda_array_dim[refA]);                      \
+        if (isComplexType(refA)) {                                        \
+            Dbg_printf("cuda: complex array " #FktName "\n");                               \
+            ret=CUDA##FktName##_carrSizeConst(getCudaRef(prhs[1]),pC,(float) alpha, SA, SC, getTotalSizeFromRef(prhs[1]));    \
+        } else {                                                                            \
+            Dbg_printf("cuda: float array " #FktName "\n");                                 \
+            ret=CUDA##FktName##_arrSizeConst(getCudaRef(prhs[1]),pC,(float) alpha, SA, SC, getTotalSizeFromRef(prhs[1])); \
+            if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");} \
+    } 
+    
 // Snippet below expects a vector(CUDA_MAXDIM) and an array as input and generates an array as output. E.g. circshift
 #define CallCUDA_ArrVecFkt(FktName,AllocCommand,SetToVal)                                   \
 size_t dims_sizes,nshifts[CUDA_MAXDIM], dsize[CUDA_MAXDIM],d,tsize=1,ref;                   \
@@ -893,8 +911,8 @@ SizeND SizeNDFromRef(const mxArray * MatlabRef) {
 
     CHECK_CUDAREF(cudaref);
     if (cuda_array_size[(size_t) cudaref] == 0) {
-        fprintf("While deleting Cuda Reference no. %ld\n",(size_t) cudaref);
-         mexErrMsgTxt("cuda: Trying to access non-existing cuda reference.");
+        printf("While deleting Cuda Reference no. %ld\n",(size_t) cudaref);
+        mexErrMsgTxt("cuda: Trying to access non-existing cuda reference.");
     }
         
     return (size_t) cudaref;
@@ -1362,7 +1380,10 @@ float * cudaAllocComplex(const mxArray * arg) {   // make a new array with same 
      free_array=getCudaRefNum(arg);  // updates this as this is often used to define the return value
      return getCudaRef(arg);
      }
-
+ 
+ float * cudaNoAllocFree(const mxArray * arg) {   // just use the pointer of the last allocated array (free_array)
+     return cuda_arrays[free_array];
+     }
  
 float * cudaAllocRealSized(const mxArray * arg, SizeND mysize, int mydims) {   // make a new array with same properties as other array, but ignores Complex and makes it Real
      size_t ref=getCudaRefNum(arg);
@@ -2818,6 +2839,11 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
   }
   else if (strcmp(command,"set_ignoreDelete")==0) {   // just reference with a one-dimensional index already as a cuda array.
     ignoreDelete=1;ignoreRef=getCudaRefNum(prhs[1]);   // the next delete will be executed
+  }
+  else if (strcmp(command,"diff")==0) { 
+    CallCUDA_UnaryFktSizeConst(diff,cudaAllocSized)   // uses the pointer to the previously allocated array
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"equals_alpha")==0) { 
     CallCUDA_UnaryFktConst(equals,cudaAllocReal)  // always returns a real value array
