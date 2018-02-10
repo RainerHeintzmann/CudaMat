@@ -108,37 +108,8 @@ switch index.type
             else
                 if length(index.subs) > 1
                     % error('cuda subreferencing: subreferencing with multidimensional non-block vectors not yet implemented');
-                    maxsize=1;
-                    for d=1:ndims(in)
-                        if d<=numel(index.subs) && ~isempty(index.subs{d}) && ~ischar(index.subs{d})
-                            if in.fromDip == 0
-                                index.subs{d}=cuda(index.subs{d})-1;
-                            else
-                                index.subs{d}=cuda(index.subs{d});
-                            end
-                        else
-                            % index.subs{d}=[];
-                            index.subs{d}=xx_cuda2(size(in,d),'corner');
-                        end
-                        if numel(index.subs{d}) > maxsize
-                            maxsize=numel(index.subs{d});
-                        end
-                    end
-                    IndexMatrix=zeros_cuda2(cuda(0),[maxsize ndims(in)]);
-%                     IndexMatrix=cuda();
-%                     ms=[maxsize ndims(in)];
-%                     IndexMatrix.ref=cuda_cuda('newarr',ms,0);
-%                     IndexMatrix.fromDip=0;
-
-                    DestSize=[];
-                    for d=1:ndims(in)
-                        % IndexMatrix(1:numel(index.subs{d}),d)=index.subs{d};
-                        idx={[1:numel(index.subs{d})],d};  S=struct('type','()','subs',{idx});
-                        res=subsasgn(IndexMatrix,S,transpose(index.subs{d}));
-                        DestSize(d)=numel(index.subs{d});
-                    end
+                    [IndexMatrix,DestSize]=GenIndexMatrix(in,index,in.fromDip);   % Generates a matrix of indices.  in.fromDip needs to be provides separately due to the hassle of subrsref inside subsref
                     varargout{1}.ref=cuda_cuda('subsref_NDidx',in.ref,IndexMatrix.ref,DestSize);
-                    % cuda_cuda('delete',IndexMatrix.ref);
                 else
                     if in.fromDip == 0
                         index.subs{1}=cuda(index.subs{1})-1;
