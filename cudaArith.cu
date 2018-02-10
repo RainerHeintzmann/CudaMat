@@ -870,6 +870,26 @@ extern "C" const char * CUDA ## FktName(float * a, float b, float * c, size_t N)
   return 0;                                                             \
 }                                                                       
 
+#define CUDA_UnaryFktSizeConst(FktName,expression)                  \
+__global__ void                                                     \
+FktName(float*a,float b, float * c, SizeND SA, SizeND SC, size_t N) \
+{                                                                   \
+    size_t idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+	if(idx>=N) return;                                              \
+	expression                                                      \
+}                                                                   \
+extern "C" const char * CUDA ## FktName(float * a, float * c, float b, SizeND SA, SizeND SC, size_t N)  \
+{                                                                   \
+    cudaError_t myerr;                                              \
+	size_t blockSize;dim3 nBlocks;                                  \
+    MemoryLayout(N,blockSize,nBlocks)                               \
+	FktName<<<nBlocks,blockSize>>>(a,b,c,SA,SC,N);                  \
+    myerr=cudaGetLastError();                                       \
+    if (myerr != cudaSuccess)                                       \
+      return cudaGetErrorString(myerr);                             \
+  return 0;                                                         \
+}                                                                       
+
 // --------------Macro generating operation with complex array and constant -------------
 #define CUDA_UnaryFktConstC(FktName,expression)                      \
 __global__ void                                                     \
@@ -1504,6 +1524,9 @@ CUDA_UnaryFktConstC(const_equals_carr,size_t idc=2*idx; c[idx]=(br==a[idc]) && (
 CUDA_UnaryFktConstC(arr_equals_Cconst,c[idx]=(a[idx]==br) && (bi==0);)
 CUDA_UnaryFktConstC(Cconst_equals_arr,c[idx]=(br==a[idx]) && (bi==0);)
 
+CUDA_UnaryFktSizeConst(diff_arrSizeConst,size_t myind; CoordsNDFromIdx(idx,SC,pos);IdxNDFromCoords(pos,SA,myind);c[idx]=(b > 0)?(a[myind+(size_t) b]-a[myind]):(a[idx]-a[idx-(size_t) b]);)
+CUDA_UnaryFktSizeConst(diff_carrSizeConst,size_t idc; CoordsNDFromIdx(idx,SC,pos);IdxNDFromCoords(pos,SA,idc);idc=2*idc;b=b*2;c[idc]=(b > 0)?(a[idc+(size_t) b]-a[idc]):(a[idc]-a[idc-(size_t) b]);c[idc+1]=(b > 0)?(a[idc+1+(size_t) b]-a[idc+1]):(a[idc+1]-a[idc+1-(size_t) b]);)
+
 // not equals will always output a real valued array
 CUDA_BinaryFkt(arr_unequals_arr,c[idx]=(a[idxA]!=b[idxB]);)
 CUDA_BinaryFkt(carr_unequals_carr, size_t idcA=2*idxA;size_t idcB=2*idxB; c[idx]=(a[idcA]!=b[idcB]) || (a[idcA+1]!=b[idcB+1]);)
@@ -1602,8 +1625,8 @@ CUDA_UnaryFkt(isnan_carr,c[idx]=(float) (isnan(a[2*idx])||isnan(a[2*idx+1]));)  
 CUDA_UnaryFkt(isinf_arr,c[idx]=(float) isinf(a[idx]);)
 CUDA_UnaryFkt(isinf_carr,c[idx]=(float) (isinf(a[2*idx])||isinf(a[2*idx+1]));)   // is infinite
 
-CUDA_UnaryFktIntVec(arr_circshift_vec,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]-=b.s[_d];}long long ids=0;IdxNDFromCoords(pos,sSize,ids);c[idx]=a[ids];)  // a[idx]
-CUDA_UnaryFktIntVec(carr_circshift_vec,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]-=b.s[_d];}long long ids=0;IdxNDFromCoords(pos,sSize,ids);c[2*idx]=a[2*ids];c[2*idx+1]=a[2*ids+1];)
+CUDA_UnaryFktIntVec(arr_circshift_vec,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]-=b.s[_d];}size_t ids=0;IdxNDFromCoords(pos,sSize,ids);c[idx]=a[ids];)  // a[idx]
+CUDA_UnaryFktIntVec(carr_circshift_vec,CoordsNDFromIdx(idx,sSize,pos);for(int _d=0;_d<CUDA_MAXDIM;_d++){pos.s[_d]-=b.s[_d];}size_t ids=0;IdxNDFromCoords(pos,sSize,ids);c[2*idx]=a[2*ids];c[2*idx+1]=a[2*ids+1];)
 
 // In code below, the loop runs over the source dimensions. The array sizes are still set to the source sizes and will be (again) adjusted later
 CUDA_UnaryFktIntVec(arr_permute_vec,{int _d;SizeND posnew; SizeND dSize; CoordsNDFromIdx(idx,sSize,pos);

@@ -292,6 +292,9 @@ externC const char * CUDAconst_equals_carr(float * a, float br, float bi, float 
 externC const char * CUDAarr_equals_Cconst(float * a, float br, float bi, float * c, size_t N);
 externC const char * CUDACconst_equals_arr(float * a, float br, float bi, float * c, size_t N);
 
+externC const char * CUDAdiff_carrSizeConst(float * a, float * c, float b, SizeND SA, SizeND SC, size_t N);  // b is the stride. (offset)
+externC const char * CUDAdiff_arrSizeConst(float * a, float * c, float b, SizeND SA, SizeND SC, size_t N);
+
 // !=   ~=
 externC const char * CUDAarr_unequals_arr(float * a, float * b, float * c, size_t N, int numdims,SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 externC const char * CUDAcarr_unequals_carr(float * a, float * b, float * c, size_t N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
