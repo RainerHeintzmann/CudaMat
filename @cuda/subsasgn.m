@@ -205,7 +205,7 @@ switch index.type
                 else
                     out.ref=cuda_cuda('subsasgn_block',valref,in.ref,moffs,msize,0,mstep);  % is an array to assign. As no copy was generated nothing will be deleted.
                 end
-            else
+            else   % isblock=0 : not a block
                 mybool=index.subs{1};
                 mVecSize=tvalsize;
                 if isa(index.subs{1},'cuda')
@@ -219,18 +219,23 @@ switch index.type
                 else
                     subsrefnum2=subsrefnum;
                 end
-                if mVecSize ~= 1
-                    %if mVecSize ~= size(index.subs{1},2) && mVecSize ~= size(index.subs{1},1) % sum(index.subs{1} ~= 0)
-                    %    error('subsref_cuda_vec : mask size does not correspond to size of vector to assign');
-                    %else
-                        % out.ref=cuda_cuda('subsasgn_cuda_vec',in.ref,index.subs{1}.ref,valref,1);
-                        out.ref=cuda_cuda('subsasgn_1Didx',valref,subsrefnum2,in.ref); % vector of 1D indices
-                    %end
-                    % error('Cuda subassigning of vectors to subarrays indexed with logical images not yet implemented');
-                else
-                    % out.ref=cuda_cuda('subsasgn_cuda_const',in.ref,mybool.ref,val,1);  % no delete irgnored
-                    
-                    out.ref=cuda_cuda('subsasgn_1Didx_const',in.ref,subsrefnum2,val);% vector of 1D indices
+                if numel(index.subs) == 1
+                    if mVecSize ~= 1
+                        out.ref=cuda_cuda('subsasgn_1Didx',in.ref,subsrefnum2,in.ref,valref); % vector of 1D indices
+                    else
+                        out.ref=cuda_cuda('subsasgn_1Didx_const',in.ref,subsrefnum2,val);% vector of 1D indices
+                    end
+                else  % adressing with multiple non-consecutive elements
+                    [IndexMatrix,DestSize]=GenIndexMatrix(in,index,in.fromDip);   % Generates a matrix of indices.  in.fromDip needs to be provides separately due to the hassle of subrsref inside subsref
+                    if mVecSize ~= 1
+                        if (norm(valsize - DestSize) ~= 0)
+                            error('subsassgn ND vector adressing: Sizes of source and destination region not matching');                            
+                        end
+                        out.ref=cuda_cuda('subsasgn_NDidx',in.ref,IndexMatrix.ref,DestSize,valref);
+                    else
+                        out.ref=cuda_cuda('subsasgn_NDidx_const',in.ref,IndexMatrix.ref,val,DestSize);
+                        % out.ref=cuda_cuda('subsasgn_NDidx_const',in.ref,subsrefnum2,val);% vector of 1D indices
+                    end
                 end
                 if ~in.fromDip
                     cuda_cuda('forceDelete',subsrefnum2);
