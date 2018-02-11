@@ -395,8 +395,11 @@ externC const char * CUDAarr_xyz_2vec(float * c, VecND vec1, VecND vec2, SizeND 
 externC const char * CUDAarr_rr_2vec(float * c, VecND vec1, VecND vec2, SizeND sSize, size_t N);    // generates rr, first vec for center second for scaling
 externC const char * CUDAarr_phiphi_2vec(float * c, VecND vec1, VecND vec2, SizeND sSize, size_t N);    // generates rr, first vec for center second for scaling
 
-externC const char * CUDAsvd_last(float *X, float *Ye, float * Yv, size_t N);  // singular value decomposition along the last array dimension
+externC const char * CUDAsvd3D_last(float *X, float *Ye, float * Yv, size_t N);  // singular value decomposition along the last array dimension
 externC const char * CUDAsvd3D_recomp(float *Y, float *E, float * V, size_t N);  // N is NOT the total size, but only the size excluding the last dimension (of size 3)
+
+externC const char * CUDAsvd2D_last(float *X, float *Ye, float * Yv, size_t N);  // singular value decomposition along the last array dimension
+externC const char * CUDAsvd2D_recomp(float *Y, float *E, float * V, size_t N);  // N is NOT the total size, but only the size excluding the last dimension (of size 2)
 
 // Now include all the user-defined functions
 #include "user_h_code.inc"
