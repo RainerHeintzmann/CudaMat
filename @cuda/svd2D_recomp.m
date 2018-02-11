@@ -1,6 +1,6 @@
-% function [X]=svd3D_recomp(E,V)
+% function [X]=svd2D_recomp(E,V)
 %
-%  Reconstruct X from E and V obtained by svd3D_decomp
+%  Reconstruct X from E and V obtained by svd2D_decomp
 %  
 %  Copyright (C) 2017 E. Soubies emmanuel.soubies@epfl.ch
 %
@@ -18,7 +18,7 @@
 %     along with this program.  If not, see <http://www.gnu.org/licenses/>.%
 %%
 
-function [X]=svd3D_recomp(E,V)
+function [X]=svd2D_recomp(E,V)
     if nargout > 0
        Xref=cuda_cuda('svd_recomp',E.ref,V.ref); % figures out from the datasize whether to call the 3D or 2D routine
        X=cuda();

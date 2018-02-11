@@ -104,7 +104,8 @@ switch index.type
                 end
             end
             if isblock
-                varargout{1}.ref=cuda_cuda('subsref_block',in.ref,moffs,msize,mstep);
+                myref=cuda_cuda('subsref_block',in.ref,moffs,msize,mstep);
+                varargout{1}.ref=myref;
             else
                 if length(index.subs) > 1
                     % error('cuda subreferencing: subreferencing with multidimensional non-block vectors not yet implemented');
@@ -125,9 +126,12 @@ switch index.type
             if length(index.subs) == 1 && length(oldsize) > 1 % restore the old size (if changed)
                     if in.fromDip
                         tmp=oldsize(1);oldsize(1)=oldsize(2);oldsize(2)=tmp;
+                    else
+                        if index.subs{d}(1) ~= ':'   % STRANGE thing in MATLAB: size(q(:)) gives a different result than size(q(1:end))
+                            cuda_cuda('setSize',varargout{1}.ref,[1 msize]);  % Only for matlab style. DipImage has size only along the first dimension
+                        end
                     end
                     cuda_cuda('setSize',in.ref,oldsize);
-                    % cuda_cuda('setSize',varargout{1}.ref,[1 msize]);
             end
 
         % end

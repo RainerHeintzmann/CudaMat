@@ -622,20 +622,21 @@ void printMem(size_t * start,int num)
     } 
 
 //  ----------------- Unary function  ------AllocCommand determines whether the result type is that same, complex or real ----------
-#define CallCUDA_UnaryFktSizeConst(FktName,AllocFkt)                                    \
-    const char *ret=0;SizeND SC,SA;float * pC;size_t refA;                                                 \
-    if (nrhs != 4) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");                 \
+// Important Note: The total size given to the algorithm corrsponds to the destination array C. 
+#define CallCUDA_UnaryFktSizeConst(FktName,AllocFkt)                                        \
+    const char *ret=0;SizeND SC,SA;float * pC;size_t refA;                                  \
+    if (nrhs != 4) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");              \
         double alpha = mxGetScalar(prhs[2]);                                                \
         refA=getCudaRefNum(prhs[1]);                                                        \
         SC=SizeNDFromRef(prhs[3]);                                                          \
-        SA=getSizeFromRefNum(refA);                                          \
-        pC=AllocFkt(prhs[1], SC, cuda_array_dim[refA]);                      \
-        if (isComplexType(refA)) {                                        \
+        SA=getSizeFromRefNum(refA);                                                         \
+        pC=AllocFkt(prhs[1], SC, cuda_array_dim[refA]);                                     \
+        if (isComplexType(refA)) {                                                          \
             Dbg_printf("cuda: complex array " #FktName "\n");                               \
-            ret=CUDA##FktName##_carrSizeConst(getCudaRef(prhs[1]),pC,(float) alpha, SA, SC, getTotalSizeFromRef(prhs[1]));    \
+            ret=CUDA##FktName##_carrSizeConst(getCudaRef(prhs[1]),pC,(float) alpha, SA, SC, getTotalSizeFromRefNum(free_array));    \
         } else {                                                                            \
             Dbg_printf("cuda: float array " #FktName "\n");                                 \
-            ret=CUDA##FktName##_arrSizeConst(getCudaRef(prhs[1]),pC,(float) alpha, SA, SC, getTotalSizeFromRef(prhs[1])); \
+            ret=CUDA##FktName##_arrSizeConst(getCudaRef(prhs[1]),pC,(float) alpha, SA, SC, getTotalSizeFromRefNum(free_array)); \
             if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");} \
     } 
     
@@ -2840,7 +2841,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
   else if (strcmp(command,"set_ignoreDelete")==0) {   // just reference with a one-dimensional index already as a cuda array.
     ignoreDelete=1;ignoreRef=getCudaRefNum(prhs[1]);   // the next delete will be executed
   }
-  else if (strcmp(command,"diff")==0) { 
+  else if (strcmp(command,"diff")==0) {   // a bit related to the Matlab diff function. However, the argument indicates the 1D-offset to apply and not the number of recursive applications of the algorihm
     CallCUDA_UnaryFktSizeConst(diff,cudaAllocSized)   // uses the pointer to the previously allocated array
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
@@ -3973,11 +3974,12 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
 
    Dbg_printf2("cuda:minus_alpha_blas %g\n",alpha);
   }
-  else if (strcmp(command,"svd3D_last")==0) { // singular value decomposition along the last dimension of an array. Code by E. Soubies emmanuel.soubies@epfl.ch and stamatis.lefkimmiatis@epfl.ch
+  else if (strcmp(command,"svd_last")==0) { // singular value decomposition along the last dimension of an array. Code by E. Soubies emmanuel.soubies@epfl.ch and stamatis.lefkimmiatis@epfl.ch
     size_t ref1,new_array_num, dSize[CUDA_MAXDIM],LastDim,k,N;
     float * new_array_Ye;  // Eigenvalues
     float * new_array_Yv;  // Eigenvectors
     const char * status;
+    int NumEigVal=0,NumEigVecComp=0;
     if (nrhs != 2) mexErrMsgTxt("cuda: svd_last needs one arguments\n");
     ref1=getCudaRefNum(prhs[1]);  // Input array
     if (isComplexType(getCudaRefNum(prhs[1])))
@@ -3989,19 +3991,29 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     LastDim=0;
     for (k=0;k<CUDA_MAXDIM;k++)
         if (dSize[k]>1)  LastDim=k;
-    if (dSize[LastDim] != 6)
-         mexErrMsgTxt("cuda svd_last: The last input dimension has to be of size 6\n");
+    if (dSize[LastDim] != 3 && dSize[LastDim] != 6)
+         mexErrMsgTxt("cuda svd_last: The last input dimension has to be of size 6 (for 3D) or 3 (for 2D)\n");
 
-    dSize[LastDim]=3;    // for 3 Eignevalues
+    if (dSize[LastDim] == 6)  // 3D case
+    {
+        NumEigVal=3;NumEigVecComp=9;
+    } else { // 2D case
+        NumEigVal=2;NumEigVecComp=4;
+    }
+    N = getTotalSizeFromRef(prhs[1])/dSize[LastDim] ;
+    dSize[LastDim]=NumEigVal;    // for Eigenvalues
     new_array_Ye=cudaAllocDetailed(cuda_array_dim[ref1], dSize, cuda_array_type[ref1]);
     new_array_num= free_array;
     // if (nlhs > 1)
-    dSize[LastDim]=9;   // for the 9 components of the Eigenvectors
+    dSize[LastDim]=NumEigVecComp;   // for the components of the Eigenvectors
     new_array_Yv=cudaAllocDetailed(cuda_array_dim[ref1], dSize, cuda_array_type[ref1]);
     
-    N = getTotalSizeFromRef(prhs[1])/6;
     Dbg_printf2("N is %d\n",N);
-    status=CUDAsvd_last(getCudaRef(prhs[1]), new_array_Ye,new_array_Yv, N);
+    if (NumEigVal==3)
+        status=CUDAsvd3D_last(getCudaRef(prhs[1]), new_array_Ye,new_array_Yv, N);
+    else // 2 Eigenvalues
+        status=CUDAsvd2D_last(getCudaRef(prhs[1]), new_array_Ye,new_array_Yv, N);
+
     if (status) mexErrMsgTxt(status);
     
     plhs[0] =  mxCreateDoubleScalar((double) new_array_num);
@@ -4011,11 +4023,12 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     if (cublasGetError() != CUBLAS_STATUS_SUCCESS) {mexErrMsgTxt("cuda: Error computing svd_last\n");return;}
    Dbg_printf("cuda: svd_last\n");
   }
-  else if (strcmp(command,"svd3D_recomp")==0) { // singular value decomposition along the last dimension of an array. Code by E. Soubies emmanuel.soubies@epfl.ch and stamatis.lefkimmiatis@epfl.ch
+  else if (strcmp(command,"svd_recomp")==0) { // singular value decomposition along the last dimension of an array. Code by E. Soubies emmanuel.soubies@epfl.ch and stamatis.lefkimmiatis@epfl.ch
     size_t ref1,ref2,dSize[CUDA_MAXDIM],LastDim,k,N;
     float * new_array_Y;  // Eigenvalues
     const char * status;
-    if (nrhs != 3) mexErrMsgTxt("cuda: svd_last needs two arguments\n");
+    int MatEntries=0,MatEntriesRed=0;
+    if (nrhs != 3) mexErrMsgTxt("cuda: svd_recomp needs two arguments\n");
     ref1=getCudaRefNum(prhs[1]);  // Input array
     ref2=getCudaRefNum(prhs[2]);  // Input array
     if (isComplexType(getCudaRefNum(prhs[1])))
@@ -4023,27 +4036,36 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     if (isComplexType(getCudaRefNum(prhs[2])))
          mexErrMsgTxt("cuda svd_last: Input 2 cannot be complex valued\n");
 
-
     get5DSize(ref1,dSize);
     Dbg_printf6("dSize is %dx%dx%dx%dx%d\n",dSize[0],dSize[1],dSize[2],dSize[3],dSize[4]);
 
     LastDim=0;
     for (k=0;k<CUDA_MAXDIM;k++)
         if (dSize[k]>1)  LastDim=k;
-    if (dSize[LastDim] != 3)
-         mexErrMsgTxt("cuda svd_last: The Eigenvalue (input1) dimension has to be of size 3\n");
+    if (dSize[LastDim] != 3 && dSize[LastDim] != 2)
+         mexErrMsgTxt("cuda svd_recomp: The Eigenvalue (input1) dimension has to be of size 3 (for 3D) or 2 (for 2D)\n");
+    if (dSize[LastDim] == 3)  // 3D case
+    {
+        MatEntries=9;MatEntriesRed=6;
+    } else { // 2D case
+        MatEntries=4;MatEntriesRed=3;
+    }
+    N = getTotalSizeFromRef(prhs[1])/dSize[LastDim];
 
     get5DSize(ref2,dSize);
     Dbg_printf6("dSize is %dx%dx%dx%dx%d\n",dSize[0],dSize[1],dSize[2],dSize[3],dSize[4]);
-    if (dSize[LastDim] != 9)
-         mexErrMsgTxt("cuda svd_last: The last Eigenvector (input2) dimension has to be of size 9\n");
+    if (dSize[LastDim] != MatEntries)
+         mexErrMsgTxt("cuda svd_recomp: The last Eigenvector (input2) dimension has to be of size 9\n");
     
-    dSize[LastDim]=6;    // for 6 matrix entries
+    dSize[LastDim]=MatEntriesRed;    // for 6 reduced matrix entries
     new_array_Y=cudaAllocDetailed(cuda_array_dim[ref1], dSize, cuda_array_type[ref1]);
     
-    N = getTotalSizeFromRef(prhs[1])/3;
     Dbg_printf2("N is %d\n",N);
-    status=CUDAsvd3D_recomp(new_array_Y, getCudaRef(prhs[1]), getCudaRef(prhs[2]), N);
+    if(MatEntries==9) // 3D case
+        status=CUDAsvd3D_recomp(new_array_Y, getCudaRef(prhs[1]), getCudaRef(prhs[2]), N);
+    else // 2D case
+        status=CUDAsvd2D_recomp(new_array_Y, getCudaRef(prhs[1]), getCudaRef(prhs[2]), N);
+
     if (status) mexErrMsgTxt(status);
     
     plhs[0] =  mxCreateDoubleScalar((double) free_array);

@@ -1,19 +1,22 @@
-% function [E,V]=svd3D_decomp(X)
+% function [E,V]=svd2D_decomp(X)
 %
-% Let X be a NxMxKx6 matrix such that:
+%   Let X be a NxMx3 matrix such that:
 %   
-%   P_mn = [X(n,m,k,1) X(n,m,k,2) X(n,m,k,3)
-%           X(n,m,k,2) X(n,m,k,4) X(n,m,k,5)
-%           X(n,m,k,3) X(n,m,k,5) X(n,m,k,6)] 
+%   P_mn = [X(n,m,1) X(n,m,2)
+%           X(n,m,2) X(n,m,3)]
 %           
-% is a symmetric matrix. Then the present function computes the eigenvalues
-% E(n,m,k,1) E(n,m,k,2) E(n,m,k,3) and the eigenvector 
-%           V1 = [V(n,m,k,1) V(n,m,k,2)  V(n,m,k,3)] 
-%           V2 = [V(n,m,k,4) V(n,m,k,5)  V(n,m,k,6)] 
-%           V2 = [V(n,m,k,5) V(n,m,k,8)  V(n,m,k,9)]  
-% Hence the function outputs two matrices E of size NxMxKx3 and V of size NxMxKx9.
+%   is a symmetric matrix. Then the present function computes the eigenvalues
+%   E(n,m,1) E(n,m,2) and the first eigenvector [V(n,m,1) V(n,m,2)] (the second 
+%   one being [V(n,m,2) -V(n,m,1)]). Hence the function outputs two matrices E
+%   and V of size NxMx2.
+%   
+%   Compilation:
+%      -linux: mex -v svd2D_decomp.cpp CFLAGS="\$CFLAGS -openmp" LDFLAGS="\$LDFLAGS -openmp" -largeArrayDims
+%      -mac  : mex svd2D_decomp.cpp -DUSE_BLAS_LIB -DNEW_MATLAB_BLAS -DINT_64BITS -largeArrayDims CXX=/usr/local/Cellar/gcc/6.3.0_1/bin/g++-6 CXXOPTIMFLAGS="-O3
+%                    -mtune=native -fomit-frame-pointer -fopenmp" LDOPTIMFLAGS=" -O " LINKLIBS="$LINKLIBS -lmwblas -lmwlapack -L"/usr/local/Cellar/gcc/6.3.0_1/lib/gcc/6" -L/ -fopenmp"
 %  
-%  Copyright (C) 2017 E. Soubies emmanuel.soubies@epfl.ch
+%   Copyright (C) 2017 E. Soubies emmanuel.soubies@epfl.ch
+% 
 %
 %     This program is free software: you can redistribute it and/or modify
 %     it under the terms of the GNU General Public License as published by
@@ -29,7 +32,7 @@
 %     along with this program.  If not, see <http://www.gnu.org/licenses/>.%
 %%
 
-function [E,V]=svd3D_decomp(in1)
+function [E,V]=svd2D_decomp(in1)
     if nargout > 1
        [Eref,Vref]=cuda_cuda('svd_last',in1.ref);  % figures out from the datasize whether to call the 3D or 2D routine
        E=cuda();

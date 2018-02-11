@@ -2075,7 +2075,7 @@ __global__ void core_svd3D(float *X, float *Ye, float * Yv, size_t N){   // N is
         }
 }
 
-extern "C" const char * CUDAsvd_last(float *X, float *Ye, float * Yv, size_t N)  // N is NOT the total size, but only the size excluding the last dimension (of size 3)
+extern "C" const char * CUDAsvd3D_last(float *X, float *Ye, float * Yv, size_t N)  // N is NOT the total size, but only the size excluding the last dimension (of size 3)
 {
     cudaError_t myerr;
 	dim3 nBlocks;
@@ -2127,6 +2127,103 @@ extern "C" const char * CUDAsvd3D_recomp(float *Y, float *E, float * V, size_t N
     nBlocks.y=(size_t)(sqrt((float)numb)+1);}
 
 	core_svd3D_recomp<<<nBlocks,blockSize>>>(Y,E,V,N);
+    myerr=cudaGetLastError();
+    if (myerr != cudaSuccess)
+        return cudaGetErrorString(myerr);
+    return 0;
+}
+
+// And here the same for 2D
+
+__global__ void core_svd2D(float *X, float *Ye, float * Yv, size_t N){   // N is NOT the total size, but only the size excluding the last dimension (of size 3)
+  size_t idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);
+  if(idd>=N) return;
+	int k;
+	double n;
+	double tmp[3];
+	double E[2];
+	double U[2];    
+	double trace;
+  	double delta;
+	
+    	for (k=0;k<3;k++)   // get the matrix value [X(1,1) X(2,1)=X(1,2), X(2,2)]
+        	tmp[k]=X[idd+N*k];
+        	
+        if (fabs(tmp[1]) < 1e-15){
+    		E[0]=tmp[0];
+    		E[1]=tmp[2];
+    		U[0]=1.0;
+    		U[1]=0.0;
+    	}
+    	else{
+    		trace=tmp[0]+tmp[2];
+    		delta=(tmp[0]-tmp[2])*(tmp[0]-tmp[2])+4*tmp[1]*tmp[1];
+    		E[0]=0.5*(trace+sqrt(delta));
+    		E[1]=0.5*(trace-sqrt(delta));
+    		n=sqrt((E[0]-tmp[0])*(E[0]-tmp[0])+tmp[1]*tmp[1]);
+    		U[0]=tmp[1]/n;
+    		U[1]=(E[0]-tmp[0])/n;
+  		}
+  		
+  		for (k=0;k<2;k++){  // set result
+        	Ye[idd+N*k]=E[k];
+  			Yv[idd+N*k]=U[k];
+  		}
+}
+
+extern "C" const char * CUDAsvd2D_last(float *X, float *Ye, float * Yv, size_t N)  // N is NOT the total size, but only the size excluding the last dimension (of size 3)
+{
+    cudaError_t myerr;
+	dim3 nBlocks;
+    size_t blockSize=prop.maxThreadsPerBlock / 2; // To account for the many registers needed
+    size_t numb=NBLOCKS(N,blockSize);
+    if (numb<prop.maxGridSize[0])
+        nBlocks.x=numb;
+    else
+        {nBlocks.x=(size_t)(sqrt((float)numb)+1);
+    nBlocks.y=(size_t)(sqrt((float)numb)+1);}
+
+	core_svd2D<<<nBlocks,blockSize>>>(X,Ye,Yv,N);
+    myerr=cudaGetLastError();
+    if (myerr != cudaSuccess)
+        return cudaGetErrorString(myerr);
+    return 0;
+}
+
+
+__global__ void core_svd2D_recomp(float *Y, float *E, float * V, size_t N){   // N is NOT the total size, but only the size excluding the last dimension (of size 3)
+  size_t idd=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);
+  if(idd>=N) return;
+	int k;
+	double ee[2];
+	double vv[2];
+	double tmp[3];  
+	
+    	for (k=0;k<2;k++){   // get the eigenvalues and eigenvectors
+        	ee[k]=E[idd+N*k];
+        	vv[k]=V[idd+N*k];
+        }
+		tmp[0]=ee[0]*pow(vv[0],2) + ee[1]*pow(vv[1],2);
+		tmp[1]=vv[0]*vv[1]*(ee[0]-ee[1]);
+		tmp[2]=ee[0]*pow(vv[1],2)+ee[1]*pow(vv[0],2);
+  		for (k=0;k<3;k++){  // set result
+        	Y[idd+N*k]=tmp[k];
+  		}
+}
+
+extern "C" const char * CUDAsvd2D_recomp(float *Y, float *E, float * V, size_t N)  // N is NOT the total size, but only the size excluding the last dimension (of size 3)
+{
+    cudaError_t myerr;
+	dim3 nBlocks;
+    size_t blockSize=prop.maxThreadsPerBlock / 2; // To account for the many registers needed
+    size_t numb=NBLOCKS(N,blockSize);
+    if (numb<prop.maxGridSize[0])
+        nBlocks.x=numb;
+    else
+        {nBlocks.x=(size_t)(sqrt((float)numb)+1);
+    nBlocks.y=(size_t)(sqrt((float)numb)+1);}
+
+	core_svd2D_recomp<<<nBlocks,blockSize>>>(Y,E,V,N);
     myerr=cudaGetLastError();
     if (myerr != cudaSuccess)
         return cudaGetErrorString(myerr);
