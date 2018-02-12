@@ -401,5 +401,7 @@ externC const char * CUDAsvd3D_recomp(float *Y, float *E, float * V, size_t N); 
 externC const char * CUDAsvd2D_last(float *X, float *Ye, float * Yv, size_t N);  // singular value decomposition along the last array dimension
 externC const char * CUDAsvd2D_recomp(float *Y, float *E, float * V, size_t N);  // N is NOT the total size, but only the size excluding the last dimension (of size 2)
 
+externC const char * CUDA3DConv(float *deviceInputImageData, float *deviceMaskData, float * deviceOutputImageData, SizeND ImgSize);  // some code for fast convolution with a small kernel  
+
 // Now include all the user-defined functions
 #include "user_h_code.inc"

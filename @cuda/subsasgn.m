@@ -221,7 +221,7 @@ switch index.type
                 end
                 if numel(index.subs) == 1
                     if mVecSize ~= 1
-                        out.ref=cuda_cuda('subsasgn_1Didx',in.ref,subsrefnum2,in.ref,valref); % vector of 1D indices
+                        out.ref=cuda_cuda('subsasgn_1Didx',valref,subsrefnum2,in.ref); % vector of 1D indices  a is the source and c the destination with indices subsrefnum2
                     else
                         out.ref=cuda_cuda('subsasgn_1Didx_const',in.ref,subsrefnum2,val);% vector of 1D indices
                     end

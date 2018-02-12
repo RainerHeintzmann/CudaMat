@@ -2824,7 +2824,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"subsasgn_1Didx")==0) {   // just reference with a one-dimensional index already as a cuda array.
-    CallCUDA_IdxFkt(subsasgn,cudaNoAlloc,3,3)
+    CallCUDA_IdxFkt(subsasgn,cudaNoAlloc,3,3)  // use destination array 3 for (empty) allocation (copy size) and 3 for size of destination array.
     ignoreDelete=1;ignoreRef=free_array;   // the next delete command will be ignored
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
@@ -3684,6 +3684,18 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     
     if (cublasGetError() != CUBLAS_STATUS_SUCCESS) {mexErrMsgTxt("cuda: Error finding maximum\n");return;}
    Dbg_printf("cuda: norm\n");
+  }
+  else if (strcmp(command,"Conv3DMask")==0) { // norm of array 
+    float * deviceInputImageData,* deviceMaskData,* deviceOutputImageData;
+    SizeND ImgSize;
+    if (nrhs != 3) mexErrMsgTxt("cuda: Conv3DMask needs two arguments\n");
+    deviceInputImageData=getCudaRef(prhs[1]);
+    deviceMaskData=getCudaRef(prhs[2]);
+    deviceOutputImageData=cudaAlloc(prhs[1]);
+    CUDA3DConv(deviceInputImageData, deviceMaskData, deviceOutputImageData, ImgSize);  // some code for fast convolution with a small kernel  
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+    Dbg_printf("cuda: Cond3DMask\n");
   }
   else if (strcmp(command,"mtimes")==0) { // matrix product
     size_t ref1,ref2;
