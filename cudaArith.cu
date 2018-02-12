@@ -2230,3 +2230,91 @@ extern "C" const char * CUDAsvd2D_recomp(float *Y, float *E, float * V, size_t N
     return 0;
 }
 
+
+
+// Some code for 3D convolutions of small kernel sizes
+
+#define     MASK_WIDTH      3
+#define     MASK_RADIUS     MASK_WIDTH / 2
+#define     TILE_WIDTH      8
+#define         W           (TILE_WIDTH + MASK_WIDTH - 1)
+
+/**
+ * GPU 3D Convolution using shared memory
+ * adapted by Schnigges:
+ * https://stackoverflow.com/questions/22577857/3d-convolution-with-cuda-using-shared-memory
+ */
+__global__ void convolution(float *I, float* M, float *P, SizeND ImgSize)
+{
+    /***** WRITE TO SHARED MEMORY *****/
+    __shared__ float N_ds[W][W][W];
+
+    // First batch loading
+    int dest = threadIdx.x + (threadIdx.y * TILE_WIDTH) + (threadIdx.z * TILE_WIDTH * TILE_WIDTH);
+    int destTmp = dest, destX, destY, destZ, srcX,srcY,srcZ,src;
+    float sum = 0;
+    int z,y,x;
+    destX = destTmp % W; destTmp /= W; destY = destTmp % W; destTmp /= W; destZ = destTmp;
+
+    srcZ = destZ + (blockIdx.z * TILE_WIDTH) - MASK_RADIUS; srcY = destY + (blockIdx.y * TILE_WIDTH) - MASK_RADIUS; srcX = destX + (blockIdx.x * TILE_WIDTH) - MASK_RADIUS;
+    src = srcX + (srcY * ImgSize.s[0]) + (srcZ * ImgSize.s[0] * ImgSize.s[1]);
+
+    if(srcZ >= 0 && srcZ < ImgSize.s[2] && srcY >= 0 && srcY < ImgSize.s[1] && srcX >= 0 && srcX < ImgSize.s[0])
+        N_ds[destZ][destY][destX] = I[src];
+    else
+        N_ds[destZ][destY][destX] = 0;
+
+    // Second batch loading
+    dest = threadIdx.x + (threadIdx.y * TILE_WIDTH) + (threadIdx.z * TILE_WIDTH * TILE_WIDTH) + TILE_WIDTH * TILE_WIDTH * TILE_WIDTH;
+    // dest = threadIdx.x + (threadIdx.y * TILE_WIDTH) + (threadIdx.z * TILE_WIDTH * TILE_WIDTH) + TILE_WIDTH * TILE_WIDTH;  // error
+    destTmp = dest;
+    destX = destTmp % W; destTmp = destTmp / W; destY = destTmp % W; destTmp = destTmp / W; destZ = destTmp;
+
+    srcZ = destZ + (blockIdx.z * TILE_WIDTH) - MASK_RADIUS;
+    srcY = destY + (blockIdx.y * TILE_WIDTH) - MASK_RADIUS;
+    srcX = destX + (blockIdx.x * TILE_WIDTH) - MASK_RADIUS;
+    src = srcX + (srcY * ImgSize.s[0]) + (srcZ * ImgSize.s[0] * ImgSize.s[1]);
+
+    if(destZ < W)
+    {
+        if(srcZ >= 0 && srcZ < ImgSize.s[2] && srcY >= 0 && srcY < ImgSize.s[1] && srcX >= 0 && srcX < ImgSize.s[0])
+            N_ds[destZ][destY][destX] = I[src];
+        else
+            N_ds[destZ][destY][destX] = 0;
+    }
+    __syncthreads();
+
+    /***** Perform Convolution *****/
+    sum=0;
+    for(z = 0; z < MASK_WIDTH; z++)
+        for(y = 0; y < MASK_WIDTH; y++)
+            for(x = 0; x < MASK_WIDTH; x++)
+                sum += N_ds[threadIdx.z + z][threadIdx.y + y][threadIdx.x + x] * M[x + (y * MASK_WIDTH) + (z * MASK_WIDTH * MASK_WIDTH)];
+
+    z = threadIdx.z + (blockIdx.z * TILE_WIDTH); y = threadIdx.y + (blockIdx.y * TILE_WIDTH); x = threadIdx.x + (blockIdx.x * TILE_WIDTH);
+    
+    if(z < ImgSize.s[2] && y < ImgSize.s[1] && x < ImgSize.s[0])
+        P[x + (y * ImgSize.s[0]) + (z * ImgSize.s[0] * ImgSize.s[1])] = 17.7; // sum;
+
+    __syncthreads();
+}
+
+extern "C" const char * CUDA3DConv(float *deviceInputImageData, float *deviceMaskData, float * deviceOutputImageData, SizeND ImgSize)  
+{
+    cudaError_t myerr;
+    int shared_memory_size = W * W * W;
+    int block_size = TILE_WIDTH * TILE_WIDTH * TILE_WIDTH;
+    int max_size = 3 * block_size;
+    // std::cout << "Block Size: " << block_size << " - Shared Memory Size: " << shared_memory_size << " - Max Size: " << max_size << std::endl;
+    // std::cout << "SHARED MEMORY SIZE HAS TO BE SMALLER THAN MAX SIZE IN ORDER TO WORK PROPERLY !!!!!!!";
+
+    dim3 dimBlock(TILE_WIDTH, TILE_WIDTH, TILE_WIDTH);
+    dim3 dimGrid((ImgSize.s[0] + TILE_WIDTH - 1) / TILE_WIDTH, (ImgSize.s[1] + TILE_WIDTH - 1) / TILE_WIDTH, (ImgSize.s[2] + TILE_WIDTH - 1) / TILE_WIDTH);
+    convolution<<<dimGrid, dimBlock>>>(deviceInputImageData, deviceMaskData, deviceOutputImageData, ImgSize);
+    cudaDeviceSynchronize();
+
+    myerr=cudaGetLastError();
+    if (myerr != cudaSuccess)
+        return cudaGetErrorString(myerr);
+    return 0;
+}
