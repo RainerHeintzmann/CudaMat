@@ -130,11 +130,13 @@ static struct cudaDeviceProp prop;  // Defined in cudaArith.h: contains the cuda
               {(idd) += MyModulo(pos.s[_d],N) *_Stride;}  \
         _Stride *= dSize.s[_d]; }                                        \
 }
+
 // This was removed when changed from int to size_t to accomodate 64 bits properly:
 // if (pos.s[_d] < 0)                                              
 //              {(idd) += (dSize.s[_d]-((-pos.s[_d]) % dSize.s[_d])) *_Stride;}          
 //          else                                                          
-   
+
+
 // The macro below converts an ND memory position into a memory position that may have singleton dimensions
 // numdims: number of dimensions
 // posOrig: original index in ND array (without singleton)
@@ -1766,19 +1768,25 @@ extern "C" int CUDAarr_times_const_checkerboard(float * a, float b, float * c, s
 	return 0;
 }
 
+size_t TotalSizeFromSizeND(sizeND mySize,int MaxDim)
+{ 
+    size_t resSize=1;
+    for(int _d=0;_d<MaxDim;_d++)
+        resSize *= mySize.s[_d];
+    return resSize;
+}
+
 
 /// cyclicly rotates datastack cyclic into positive direction in all coordinates by (dx,dy,dz) voxels
 /// simple version with all processors dealing with exactly one element
 __global__ void
-rotate2(float*a,float b, float * c, size_t sx,size_t sy,size_t sz, long long dx, long long dy, long long dz)
+rotate2(float*a,float b, float * c, SizeND mySize, SizeND myShift)
 {
-  size_t ids=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x); // id of this processor
-  long long x=(ids + dx)%sx;  // advance by the offset steps along the chain
-  long long y=(ids/sx + dy)%sy;
-  long long z=(ids/(sx*sy) + dz)%sz;
-  size_t idd=x+sx*y+sx*sy*z;
-  if(ids>=sx*sy*sz) return;
-  // float tmp = a[ids];
+  size_t ids=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x),idd=0; // id of this processor
+  CoordsNDFromIdx(idx,sSize,pos)
+  for (int d;d<CUDA_MAXDIM;d++)
+      pos.s[d] += myShift.s[d];
+  IdxNDFromCoords(pos,sSize,idd)
   // __syncthreads();             // nice try but does not work !
   c[idd] = b*a[ids];
 }
@@ -1884,21 +1892,22 @@ size_t gcd(size_t a, size_t b) // greatest commod divisor by recursion
    return ( b == 0 ? a : gcd(b, a % b) ); 
 }
 
-extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, size_t * sizes, int dims, int complex,int direction)  // multiplies with a constand and cyclilcally rotates the array using the chain algorithm
+extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, SizeND mySize, SizeND DirYes, int dims, int complex,int direction)  // multiplies with a constand and cyclilcally rotates the array using the chain algorithm
 {
+    SizeND myShift;
     // printf("TestING\n");   % Does NOT work!
-    long long sx=1,sy=1,sz=1;
-    if (dims>0)
-        sx=sizes[0];
-    if (dims>1)
-        {sx=sizes[0];sy=sizes[1];}
-    if (dims>2)
-        sz=sizes[2]; 
-
-    long long dx=(sx+direction*sx/2)%sx,dy=(sy+direction*sy/2)%sy,dz=(sz+direction*sz/2)%sz;  // how much to cyclically rotate
-    if (complex) {sx=sx*2;dx=dx*2;}
+    for (int d=0;d<CUDA_MAXDIM;d++)
+        myShift.s[d]=(mySize.s[d]+DirYes.s[d]*direction*mySize.s[d]/2)%mySize.s[d];  // only shifts if DirYes is 1
+    
+    if (complex) {myShift.s[0] * = 2;myShift[0] *= 2;}
     //printf("sx %d sy %d dx %d dy %d\n",sx,sy,dx,dy);
 
+    // int dev=0;
+    // cudaGetDevice(&dev);
+    // struct cudaDeviceProp prop;
+    // int status=cudaGetDeviceProperties(&prop,dev);
+
+    /*
     // calculate the length of each swapping chain
     long long ux=gcd(sx,dx);  // unit cell in x. Any repeat along y directions will be also a repeat in x. Chain length is sx/ux
     // size_t lx=sx/ux; // how many accesses to get one round in x
@@ -1911,10 +1920,6 @@ extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, size_t 
     // however it could be a complete loop. The number of steps that where performed in the lower dimension are s/gcd before reaching the beginning again
     // with the size of the dimension s. If we are at the same startingpoint in the next dimension the chain is complete.
     // So the number of times a super chain (in 2D) must be executed is sy/gcd(sy,s/gcd(sx,dx))
-    int dev=0;
-    cudaGetDevice(&dev);
-    struct cudaDeviceProp prop;
-    int status=cudaGetDeviceProperties(&prop,dev);
 
     long long m=1;
     if (ux>uy)
@@ -1925,13 +1930,13 @@ extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, size_t 
         m=uz;
     if (length>m)
         m=length;
-
+    */
     //size_t blockSize=1; // prop.warpSize; // ux*uy*uz;
     //size_t nBlocks=m;	// add extra block if N can't be divided by blockSize
     
     //    rotate<<<nBlocks,blockSize>>>(a,b,c,sx,sy,sz,dx,dy,dz,ux,uy,uz);  // get unit cell sizes
 
-    size_t N=sx*sy*sz; // includes the space for complex numbers
+    size_t N=TotalSizeFromSizeND(mySize,dims); // includes the space for complex numbers
 	size_t blockSize;dim3 nBlocks;                                         
                                                                 //    printf("BlockSize %d, ux %d, uy %d, uz %d\n",blockSize,ux,uy,uz);
     // unfortunately we have to do it out of place.
@@ -1941,12 +1946,12 @@ extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, size_t 
     {
         float * d =0;
         int status=cudaMalloc((void **) &d, N*sizeof(float));
-        cudaMemcpy(d,a, N*sizeof(float),cudaMemcpyDeviceToDevice);
-        rotate2 <<<nBlocks,blockSize>>>(d,b,c,sx,sy,sz,dx,dy,dz);
+        cudaMemcpy(d,a, N*sizeof(float),cudaMemcpyDeviceToDevice); // first make a doublicate, then copy out of place
+        rotate2 <<<nBlocks,blockSize>>>(d,b,c,mySize,myShift);
         cudaFree(d);
     }
     else
-        rotate2 <<<nBlocks,blockSize>>>(a,b,c,sx,sy,sz,dx,dy,dz);  // get unit cell sizes
+        rotate2 <<<nBlocks,blockSize>>>(a,b,c,mySize,myShift);  // get unit cell sizes
 
 	return prop.maxThreadsPerBlock;
 }
