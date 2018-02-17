@@ -383,7 +383,7 @@ externC const char * CUDAisinf_carr(float * a, float * c, size_t N);
 
 externC int CUDAarr_times_const_checkerboard(float * a, float b, float * c, size_t * sizes, int dims);  // multiplies with a constand and scrambles the array
 externC int CUDAarr_times_const_scramble(float * a, float b, float * c, size_t * sizes, int dims);  // multiplies with a constand and scrambles the array
-externC int CUDAarr_times_const_rotate(float * a, float b, float * c, size_t * sizes, int dims, int complex,int direction);  // rotates an array in place or out of place by the distance [dx,dy,dz]
+externC int CUDAarr_times_const_rotate(float * a, float b, float * c, SizeND mySize, SizeND DirYes, int dims, int complex,int direction);  // rotates an array in place or out of place by the distance [dx,dy,dz]
 
 externC const char * CUDAarr_circshift_vec(float * a,size_t nshifts[CUDA_MAXDIM],float * c, size_t mySize[CUDA_MAXDIM],size_t N);    // cyclic rotation
 externC const char * CUDAcarr_circshift_vec(float * a,size_t nshifts[CUDA_MAXDIM],float * c, size_t mySize[CUDA_MAXDIM],size_t N);   // cyclic rotation by the vector nshifts

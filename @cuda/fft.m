@@ -26,23 +26,9 @@ if isa(in,'cuda')
     if in.fromDip
         error('fft: Not used for datatype DipImage. Use ft instead!');
     end
-    insize=size(in);
-    dims=length(insize);
-    if dims>1
-        %totalsize=prod(insize);   % this code treats the whole 2d array as a single one-d array. Not useful here.
-        %cuda_cuda('setSize',in.ref,totalsize);
-        %out.ref=cuda_cuda('fft3d',in.ref,1);
-        %cuda_cuda('setSize',in.ref,insize);
-        %cuda_cuda('setSize',out.ref,insize);
-
-        % Unclear why this crashes!...
-        %transformdir=zeros(1,4);
-        %transformdir(2)=1;
-        %out.ref=cuda_cuda('fft3d',in.ref,1,double(transformdir));  % double cast is very important here. Otherwise datatype does not match
-        error('Column-only fft for matlab type data not implemented yet. Did you want to use fft2 for 2d ffts?');
-    else
-        out.ref=cuda_cuda('fft3d',in.ref,1);
-    end
+    myDirYes = zeros(1,ndims(in));
+    myDirYes(firstNonSingleton(in))=1;
+    out.ref=cuda_cuda('fft3d',in.ref,1,myDirYes);
 else
     error('fft: Unsupported datatype');
 end
