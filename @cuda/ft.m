@@ -26,4 +26,4 @@ if isa(in,'cuda')
 else
     error('fft: Unsupported datatype');
 end
-out.fromDip=in.fromDip;
+out.fromDip=1; % in.fromDip;  % always interpret as DipImage

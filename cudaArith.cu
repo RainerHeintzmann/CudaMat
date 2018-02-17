@@ -1768,7 +1768,7 @@ extern "C" int CUDAarr_times_const_checkerboard(float * a, float b, float * c, s
 	return 0;
 }
 
-size_t TotalSizeFromSizeND(sizeND mySize,int MaxDim)
+size_t TotalSizeFromSizeND(SizeND mySize,int MaxDim)
 { 
     size_t resSize=1;
     for(int _d=0;_d<MaxDim;_d++)
@@ -1780,17 +1780,19 @@ size_t TotalSizeFromSizeND(sizeND mySize,int MaxDim)
 /// cyclicly rotates datastack cyclic into positive direction in all coordinates by (dx,dy,dz) voxels
 /// simple version with all processors dealing with exactly one element
 __global__ void
-rotate2(float*a,float b, float * c, SizeND mySize, SizeND myShift)
+rotate2(float*a,float b, float * c, SizeND mySize, IntND myShift, size_t N)
 {
   size_t ids=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x),idd=0; // id of this processor
-  CoordsNDFromIdx(idx,sSize,pos)
-  for (int d;d<CUDA_MAXDIM;d++)
+  if (ids>=N) return;
+  CoordsNDFromIdx(ids,mySize,pos)
+  for (int d=0;d<CUDA_MAXDIM;d++)
       pos.s[d] += myShift.s[d];
-  IdxNDFromCoords(pos,sSize,idd)
-  // __syncthreads();             // nice try but does not work !
+  IdxNDFromCoords(pos,mySize,idd)
+  // __syncthreads();             // nice try but does not work ! -> needs to always be done out of place
   c[idd] = b*a[ids];
 }
 
+/*
 /// cyclicly rotates datastack cyclic into positive direction in all coordinates by (dx,dy,dz) voxels
 __global__ void
 rotate(float*a,float b, float * c, size_t sx,size_t sy,size_t sz, size_t dx, size_t dy, size_t dz, size_t ux, size_t uy, size_t uz)
@@ -1892,21 +1894,28 @@ size_t gcd(size_t a, size_t b) // greatest commod divisor by recursion
    return ( b == 0 ? a : gcd(b, a % b) ); 
 }
 
+ */
+
 extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, SizeND mySize, SizeND DirYes, int dims, int complex,int direction)  // multiplies with a constand and cyclilcally rotates the array using the chain algorithm
 {
-    SizeND myShift;
+    IntND myShift;
     // printf("TestING\n");   % Does NOT work!
     for (int d=0;d<CUDA_MAXDIM;d++)
-        myShift.s[d]=(mySize.s[d]+DirYes.s[d]*direction*mySize.s[d]/2)%mySize.s[d];  // only shifts if DirYes is 1
+        if (d < dims)
+            myShift.s[d]=DirYes.s[d]*direction*(mySize.s[d]/2);  // only shifts if DirYes is 1
+        else
+            myShift.s[d]=0;  // only shifts if DirYes is 1
+            
+    size_t N=TotalSizeFromSizeND(mySize,dims); // includes the space for complex numbers
     
-    if (complex) {myShift.s[0] * = 2;myShift[0] *= 2;}
+    if (complex) {mySize.s[0] *= 2;myShift.s[0] *= 2;N *=2;}
     //printf("sx %d sy %d dx %d dy %d\n",sx,sy,dx,dy);
-
-    // int dev=0;
-    // cudaGetDevice(&dev);
-    // struct cudaDeviceProp prop;
-    // int status=cudaGetDeviceProperties(&prop,dev);
-
+    
+    /* int dev=0;
+    cudaGetDevice(&dev);
+    struct cudaDeviceProp prop;
+    int status=cudaGetDeviceProperties(&prop,dev);
+    */
     /*
     // calculate the length of each swapping chain
     long long ux=gcd(sx,dx);  // unit cell in x. Any repeat along y directions will be also a repeat in x. Chain length is sx/ux
@@ -1936,22 +1945,21 @@ extern "C" int CUDAarr_times_const_rotate(float * a, float b, float * c, SizeND 
     
     //    rotate<<<nBlocks,blockSize>>>(a,b,c,sx,sy,sz,dx,dy,dz,ux,uy,uz);  // get unit cell sizes
 
-    size_t N=TotalSizeFromSizeND(mySize,dims); // includes the space for complex numbers
 	size_t blockSize;dim3 nBlocks;                                         
                                                                 //    printf("BlockSize %d, ux %d, uy %d, uz %d\n",blockSize,ux,uy,uz);
     // unfortunately we have to do it out of place.
-    MemoryLayout(N,blockSize,nBlocks)                                    
+    MemoryLayout(N,blockSize,nBlocks)
     // printf("rotate 2 call: (%zd %zd %zd %lld %lld %lld)\n",sx,sy,sz,dx,dy,dz);
     if (a == c)
     {
         float * d =0;
         int status=cudaMalloc((void **) &d, N*sizeof(float));
         cudaMemcpy(d,a, N*sizeof(float),cudaMemcpyDeviceToDevice); // first make a doublicate, then copy out of place
-        rotate2 <<<nBlocks,blockSize>>>(d,b,c,mySize,myShift);
+        rotate2 <<<nBlocks,blockSize>>>(d,b,c,mySize,myShift,N);
         cudaFree(d);
     }
     else
-        rotate2 <<<nBlocks,blockSize>>>(a,b,c,mySize,myShift);  // get unit cell sizes
+        rotate2 <<<nBlocks,blockSize>>>(a,b,c,mySize,myShift,N);  // get unit cell sizes
 
 	return prop.maxThreadsPerBlock;
 }

@@ -53,7 +53,7 @@ mex cuda_cuda.c cudaArith.o -I/usr/local/cuda/include -I/usr/local/cula/include 
 #include "string.h"
 #include "cufft.h"
 
-#define DEBUG
+// #define DEBUG
           
 #ifdef DEBUG
 #define Dbg_printf(arg) printf(arg)
@@ -754,10 +754,6 @@ static size_t cuda_FFTplan_ndims[MAX_FFTPLANS];    // Stores the information how
 static size_t cuda_FFTplan_plantype[MAX_FFTPLANS];    // Stores the information which type this transform is rft/fft/ift
 static size_t cuda_FFTplan_extraBatch[MAX_FFTPLANS];
 static size_t cuda_FFTplan_extraBatchStride[MAX_FFTPLANS];
-static int cuda_FFTplan_RotateDim[MAX_FFTPLANS]; // save this for the rotate operation
-static size_t cuda_FFTplan_RotateBatches[MAX_FFTPLANS]; // number of batches to rotate in addition 
-static size_t cuda_FFTplan_RotateBatchStride[MAX_FFTPLANS]; // number of batches to rotate in addition 
-static size_t cuda_FFTplan_RotateSizes[MAX_FFTPLANS][CUDA_MAXDIM]; // save this for the rotate operation
 
 static float * cuda_arrays[MAX_ARRAYS];  // static array of cuda arrays
 static int cuda_array_dim[MAX_ARRAYS];  // type tags see CUDA_TYPE definitions above
@@ -845,16 +841,28 @@ void get3DSize(size_t ref, size_t * mysize) {
             mysize[d]=1;
 }
 
-SizeND getSizeFromIntVec(int * mysizevec, size_t MaxDim) {
-    int d;
-    SizeND mysize;
+IntND getIntNDFromIntVec(int * mysizevec, size_t MaxDim) {
+    int d; IntND mysize;
     for (d=0;d<CUDA_MAXDIM;d++) {
     if (d< MaxDim)
             mysize.s[d]=mysizevec[d];
         else
-            mysize.s[d]=1;
-    Dbg_printf3("getSizeFromIntVec d %d mysize[d] %d\n",d,mysize.s[d]);
+            mysize.s[d]=0; // because IntND is signed and used for shifts and alike
+        Dbg_printf3("getIntNDFromIntVec myIntVec[%d]=%d\n",d,mysize.s[d]);
     }
+    return mysize;
+}
+
+SizeND getSizeFromIntVec(int * mysizevec, size_t MaxDim) {
+    int d; SizeND mysize;
+    for (d=0;d<CUDA_MAXDIM;d++) {
+        if (d< MaxDim)
+            mysize.s[d]=mysizevec[d];
+        else
+            mysize.s[d]=1;
+        Dbg_printf3("getSizeFromIntVec dim mysize[%d]=%d\n",d,mysize.s[d]);
+    }
+    return mysize;
 }
 
 SizeND getSizeFromVec(size_t * mysizevec, size_t MaxDim) {
@@ -865,7 +873,7 @@ SizeND getSizeFromVec(size_t * mysizevec, size_t MaxDim) {
             mysize.s[d]=mysizevec[d];
         else
             mysize.s[d]=1;
-    Dbg_printf3("getSizeFromVec mysize[%d]=%d\n",d,mysize.s[d]);
+        Dbg_printf3("getSizeFromVec mysize[%d]=%d\n",d,mysize.s[d]);
     }
     return mysize;
 }
@@ -1025,7 +1033,7 @@ void PrintMemoryOverview() {
                        printf("FFT plan no. %d of unknown dimensions!!\n",n);
                   }
                  else // partial transform plan
-                        printf("Partial transform plan no. %d, transform dim: %d, Size: %d x %d x %d x %d x %d, transforming [%dx%dx%dx%dx%d], extra batch %d, extra batch stride %d, rotate batch %d, rotate batch stride %d\n",n,cuda_FFTplan_ndims[n],cuda_FFTplan_sizes[n][0],cuda_FFTplan_sizes[n][1],cuda_FFTplan_sizes[n][2],cuda_FFTplan_sizes[n][3],cuda_FFTplan_sizes[n][4],cuda_FFTplan_dirYes[n][0],cuda_FFTplan_dirYes[n][1],cuda_FFTplan_dirYes[n][2],cuda_FFTplan_dirYes[n][3],cuda_FFTplan_dirYes[n][4], cuda_FFTplan_extraBatch[n], cuda_FFTplan_extraBatchStride[n], cuda_FFTplan_RotateBatches[n], cuda_FFTplan_RotateBatchStride[n]);
+                        printf("Partial transform plan no. %d, transform dim: %d, Size: %d x %d x %d x %d x %d, transforming [%dx%dx%dx%dx%d], extra batch %d, extra batch stride %d\n",n,cuda_FFTplan_ndims[n],cuda_FFTplan_sizes[n][0],cuda_FFTplan_sizes[n][1],cuda_FFTplan_sizes[n][2],cuda_FFTplan_sizes[n][3],cuda_FFTplan_sizes[n][4],cuda_FFTplan_dirYes[n][0],cuda_FFTplan_dirYes[n][1],cuda_FFTplan_dirYes[n][2],cuda_FFTplan_dirYes[n][3],cuda_FFTplan_dirYes[n][4], cuda_FFTplan_extraBatch[n], cuda_FFTplan_extraBatchStride[n]);
                  }
     printf("----------------------------------------------------------------------------------\n");
     printf("Summary: Memory used %.7g GB, Heap %.7g GB, Total used %.7g GB, Allocated %.7g GB, Total: %.7g GB, Free %.7g GB\n",sumMem/1.0E9,sumHeap/1.0E9,(sumMem+sumHeap)/1.0E9,SumAllocated/1.0E9,GetDeviceProp().totalGlobalMem/1.0E9,(GetDeviceProp().totalGlobalMem - SumAllocated)/1.0E9);
@@ -1748,7 +1756,7 @@ cufftComplex cudaGetCVal(float * p_cuda_data) {    // gets a single value from a
                 }
  }
  
-cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScale, size_t * extraBatches, size_t * extraBatchStride, size_t * * RotateSizes, int * RotateDim, size_t * RotateBatches, size_t * RotateBatchStride) {    // returns the correct plan to use, or creates a new plan and in FTScale calculates the correct scaling factor
+cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScale, size_t * extraBatches, size_t * extraBatchStride) {    // returns the correct plan to use, or creates a new plan and in FTScale calculates the correct scaling factor
      cufftResult status=0;
      static int triedOnce=0;
      int numdims=cuda_array_dim[ref];
@@ -1781,6 +1789,7 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
              if (dirYes == NULL || dirYes[n] == 1) 
                   (* FTScale) *= cuda_array_size[ref][n];
          (* FTScale) = (float) (1.0/sqrt(FTScale[0]));
+        Dbg_printf2("FTScale is %g \n",FTScale[0]);
      }
      if (extraBatches != NULL)
          (* extraBatches) = 1;
@@ -1802,14 +1811,6 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
                     (* extraBatches) = cuda_FFTplan_extraBatch[n];
                 if (extraBatchStride != NULL)
                     (* extraBatchStride) = cuda_FFTplan_extraBatchStride[n];
-                if (RotateSizes != NULL)
-                    (* RotateSizes) = & cuda_FFTplan_RotateSizes[n][0];
-                if (RotateDim != NULL)
-                    (* RotateDim) = cuda_FFTplan_RotateDim[n];
-                if (RotateBatches != NULL)
-                    (* RotateBatches) = cuda_FFTplan_RotateBatches[n];
-                if (RotateBatchStride != NULL)
-                    (* RotateBatchStride) = cuda_FFTplan_RotateBatchStride[n];
                 return cuda_FFTplans[n];  // a matching plan was found
                 }
             }
@@ -1828,7 +1829,6 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
     // printf("FFT Error codes: %d, %d, %d, %d, %d ,%d ,%d, %d, %d, %d\n",CUFFT_SUCCESS,CUFFT_INVALID_PLAN,CUFFT_ALLOC_FAILED,CUFFT_INVALID_TYPE,CUFFT_INVALID_VALUE,CUFFT_INTERNAL_ERROR, CUFFT_EXEC_FAILED, CUFFT_SETUP_FAILED, 0, CUFFT_INVALID_SIZE);
     // copy all information into the new plan
      cuda_FFTplan_extraBatch[p] = 1;  cuda_FFTplan_extraBatchStride[p] = 0; // always set these, even if they are not used.
-     cuda_FFTplan_RotateBatches[p] = 1; cuda_FFTplan_RotateDim[p] = numdims;  cuda_FFTplan_RotateBatchStride[p] = 0;  
      cuda_FFTplan_ndims[p] = numdims; cuda_FFTplan_plantype[p] = plantypenum; 
      for (d=0;d<CUDA_MAXDIM;d++) {
          if (d <numdims)
@@ -1839,20 +1839,11 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
              cuda_FFTplan_dirYes[p][d] = 1;
          else
              cuda_FFTplan_dirYes[p][d] = dirYes[d];
-         cuda_FFTplan_RotateSizes[p][d] = cuda_array_size[ref][d]; 
      }
      if (extraBatches != NULL)
          (* extraBatches) = cuda_FFTplan_extraBatch[p];
      if (extraBatchStride != NULL)
          (* extraBatchStride) = cuda_FFTplan_extraBatchStride[p];
-     if (RotateSizes != NULL)
-            (* RotateSizes) = & cuda_FFTplan_RotateSizes[p][0];
-     if (RotateDim != NULL)
-            (* RotateDim) = cuda_FFTplan_RotateDim[p];
-     if (RotateBatches != NULL)
-            (* RotateBatches) = cuda_FFTplan_RotateBatches[p];
-     if (RotateBatchStride != NULL)
-            (* RotateBatchStride) = cuda_FFTplan_RotateBatchStride[p];
      
      if (dirYes == NULL) {  // p contains the plan number to use     Here: create a full transform plan
          switch (numdims) {
@@ -1953,24 +1944,6 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
             (* extraBatches) = cuda_FFTplan_extraBatch[p];
         if (extraBatchStride != NULL)
             (* extraBatchStride) = cuda_FFTplan_extraBatchStride[p];
-        // cuda_FFTplan_RotateDim[p]=tdims; // save this for the rotate operation
-        cuda_FFTplan_RotateDim[p]=0;
-        for (d=0;d<CUDA_MAXDIM;d++) {
-                if (dirYes==NULL || dirYes[d]) {
-                    cuda_FFTplan_RotateSizes[p][d]=cuda_array_size[ref][d]; // save this for the rotate operation
-                    cuda_FFTplan_RotateDim[p]++;
-                }
-            }
-        if (RotateSizes != NULL)
-            (* RotateSizes) = &cuda_FFTplan_RotateSizes[p][0];
-        if (RotateDim != NULL)
-            (* RotateDim) = cuda_FFTplan_RotateDim[p];
-        cuda_FFTplan_RotateBatches[p]=batch;
-        if (RotateBatches != NULL)
-            (* RotateBatches) = cuda_FFTplan_RotateBatches[p];
-        cuda_FFTplan_RotateBatchStride[p]=idist;
-        if (RotateBatchStride != NULL)
-            (* RotateBatchStride) = cuda_FFTplan_RotateBatchStride[p];
 
         // mexErrMsgTxt("cuda: Stop here.");
         status=cufftPlanMany(&cuda_FFTplans[p], (int) tdims, TransformSizes, TransformStorageSizes, (int) istride, (int) idist, TransformStorageSizes, (int) istride, (int) idist, PlanType, batch);
@@ -1985,7 +1958,7 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
          else {
          triedOnce=1;
          ClearHeap();   // maybe some memory can be freed. Try again
-         myhandle=CreateFFTPlan(ref, PlanType, NULL, FTScale, extraBatches, extraBatchStride, RotateSizes, RotateDim, RotateBatches, RotateBatchStride);
+         myhandle=CreateFFTPlan(ref, PlanType, NULL, FTScale, extraBatches, extraBatchStride);
          triedOnce=0;
          return myhandle;
          }
@@ -3253,7 +3226,8 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"fftshift")==0) { // -----------------like in matlab
-      size_t ref,size3d=0;
+      size_t ref;
+      SizeND DirYes,mySize;
       int mode,mydim;
       float * srcstart,*dststart, * newarr;
     int ret=0;
@@ -3262,21 +3236,18 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     mode=(mxGetScalar(prhs[2]) > 0) ? 1 : -1;
 
     mydim=cuda_array_dim[ref];
-    if (mydim>3) mydim=3;
-    if (mydim == 1)
-        size3d=cuda_array_size[ref][0];
-    if (mydim == 2)
-        {size3d=cuda_array_size[ref][0]*cuda_array_size[ref][1]; }
-    if (mydim == 3)
-        {size3d=cuda_array_size[ref][0]*cuda_array_size[ref][1]*cuda_array_size[ref][2]; }
-
     newarr=cudaAlloc(prhs[1]);
-    if (isComplexType(getCudaRefNum(prhs[1])))
-        for (dststart=newarr,srcstart=getCudaRef(prhs[1]);dststart<newarr+getTotalSizeFromRefNum(ref);srcstart += size3d*2,dststart+=size3d*2)
-           ret=CUDAarr_times_const_rotate(srcstart,1,dststart,cuda_array_size[ref],cuda_array_dim[ref],1,mode);
-    else
-        for (dststart=newarr,srcstart=getCudaRef(prhs[1]);dststart<newarr+getTotalSizeFromRefNum(ref);srcstart += size3d,dststart+=size3d)
-           ret=CUDAarr_times_const_rotate(srcstart,1,dststart,cuda_array_size[ref],cuda_array_dim[ref],0,mode);
+    for (int _d=0;_d<CUDA_MAXDIM;_d++)
+        DirYes.s[_d]=1;
+    mySize=getSizeFromVec(cuda_array_size[ref],mydim);
+    ret=CUDAarr_times_const_rotate(getCudaRef(prhs[1]),1,newarr,mySize,DirYes,mydim,isComplexType(getCudaRefNum(prhs[1])),mode);
+
+//    if (isComplexType(getCudaRefNum(prhs[1])))
+//        for (dststart=newarr,srcstart=getCudaRef(prhs[1]);dststart<newarr+getTotalSizeFromRefNum(ref);srcstart += size3d*2,dststart+=size3d*2)
+//           ret=CUDAarr_times_const_rotate(srcstart,1,dststart,cuda_array_size[ref],cuda_array_dim[ref],1,mode);
+//    else
+//        for (dststart=newarr,srcstart=getCudaRef(prhs[1]);dststart<newarr+getTotalSizeFromRefNum(ref);srcstart += size3d,dststart+=size3d)
+//           ret=CUDAarr_times_const_rotate(srcstart,1,dststart,cuda_array_size[ref],cuda_array_dim[ref],0,mode);
     
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
@@ -3286,10 +3257,10 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
   else if (strcmp(command,"fft3d")==0) { // ----------------- carray to carray. Last argument: 1= forward, -1=backward, 2=forward, scramble and scale, -2=backward, scramble & scale
     float * newarr=0;
     float FTScale;
-    int ret,n, dev=0, eb=0, b, RotateDim=1; 
+    int ret,n, dev=0, eb=0, b, myDim=1; 
     double mode;
-    size_t ref, ExtraBatch=1, ExtraBatchStride=1, RotateBatches=1, RotateBatchStride;
-    size_t * RotateSizes;
+    size_t ref, ExtraBatch=1, ExtraBatchStride=1;
+    SizeND mySize,DirYesND;
     struct cudaDeviceProp prop;
     int * dirYes=NULL;
     int myDirYes[CUDA_MAXDIM];
@@ -3307,7 +3278,6 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     /* Execute FFT on device */
     ref=getCudaRefNum(prhs[1]);
 
-
     //int ret=CUDAarr_times_const_rotate(getCudaRef(prhs[1]),cuda_array_FTscale[free_array],getCudaRef(prhs[1]),cuda_array_size[free_array],cuda_array_dim[free_array]); // inplace operation, treats complex as doubles
     if (isComplexType(ref))
         newarr=cloneArray(prhs[1]);
@@ -3315,12 +3285,14 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
         newarr=copyToCpx(prhs[1]);
     
     mode=mxGetScalar(prhs[2]);
+    dirYes=& myDirYes[0];
+    myDim = cuda_array_dim[free_array];
+    mySize = getSizeFromVec(cuda_array_size[free_array],myDim);
     if (nrhs > 3) {  // four arguments including a dirYes vector
             sv = mxGetDimensions(prhs[3]);       
             // if (sv[1] != cuda_array_dim[ref] || sv[0] != 1) mexErrMsgTxt("cuda: fft needs dirYes vector to be of the same size as the number of dimensions in the array\n");
             if (sv[0] != 1) mexErrMsgTxt("cuda: fft needs dirYes vector to be oriented correctly\n");
             transvec = mxGetPr(prhs[3]); // get pointer to vector data
-            dirYes=& myDirYes[0];
             // Dbg_printf4("Transform direction (transvec) Vector: %gx%gx%g \n", transvec[0],transvec[1],transvec[2]);
             for (n=0;n<CUDA_MAXDIM;n++)
                 if (n < sv[1])
@@ -3328,41 +3300,44 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
                 else
                      dirYes[n]=0;  // all other dimenstions are not transformed
             Dbg_printf5("Transform direction (dirYes) Vector: %dx%dx%dx%d \n", dirYes[0],dirYes[1],dirYes[2],dirYes[3]);      
+    } else {
+            for (n=0;n<CUDA_MAXDIM;n++)
+                if (n < myDim)
+                     dirYes[n]=1.0;  
+                else
+                     dirYes[n]=0;  
     }
         
-    myPlan=CreateFFTPlan(free_array,CUFFT_C2C, dirYes, & FTScale, & ExtraBatch, & ExtraBatchStride, & RotateSizes, & RotateDim, & RotateBatches, & RotateBatchStride);
+    myPlan=CreateFFTPlan(free_array,CUFFT_C2C, dirYes, & FTScale, & ExtraBatch, & ExtraBatchStride);
     if (myPlan == 0) {
         mexErrMsgTxt("cuda: fft plan creation failed\n");
         return;
     }        
     ret=0;
-    
+   
+   DirYesND = getSizeFromIntVec(myDirYes,myDim);
    // printf("Mode %g Size1 %d Size2 %d Dim %d\n",mode,cuda_array_size[free_array][0],cuda_array_size[free_array][1],cuda_array_dim[free_array]);
+   if (fabs(mode) > 1.0) 
+        ret=CUDAarr_times_const_rotate(newarr,1,newarr,mySize,DirYesND,myDim,1,-1); // inplace operation, treats complex as doubles
    if (mode > 0) {
         for (eb=0;eb<ExtraBatch;eb++) {  // only for the case where the FFT Plan cannot cover all batches (e.g. transforming along [0 1 0])
             startAdress = ((cufftComplex *) newarr)+eb*ExtraBatchStride;
-            if (fabs(mode) > 1.0) 
-                for (b=0;b<RotateBatches;b++)
-                    ret=CUDAarr_times_const_rotate((float *) (startAdress+b*RotateBatchStride),1,(float *) (startAdress+b*RotateBatchStride),RotateSizes,RotateDim,1,-1); // inplace operation, treats complex as doubles
                 status=cufftExecC2C(myPlan, startAdress, startAdress,CUFFT_FORWARD);
                 if (status != CUFFT_SUCCESS) {printf("Error %s\n",ERROR_NAMES[status]);mexErrMsgTxt("cuda: Error complex to complex FFT failed\n");return;}
-                if (fabs(mode) > 1.0)
-                for (b=0;b<RotateBatches;b++)
-                    ret=CUDAarr_times_const_rotate((float *) (startAdress+b*RotateBatchStride),FTScale,(float *) (startAdress+b*RotateBatchStride),RotateSizes,RotateDim,1,1); // inplace operation, treats complex as doubles
         }
+   if (fabs(mode) > 1.0)
+       ret=CUDAarr_times_const_rotate(newarr,FTScale,newarr,mySize,DirYesND,myDim,1,1); // inplace operation, treats complex as doubles
     }
     else {
+        if (fabs(mode) > 1.0) 
+           ret=CUDAarr_times_const_rotate(newarr,1,newarr,mySize,DirYesND,myDim,1,-1); // inplace operation, treats complex as doubles
         for (eb=0;eb<ExtraBatch;eb++) {  // only for the case where the FFT Plan cannot cover all batches (e.g. transforming along [0 1 0])
             startAdress = ((cufftComplex *) newarr)+eb*ExtraBatchStride;
-            if (fabs(mode) > 1.0) 
-                for (b=0;b<RotateBatches;b++)
-                    ret=CUDAarr_times_const_rotate((float *) (startAdress+b*RotateBatchStride),1,(float *) (startAdress+b*RotateBatchStride),RotateSizes,RotateDim,1,-1);
             status=cufftExecC2C(myPlan, startAdress, startAdress ,CUFFT_INVERSE);
             if (status != CUFFT_SUCCESS) {printf("Error %s\n",ERROR_NAMES[status]);mexErrMsgTxt("cuda: Error inverse complex to complex FFT failed\n");return;}
-            if (fabs(mode) > 1.0)
-                for (b=0;b<RotateBatches;b++)
-                  ret=CUDAarr_times_const_rotate((float *) (startAdress+b*RotateBatchStride),FTScale,(float *) (startAdress+b*RotateBatchStride),RotateSizes,RotateDim,1,1); 
         }
+        if (fabs(mode) > 1.0)
+            ret=CUDAarr_times_const_rotate(newarr,FTScale,newarr,mySize,DirYesND,myDim,1,1); // inplace operation, treats complex as doubles
     }
         // CUDAarr_times_const_scramble(newarr,cuda_array_FTscale[free_array],newarr,cuda_array_size[free_array],cuda_array_dim[free_array]); // inplace operation, treats complex as doubles
     cudaGetDevice(&dev);
@@ -3389,7 +3364,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     /* Execute FFT on device */
     ref=getCudaRefNum(prhs[1]);
     mode=mxGetScalar(prhs[2]);  // 1: sqrt scaling, 2: no scaling
-    myPlan=CreateFFTPlan(ref,CUFFT_R2C, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    myPlan=CreateFFTPlan(ref,CUFFT_R2C, NULL, NULL, NULL, NULL);
 
     //ReduceToHalfComplex(ref); // restore its size
     mydim=cuda_array_dim[ref];
@@ -3462,7 +3437,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     if (mydim == 3)
     {   size3d=cuda_array_size[ref][0]*cuda_array_size[ref][1]*cuda_array_size[ref][2]; dstsize3d=cuda_array_size[free_array][0]*cuda_array_size[free_array][1]*cuda_array_size[free_array][2];}
 
-    myPlan=CreateFFTPlan(free_array,CUFFT_C2R, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);  // use the sizes of the new array for the plan
+    myPlan=CreateFFTPlan(free_array,CUFFT_C2R, NULL, NULL, NULL, NULL);  // use the sizes of the new array for the plan
     Dbg_printf3("rfft newarr has size %d %d\n",cuda_array_size[free_array][0],cuda_array_size[free_array][1]);
 
     for (dststart=newarr,srcstart=(cufftComplex *) getCudaRef(prhs[1]);srcstart<((cufftComplex *) getCudaRef(prhs[1]))+getTotalSizeFromRefNum(ref);srcstart += size3d,dststart+=dstsize3d)
