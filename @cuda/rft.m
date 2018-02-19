@@ -19,7 +19,7 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-function out=rft(in)  % Attention! The size must be even. If not, the back transform will yield a different size
+function out=rft(in,transformDirs)  % Attention! The size must be even. If not, the back transform will yield a different size
 out=cuda();
 if isa(in,'cuda') 
     isDip=in.fromDip;
@@ -37,9 +37,21 @@ if isa(in,'cuda')
             error('Cuda rft function only accepts even size along dim 1/2 (matlab/dipImage), as the rift of the result would yield a different size');
         end
         if isDip 
-            out.ref=cuda_cuda('rfft3d',in.ref,1.0);  % 1.0: sqrt scaling.
-        else
-            out.ref=cuda_cuda('rfft3d',in.ref,0.0);  % 0.0: no scaling.
+            if nargin < 2
+                out.ref=cuda_cuda('rfftnd',in.ref,1.0);  % 1.0: sqrt scaling.
+            else
+                transformDirs2=transformDirs;
+                if numel(transformDirs) > 1
+                    tmp=transformDirs2(1);transformDirs2(1)=transformDirs2(2);transformDirs2(2)=tmp;
+                end
+                out.ref=cuda_cuda('rfftnd',in.ref,1.0,transformDirs2);  % 1.0: sqrt scaling.
+            end
+       else
+            if nargin < 2
+                out.ref=cuda_cuda('rfftnd',in.ref,0.0);  % 0.0: no scaling.
+            else
+                out.ref=cuda_cuda('rfftnd',in.ref,0.0,transformDirs);  % 1.0: sqrt scaling.                
+            end
         end
         out.fromDip=in.fromDip;
         %if ~isDip

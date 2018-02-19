@@ -27,17 +27,10 @@ if isa(in,'cuda')
     end
     insize=size(in);
     dims=length(insize);
-    if dims>1
-        %totalsize=prod(insize);   % this code treats the whole 2d array as a single one-d array. Not useful here.
-        %cuda_cuda('setSize',in.ref,totalsize);
-        %out.ref=cuda_cuda('fft3d',in.ref,1);
-        %cuda_cuda('setSize',in.ref,insize);
-        %cuda_cuda('setSize',out.ref,insize);
-        error('Column-only ifft for matlab type data not implemented yet. Did you want to use fft2 for 2d ffts?');
-    else
-        out.ref=cuda_cuda('fft3d',in.ref,-1);
-    end
+    myDirYes = zeros(1,ndims(in));
+    myDirYes(firstNonSingleton(in))=1;
+    out.ref=cuda_cuda('fftnd',in.ref,-1,myDirYes);
 else
-error('ifft: Unsupported datatype');
+    error('ifft: Unsupported datatype');
 end
 out.fromDip=in.fromDip;

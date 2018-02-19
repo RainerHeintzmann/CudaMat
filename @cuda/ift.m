@@ -22,7 +22,7 @@
 function out=ift(in)
 out=cuda();
 if isa(in,'cuda') 
-    out.ref=cuda_cuda('fft3d',in.ref,-2);  % inverse
+    out.ref=cuda_cuda('fftnd',in.ref,-2);  % inverse
 else
 error('fft: Unsupported datatype');
 end

@@ -30,7 +30,7 @@ if isa(in,'cuda')
     if dims>2
         error('ifft2 for higher dimension data not implemented. Did you want to use ifftn for 3d ffts?');
     else
-        out.ref=cuda_cuda('fft3d',in.ref,-1);
+        out.ref=cuda_cuda('fftnd',in.ref,-1);
     end
 else
     error('ifft2: Unsupported datatype');

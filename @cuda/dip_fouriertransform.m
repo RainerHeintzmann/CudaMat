@@ -66,7 +66,7 @@ tmp=transformdir(2);transformdir(2)=transformdir(1);transformdir(1)=tmp;  % To d
 
 out=cuda();
 if isa(in,'cuda')
-    out.ref=cuda_cuda('fft3d',in.ref,mode,double(transformdir));  % double cast is very important here. Otherwise datatype does not match
+    out.ref=cuda_cuda('fftnd',in.ref,mode,double(transformdir));  % double cast is very important here. Otherwise datatype does not match
 else
     error('fft: Unsupported datatype');
 end
