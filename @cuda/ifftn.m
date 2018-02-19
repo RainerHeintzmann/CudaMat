@@ -20,7 +20,12 @@
 %**************************************************************************
 %
 
-function out=ifftn(in)
+function out=ifftn(in,varargin)
+if numel(varargin) > 1
+    if isdouble(varargin(1))
+        error('cuda ifftn: cropping to size vector currently not supported.')
+    end
+end
 out=cuda();
 if isa(in,'cuda') 
     if in.fromDip
@@ -31,7 +36,7 @@ if isa(in,'cuda')
     if dims>3 && prod(insize(4:end)) > 1
         error('ifftn is only implemented up to 3D in CudaMat');
     else
-        out.ref=cuda_cuda('fft3d',in.ref,-1);
+        out.ref=cuda_cuda('fftnd',in.ref,-1);
     end
 else
     error('ifftn: Unsupported datatype');
@@ -39,3 +44,9 @@ end
 out.fromDip=in.fromDip;
 
 out = out / prod(insize);   % This is a special Matlab feature...
+
+for n=1:numel(varargin)
+    if (ischar(varargin(n)) && strcmp(varargin(1),'symmetric'))
+        out=real(out);  % force real output
+    end
+end

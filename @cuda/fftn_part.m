@@ -1,4 +1,6 @@
-% rift(in) DipImage style inverse Fourier transforms cuda dat (up to 3D), but only half-comlex and not unscambled. For speed reasons.
+% fftn_part(in, transformDirs) : n-dimensional Fourier transform along selected dimensions
+% see also: 
+% dip_fouriertransform
 
 %************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
@@ -19,38 +21,19 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-function out=rift(in, transformDirs)
+
+function out=fftn_part(in,transformDirs)
 out=cuda();
 if isa(in,'cuda') 
-    isDip=in.fromDip;
-    %if ~isDip
-    %    in=dip_image(in);
-    %end
-    if strcmp(datatype(in),'scomplex')
-        if isDip 
-            if nargin < 2
-                out.ref=cuda_cuda('rifftnd',in.ref,1.0);  % 1.0: sqrt scaling.
-            else
-                transformDirs2=transformDirs;
-                if numel(transformDirs) > 1
-                    tmp=transformDirs2(1);transformDirs2(1)=transformDirs2(2);transformDirs2(2)=tmp;
-                end
-                out.ref=cuda_cuda('rifftnd',in.ref,1.0,transformDirs2);  % 1.0: sqrt scaling.
-            end
-       else
-            if nargin < 2
-                out.ref=cuda_cuda('rifftnd',in.ref,0.0);  % 0.0: no scaling.
-            else
-                out.ref=cuda_cuda('rifftnd',in.ref,0.0,transformDirs);  % 1.0: sqrt scaling.                
-            end
-        end
-    else
-      error('Error using rift. Datatype needs to be scomplex');
+    if in.fromDip
+        error('fftn_part: Not used for datatype DipImage. Use ft or dip_fouriertransform instead!');
     end
-    out.fromDip=in.fromDip;
-    %if ~isDip
-    %    out=double(out);
-    %end
+    insize=size(in);
+    if numel(insize) ~= numel(transformDirs)
+        error('fftn_part needs a transformDirection of equal size as dimensions of the input')
+    end
+    out.ref=cuda_cuda('fftnd',in.ref,1,transformDirs);
 else
-    error('rift: Unsupported datatype');
+    error('fftn: Unsupported datatype');
 end
+out.fromDip=in.fromDip;

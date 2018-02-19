@@ -28,7 +28,7 @@ if isa(in,'cuda')
     end
     myDirYes = zeros(1,ndims(in));
     myDirYes(firstNonSingleton(in))=1;
-    out.ref=cuda_cuda('fft3d',in.ref,1,myDirYes);
+    out.ref=cuda_cuda('fftnd',in.ref,1,myDirYes);
 else
     error('fft: Unsupported datatype');
 end

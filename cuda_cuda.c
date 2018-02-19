@@ -724,6 +724,13 @@ static const char * CUDA_TYPE_NAMES[]={
     "" // needed to stop the search
 };
 
+static const char * CUDA_PLAN_NAMES[]={  // indexed by plantype
+     "CUFFT_R2C",
+     "CUFFT_C2R",
+     "CUFFT_C2C",
+     "" 
+};
+
 static int showwarning=1;  // defines whether a warning/error message will be shown when a wrong object is deleted and another one was primed for (protected) deletion
 
 static int CUDA_TYPE_SIZE[]={
@@ -1024,16 +1031,16 @@ void PrintMemoryOverview() {
                 {
                  if (cuda_FFTplan_dirYes[n][0] == -1) {
                     if (cuda_FFTplan_ndims[n]==1)
-                       printf("Full 1D plan no. %d, Size: %d \n",n,cuda_FFTplan_sizes[n][0]);
+                       printf("Full 1D plan no. %d, Size: %d, Type %s \n",n,cuda_FFTplan_sizes[n][0],CUDA_PLAN_NAMES[cuda_FFTplan_plantype[n]]);
                     else if (cuda_FFTplan_ndims[n]==2)
-                       printf("Full 2D plan no. %d Size: %d x %d\n",n,cuda_FFTplan_sizes[n][0],cuda_FFTplan_sizes[n][1]);
+                       printf("Full 2D plan no. %d Size: %d x %d, Type %s\n",n,cuda_FFTplan_sizes[n][0],cuda_FFTplan_sizes[n][1],CUDA_PLAN_NAMES[cuda_FFTplan_plantype[n]]);
                    else if (cuda_FFTplan_ndims[n]==3)
-                      printf("Full 3D plan no. %d Size: %d x %d x %d\n",n,cuda_FFTplan_sizes[n][0],cuda_FFTplan_sizes[n][1],cuda_FFTplan_sizes[n][2]);
+                      printf("Full 3D plan no. %d Size: %d x %d x %d, Type %s\n",n,cuda_FFTplan_sizes[n][0],cuda_FFTplan_sizes[n][1],cuda_FFTplan_sizes[n][2],CUDA_PLAN_NAMES[cuda_FFTplan_plantype[n]]);
                    else
                        printf("FFT plan no. %d of unknown dimensions!!\n",n);
                   }
                  else // partial transform plan
-                        printf("Partial transform plan no. %d, transform dim: %d, Size: %d x %d x %d x %d x %d, transforming [%dx%dx%dx%dx%d], extra batch %d, extra batch stride %d\n",n,cuda_FFTplan_ndims[n],cuda_FFTplan_sizes[n][0],cuda_FFTplan_sizes[n][1],cuda_FFTplan_sizes[n][2],cuda_FFTplan_sizes[n][3],cuda_FFTplan_sizes[n][4],cuda_FFTplan_dirYes[n][0],cuda_FFTplan_dirYes[n][1],cuda_FFTplan_dirYes[n][2],cuda_FFTplan_dirYes[n][3],cuda_FFTplan_dirYes[n][4], cuda_FFTplan_extraBatch[n], cuda_FFTplan_extraBatchStride[n]);
+                        printf("Partial transform %s plan no. %d, transform dim: %d, Size: %d x %d x %d x %d x %d, transforming [%dx%dx%dx%dx%d], extra batch %d, extra batch stride %d\n",CUDA_PLAN_NAMES[cuda_FFTplan_plantype[n]],n,cuda_FFTplan_ndims[n],cuda_FFTplan_sizes[n][0],cuda_FFTplan_sizes[n][1],cuda_FFTplan_sizes[n][2],cuda_FFTplan_sizes[n][3],cuda_FFTplan_sizes[n][4],cuda_FFTplan_dirYes[n][0],cuda_FFTplan_dirYes[n][1],cuda_FFTplan_dirYes[n][2],cuda_FFTplan_dirYes[n][3],cuda_FFTplan_dirYes[n][4], cuda_FFTplan_extraBatch[n], cuda_FFTplan_extraBatchStride[n]);
                  }
     printf("----------------------------------------------------------------------------------\n");
     printf("Summary: Memory used %.7g GB, Heap %.7g GB, Total used %.7g GB, Allocated %.7g GB, Total: %.7g GB, Free %.7g GB\n",sumMem/1.0E9,sumHeap/1.0E9,(sumMem+sumHeap)/1.0E9,SumAllocated/1.0E9,GetDeviceProp().totalGlobalMem/1.0E9,(GetDeviceProp().totalGlobalMem - SumAllocated)/1.0E9);
@@ -1759,13 +1766,13 @@ cufftComplex cudaGetCVal(float * p_cuda_data) {    // gets a single value from a
 cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScale, size_t * extraBatches, size_t * extraBatchStride) {    // returns the correct plan to use, or creates a new plan and in FTScale calculates the correct scaling factor
      cufftResult status=0;
      static int triedOnce=0;
-     int numdims=cuda_array_dim[ref];
+     int numdims=cuda_array_dim[ref];  // ref always refers to the full sized array even for half complex transforms
      int plantypenum=0;
      int n=0,d=0;
      int p=MAX_FFTPLANS-1;
-     int matched=1;
+     int matched=1,FirstTransDim=-1;
      
-     size_t istride=1; size_t idist=1;
+     size_t istride=1, idist=1, ostride=1,odist=1;
      int yesdim=0;
      // int ostride=1, int odist; 
      int batch=1;  // how many times to repeat the transform
@@ -1773,7 +1780,8 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
      int batchstarted=0;  // did a cuda-internal batch initiate?
      int tdims=0;
      int TransformSizes[CUDA_MAXDIM];  // maximal number of dimensions. Unfortunately Cuda FFT does not seem to support larger sizes  ?!?!
-     int TransformStorageSizes[CUDA_MAXDIM];  // maximal number of dimensions
+     int TransformSrcStorageSizes[CUDA_MAXDIM];  // maximal number of dimensions
+     int TransformDstStorageSizes[CUDA_MAXDIM];  // maximal number of dimensions
      size_t AllSizes=1;
 
      if (PlanType == CUFFT_R2C) plantypenum=0;
@@ -1786,9 +1794,9 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
      if (FTScale != NULL) {
          (* FTScale)=1.0f;
          for (n=0;n<numdims;n++) // CUDA_MAXDIM
-             if (dirYes == NULL || dirYes[n] == 1) 
+             if (dirYes == NULL || dirYes[n] == 1 || dirYes[0] == -1) 
                   (* FTScale) *= cuda_array_size[ref][n];
-         (* FTScale) = (float) (1.0/sqrt(FTScale[0]));
+         (* FTScale) = (float) (1.0/FTScale[0]);
         Dbg_printf2("FTScale is %g \n",FTScale[0]);
      }
      if (extraBatches != NULL)
@@ -1796,7 +1804,7 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
      if (extraBatchStride != NULL)
          (* extraBatchStride) = 0;
      
-     Dbg_printf4("Creating/Looking for Plan. ref: %d dim: %d, type: %d\n",ref,numdims,plantypenum);
+     Dbg_printf5("Creating/Looking for Plan. ref: %d dim: %d, type: %d, %s\n",ref,numdims,plantypenum,CUDA_PLAN_NAMES[plantypenum]);
 
      for (n=0;n<MAX_FFTPLANS;n++) {
          if (cuda_FFTplan_ndims[n] == numdims)  {
@@ -1818,7 +1826,7 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
          if (cuda_FFTplans[n] == 0)  //  found a free plan, which has to be created
          {Dbg_printf2("Found a free plan no. %d to use!\n",n);
           p=n;n=MAX_FFTPLANS;break;}
-     }   // for loop
+     }   // for loop searching for an existing plan
                 
      if (cuda_FFTplans[p] != 0) {
          cufftDestroy(cuda_FFTplans[p]); // for now. Later: keep this plan and have one for forward and one for backward direction
@@ -1845,54 +1853,68 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
      if (extraBatchStride != NULL)
          (* extraBatchStride) = cuda_FFTplan_extraBatchStride[p];
      
-     if (dirYes == NULL) {  // p contains the plan number to use     Here: create a full transform plan
+     if (dirYes == NULL || dirYes[0]==-1) {  // p contains the plan number to use     Here: create a full transform plan
          switch (numdims) {
              case 1:
-                Dbg_printf3("creating 1D-plan with sizes : %d of type %s\n",cuda_array_size[ref][0],CUDA_TYPE_NAMES[cuda_array_type[ref]]);
-                status=cufftPlan1d(&cuda_FFTplans[p], (int) cuda_array_size[ref][0],PlanType,1);   
-                break;
+               Dbg_printf3("creating 1D-plan with sizes : %d of type %s\n",cuda_array_size[ref][0],CUDA_TYPE_NAMES[cuda_array_type[ref]]);
+               status=cufftPlan1d(&cuda_FFTplans[p], (int) cuda_array_size[ref][0],PlanType,1);   
+               break;
              case 2:
                Dbg_printf4("creating 2D-plan with sizes : %dx%d of type %s\n",cuda_array_size[ref][0],cuda_array_size[ref][1],CUDA_TYPE_NAMES[cuda_array_type[ref]]);
-                status=cufftPlan2d(&cuda_FFTplans[p], (int) cuda_array_size[ref][1], (int) cuda_array_size[ref][0], PlanType);
+               status=cufftPlan2d(&cuda_FFTplans[p], (int) cuda_array_size[ref][1], (int) cuda_array_size[ref][0], PlanType);
                break;
              case 3:
                 Dbg_printf5("creating 3D-plan with sizes : %dx%dx%d of type %s\n",cuda_array_size[ref][0],cuda_array_size[ref][1],cuda_array_size[ref][2],CUDA_TYPE_NAMES[cuda_array_type[ref]]);
-              status=cufftPlan3d(&cuda_FFTplans[p], (int) cuda_array_size[ref][2], (int) cuda_array_size[ref][1], (int) cuda_array_size[ref][0], PlanType);
-              break;
+                status=cufftPlan3d(&cuda_FFTplans[p], (int) cuda_array_size[ref][2], (int) cuda_array_size[ref][1], (int) cuda_array_size[ref][0], PlanType);
+               break;
              default:
-              mexErrMsgTxt("Unsupported dimensions for FFT plan\n");
+                mexErrMsgTxt("Unsupported dimensions for FFT plan\n");
               return 0;
      } }
      else  // user supplied information about which directions to transform: Partial transform plans
     {
         tdims=0;
+        FirstTransDim=-1;
         for (n=0;n<CUDA_MAXDIM;n++) { // CUDA_MAXDIM
+            if ((dirYes[n]!=0) && (FirstTransDim < 0)) FirstTransDim=n; 
             tdims += (dirYes[n]>0);  // count how many dimensions need to be transformed in total
             if (n >= numdims) { // numdims corresponds to dimension number of this array
                 cuda_array_size[ref][n]=1;  // to fix unassigned sizes in the cuda_array
             }
             TransformSizes[n]=1;
-            TransformStorageSizes[n]=1;
+            TransformSrcStorageSizes[n]=1;
+            TransformDstStorageSizes[n]=1;
         }
+        if (FirstTransDim < 0)
+        {mexErrMsgTxt("FFT Plan without a Fourier-transformation direction"); return 0;}
 
         yesdim=tdims-1;  // couting backwards
-        istride=1;
-        idist=1;
         batchused=0;
         batchstarted = 0;
         if (tdims > 3)
             { mexErrMsgTxt("cuda: FFT Error. The maximally allowed number of dimensions to transform is 3.\n"); return 0;}
 
         AllSizes = 1;
-        for (n=0;n<CUDA_MAXDIM;n++) { // CUDA_MAXDIM            // The code below converts the DirYes information into strides to use for the plan creation
-            if (dirYes[n]) // this dimension is transformed
+        for (n=0;n<numdims;n++) { // CUDA_MAXDIM            // The code below converts the DirYes information into strides to use for the plan creation
+            if (dirYes[n] && cuda_array_size[ref][n] > 1) // this dimension is transformed
             {
-                TransformStorageSizes[yesdim]=(int) cuda_array_size[ref][n];  // unfortunately Cuda FFT does not support 64 bit sizes 
+                Dbg_printf3("Branch with a transformed dimension n %d, yesdim %d\n",n,yesdim);
+                if (batchstarted)
+                    batchused=1;
+                    
                 TransformSizes[yesdim]=(int) cuda_array_size[ref][n];
-                yesdim -= 1;
+                TransformSrcStorageSizes[yesdim]=(int) cuda_array_size[ref][n];  // unfortunately Cuda FFT does not support 64 bit sizes 
+                TransformDstStorageSizes[yesdim]=(int) cuda_array_size[ref][n];  // unfortunately Cuda FFT does not support 64 bit sizes 
+                if (n==FirstTransDim)
+                    if (PlanType == CUFFT_C2R)
+                        TransformSrcStorageSizes[yesdim] = TransformSrcStorageSizes[yesdim]/2+1; 
+                    else if (PlanType == CUFFT_R2C)
+                        TransformDstStorageSizes[yesdim] = TransformDstStorageSizes[yesdim]/2+1; 
                 if (batchused==0 && batchstarted==0) {
-                    idist *= cuda_array_size[ref][n];  // increase the distance to the next start of the FFT in case that zeros follow
+                    idist *= TransformSrcStorageSizes[yesdim];  // increase the distance to the next start of the FFT in case that zeros follow
+                    odist *= TransformDstStorageSizes[yesdim];  // increase the distance to the next start of the FFT in case that zeros follow
                 }
+                yesdim -= 1;
                 if ((batchused || batchstarted) && ((numdims-1 > 2 && cuda_FFTplan_extraBatch[p] != 1) || tdims > 2))  {  //  || (numdims-1 < 2 && cuda_FFTplan_extraBatch[p][numdims-1] != 1))
                     Dbg_printf2("Problem with dirYes[%d]\n",n);
                     mexErrMsgTxt("cuda: FFT Error this particular combination of transform directions is not supported in cuda.\n");
@@ -1902,7 +1924,9 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
             } else {  // this dimension is not transformed
                 if (yesdim == tdims-1) { // there was no yes before
                     idist = 1;  // This is the innermost dimension to apply the batch processing to
+                    odist = 1;  // This is the innermost dimension to apply the batch processing to
                     istride *= cuda_array_size[ref][n]; // increase the stepsize to the next datapoint belonging to the same FFT
+                    ostride *= cuda_array_size[ref][n]; // increase the stepsize to the next datapoint belonging to the same FFT
                     batch *= (int) cuda_array_size[ref][n]; 
                     AllSizes *= cuda_array_size[ref][n];
                     batchused=1; }
@@ -1913,8 +1937,10 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
                         // mexErrMsgTxt("cuda: FFT Error this particular combination of transform directions [0 1 0] (matlab notation) is not supported in cuda.\n");
                     }
                     else {
+                        Dbg_printf3("Branch with following not transformed dimension n %d, yesdim %d\n",n,yesdim);
                         batch *= (int) cuda_array_size[ref][n];   // these are all trailing zeros, which should be batched alltogether
-                        TransformStorageSizes[yesdim+1] *= (int) cuda_array_size[ref][n]; // just needed for the adressing. Make the previous Yes-Dim Include this size when jumping
+                        TransformSrcStorageSizes[yesdim+1] *= (int) cuda_array_size[ref][n]; // [yesdim+1] just needed for the adressing. Make the previous Yes-Dim Include this size when jumping
+                        TransformDstStorageSizes[yesdim+1] *= (int) cuda_array_size[ref][n]; // [yesdim+1] just needed for the adressing. Make the previous Yes-Dim Include this size when jumping
                         // Note that TransformSizes are not changed here
                         AllSizes *= cuda_array_size[ref][n];
                         batchstarted = 1;
@@ -1927,26 +1953,22 @@ cufftHandle CreateFFTPlan(size_t ref, int PlanType, int * dirYes, float * FTScal
                 cuda_FFTplan_dirYes[p][n] = 1; 
             else
                 cuda_FFTplan_dirYes[p][n] = dirYes[n]; 
-        }
-         //else {
-         //   cuda_FFTplan_dirYes[p][n] = 0;
-         //   cuda_FFTplan_sizes[p][n] = 1; }
-         //}
+        }  // end of for loop through the dimensions
+
         Dbg_printf5("creating partial transform plan with sizes: %dx%dx%d of type %s\n",cuda_array_size[ref][0],cuda_array_size[ref][1],cuda_array_size[ref][2],CUDA_TYPE_NAMES[cuda_array_type[ref]]);
         if (dirYes != NULL)
             {Dbg_printf4("Transform direction (dirYes) Vector: %dx%dx%d \n", dirYes[0],dirYes[1],dirYes[2]);}
-// cufftPlanMany(cufftHandle *plan, int rank, int *n, int *inembed, int istride, int idist, int *onembed, int ostride, int odist, cufftType type, int batch);
         Dbg_printf7("tdims: %d, TransformSizes: %dx%dx%d,istride %d, idist: %d \n", tdims,TransformSizes[0],TransformSizes[1],TransformSizes[2],istride,idist);
-        Dbg_printf7("tdims: %d, TransformStorageSizes: %dx%dx%d,istride %d, idist: %d \n", tdims,TransformStorageSizes[0],TransformStorageSizes[1],TransformStorageSizes[2],istride,idist);
-        Dbg_printf2("batch: %d\n", batch);
-        Dbg_printf2("Extra batches: %d\n", cuda_FFTplan_extraBatch[p]);
+        Dbg_printf7("tdims: %d, TransformSrcStorageSizes: %dx%dx%d,istride %d, idist: %d \n", tdims,TransformSrcStorageSizes[0],TransformSrcStorageSizes[1],TransformSrcStorageSizes[2],istride,idist);
+        Dbg_printf7("tdims: %d, TransformDstStorageSizes: %dx%dx%d,ostride %d, odist: %d \n", tdims,TransformDstStorageSizes[0],TransformDstStorageSizes[1],TransformDstStorageSizes[2],ostride,odist);
+        Dbg_printf2("number of immediate batches: %d\n", batch);
+        Dbg_printf2("FFT calls (external batches): %d\n", cuda_FFTplan_extraBatch[p]);
         if (extraBatches != NULL)
             (* extraBatches) = cuda_FFTplan_extraBatch[p];
         if (extraBatchStride != NULL)
             (* extraBatchStride) = cuda_FFTplan_extraBatchStride[p];
 
-        // mexErrMsgTxt("cuda: Stop here.");
-        status=cufftPlanMany(&cuda_FFTplans[p], (int) tdims, TransformSizes, TransformStorageSizes, (int) istride, (int) idist, TransformStorageSizes, (int) istride, (int) idist, PlanType, batch);
+        status=cufftPlanMany(&cuda_FFTplans[p], (int) tdims, TransformSizes, TransformSrcStorageSizes, (int) istride, (int) idist, TransformDstStorageSizes, (int) ostride, (int) odist, PlanType, batch);
     }
  
      if (status != CUFFT_SUCCESS) {
@@ -3253,8 +3275,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
    Dbg_printf("cuda: fftshift\n");
   }
-  
-  else if (strcmp(command,"fft3d")==0) { // ----------------- carray to carray. Last argument: 1= forward, -1=backward, 2=forward, scramble and scale, -2=backward, scramble & scale
+    else if (strcmp(command,"fftnd")==0) { // ----------------- carray to carray. Last argument: 1= forward, -1=backward, 2=forward, scramble and scale, -2=backward, scramble & scale
     float * newarr=0;
     float FTScale;
     int ret,n, dev=0, eb=0, b, myDim=1; 
@@ -3262,7 +3283,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     size_t ref, ExtraBatch=1, ExtraBatchStride=1;
     SizeND mySize,DirYesND;
     struct cudaDeviceProp prop;
-    int * dirYes=NULL;
+    // int * dirYes=NULL;
     int myDirYes[CUDA_MAXDIM];
     const mwSize * sv;
     const double * transvec;
@@ -3285,7 +3306,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
         newarr=copyToCpx(prhs[1]);
     
     mode=mxGetScalar(prhs[2]);
-    dirYes=& myDirYes[0];
+    // dirYes=& myDirYes[0];
     myDim = cuda_array_dim[free_array];
     mySize = getSizeFromVec(cuda_array_size[free_array],myDim);
     if (nrhs > 3) {  // four arguments including a dirYes vector
@@ -3296,19 +3317,19 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
             // Dbg_printf4("Transform direction (transvec) Vector: %gx%gx%g \n", transvec[0],transvec[1],transvec[2]);
             for (n=0;n<CUDA_MAXDIM;n++)
                 if (n < sv[1])
-                     dirYes[n]=(int) (transvec[n] > 0.5);  // copy to integer size vector
+                     myDirYes[n]=(int) (transvec[n] > 0.5);  // copy to integer size vector
                 else
-                     dirYes[n]=0;  // all other dimenstions are not transformed
-            Dbg_printf5("Transform direction (dirYes) Vector: %dx%dx%dx%d \n", dirYes[0],dirYes[1],dirYes[2],dirYes[3]);      
+                     myDirYes[n]=0;  // all other dimenstions are not transformed
+            Dbg_printf5("Transform direction (myDirYes) Vector: %dx%dx%dx%d \n", myDirYes[0],myDirYes[1],myDirYes[2],myDirYes[3]);      
     } else {
             for (n=0;n<CUDA_MAXDIM;n++)
                 if (n < myDim)
-                     dirYes[n]=1.0;  
+                     myDirYes[n]=-1;  // transform all dimensions
                 else
-                     dirYes[n]=0;  
+                     myDirYes[n]=0;  
     }
         
-    myPlan=CreateFFTPlan(free_array,CUFFT_C2C, dirYes, & FTScale, & ExtraBatch, & ExtraBatchStride);
+    myPlan=CreateFFTPlan(free_array,CUFFT_C2C, myDirYes, & FTScale, & ExtraBatch, & ExtraBatchStride);
     if (myPlan == 0) {
         mexErrMsgTxt("cuda: fft plan creation failed\n");
         return;
@@ -3318,26 +3339,27 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
    DirYesND = getSizeFromIntVec(myDirYes,myDim);
    // printf("Mode %g Size1 %d Size2 %d Dim %d\n",mode,cuda_array_size[free_array][0],cuda_array_size[free_array][1],cuda_array_dim[free_array]);
    if (fabs(mode) > 1.0) 
-        ret=CUDAarr_times_const_rotate(newarr,1,newarr,mySize,DirYesND,myDim,1,-1); // inplace operation, treats complex as doubles
+        ret=CUDAarr_times_const_rotate(newarr,1,newarr,mySize,DirYesND,myDim,1,-1); // inplace operation, treats complex as doubles. No scaling
+
    if (mode > 0) {
         for (eb=0;eb<ExtraBatch;eb++) {  // only for the case where the FFT Plan cannot cover all batches (e.g. transforming along [0 1 0])
             startAdress = ((cufftComplex *) newarr)+eb*ExtraBatchStride;
                 status=cufftExecC2C(myPlan, startAdress, startAdress,CUFFT_FORWARD);
                 if (status != CUFFT_SUCCESS) {printf("Error %s\n",ERROR_NAMES[status]);mexErrMsgTxt("cuda: Error complex to complex FFT failed\n");return;}
         }
-   if (fabs(mode) > 1.0)
-       ret=CUDAarr_times_const_rotate(newarr,FTScale,newarr,mySize,DirYesND,myDim,1,1); // inplace operation, treats complex as doubles
+        if (fabs(mode) > 1.0)
+            ret=CUDAarr_times_const_rotate(newarr,(float) sqrt(FTScale),newarr,mySize,DirYesND,myDim,1,1); // inplace operation, treats complex as doubles
     }
     else {
-        if (fabs(mode) > 1.0) 
-           ret=CUDAarr_times_const_rotate(newarr,1,newarr,mySize,DirYesND,myDim,1,-1); // inplace operation, treats complex as doubles
         for (eb=0;eb<ExtraBatch;eb++) {  // only for the case where the FFT Plan cannot cover all batches (e.g. transforming along [0 1 0])
             startAdress = ((cufftComplex *) newarr)+eb*ExtraBatchStride;
             status=cufftExecC2C(myPlan, startAdress, startAdress ,CUFFT_INVERSE);
             if (status != CUFFT_SUCCESS) {printf("Error %s\n",ERROR_NAMES[status]);mexErrMsgTxt("cuda: Error inverse complex to complex FFT failed\n");return;}
         }
         if (fabs(mode) > 1.0)
-            ret=CUDAarr_times_const_rotate(newarr,FTScale,newarr,mySize,DirYesND,myDim,1,1); // inplace operation, treats complex as doubles
+            ret=CUDAarr_times_const_rotate(newarr,(float) sqrt(FTScale),newarr,mySize,DirYesND,myDim,1,1); // inplace operation, treats complex as doubles
+        else 
+            ret=CUDAarr_times_const_rotate(newarr,(float) FTScale,newarr,mySize,DirYesND,myDim,1,0); // inplace operation, no rotion, only multiplication
     }
         // CUDAarr_times_const_scramble(newarr,cuda_array_FTscale[free_array],newarr,cuda_array_size[free_array],cuda_array_dim[free_array]); // inplace operation, treats complex as doubles
     cudaGetDevice(&dev);
@@ -3350,69 +3372,104 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
    Dbg_printf("cuda: fft3d\n");
   }
-  else if (strcmp(command,"rfft3d")==0) { // half complex fft up to 3d. Other dimensions are treated as cosecutive transforms of sub-volumes
+  else if (strcmp(command,"rfftnd")==0) { // half complex fft up to 3d. Other dimensions are treated as cosecutive transforms of sub-volumes
     float * srcstart;
+    float FTScale;
     cufftComplex * newarr, * dststart; 
-    size_t ref,size3d=0,dstsize3d=0;
-    size_t oldsize=0;
-    int mydim=0;
+    size_t ref,ExtraBatch=1, ExtraBatchStride=1,ExtraHalfStride=1,oldsize=0;
+    int mydim=0,n,eb, myDim=1, FirstTransformDir=0;
+    SizeND mySize,DirYesND;
     double mode=1.0;
     cufftResult status=0;
     cufftHandle myPlan;
+    // int * dirYes=NULL;
+    int myDirYes[CUDA_MAXDIM];
+    const mwSize * sv;
+    const double * transvec;
 
-    if (nrhs != 3) mexErrMsgTxt("cuda: rfft3d needs two arguments\n");
+    if (nrhs != 3 && nrhs != 4) mexErrMsgTxt("cuda: rfft3d needs three or four arguments\n");
     /* Execute FFT on device */
     ref=getCudaRefNum(prhs[1]);
     mode=mxGetScalar(prhs[2]);  // 1: sqrt scaling, 2: no scaling
-    myPlan=CreateFFTPlan(ref,CUFFT_R2C, NULL, NULL, NULL, NULL);
-
+    
+    // dirYes=& myDirYes[0];
+    myDim = cuda_array_dim[ref];
+    mySize = getSizeFromVec(cuda_array_size[ref],myDim);
+    if (nrhs > 3) {  // four arguments including a myDirYes vector
+            sv = mxGetDimensions(prhs[3]);       
+            // if (sv[1] != cuda_array_dim[ref] || sv[0] != 1) mexErrMsgTxt("cuda: fft needs myDirYes vector to be of the same size as the number of dimensions in the array\n");
+            if (sv[0] != 1) mexErrMsgTxt("cuda: fft needs dirYes vector to be oriented correctly\n");
+            transvec = mxGetPr(prhs[3]); // get pointer to vector data
+            // Dbg_printf4("Transform direction (transvec) Vector: %gx%gx%g \n", transvec[0],transvec[1],transvec[2]);
+            for (n=0;n<CUDA_MAXDIM;n++)
+                if (n < sv[1])
+                     myDirYes[n]=(int) (transvec[n] > 0.5);  // copy to integer size vector
+                else
+                     myDirYes[n]=0;  // all other dimenstions are not transformed
+            Dbg_printf5("Transform direction (myDirYes) Vector: %dx%dx%dx%d \n", myDirYes[0],myDirYes[1],myDirYes[2],myDirYes[3]);      
+    } else {
+            for (n=0;n<CUDA_MAXDIM;n++)
+                if (n < myDim)
+                     myDirYes[n]=-1;  // transform all dimensions
+                else
+                     myDirYes[n]=0;  
+    }
+    
+    myPlan=CreateFFTPlan(ref,CUFFT_R2C, myDirYes, & FTScale, & ExtraBatch, & ExtraBatchStride);
+    if (myPlan == 0) {
+        mexErrMsgTxt("cuda: rfft plan creation failed\n");
+        return;
+    }
+    FirstTransformDir = 0;
+    for (n=0;n<myDim;n++)
+        if (myDirYes[n]!=0 && mySize.s[n]) {FirstTransformDir=n;break;}  // find the first direction in which is transformed and which has a size>1;
+ 
+    DirYesND = getSizeFromIntVec(myDirYes,myDim);
     //ReduceToHalfComplex(ref); // restore its size
     mydim=cuda_array_dim[ref];
     if (mydim>3) mydim=3;
     
-    oldsize=cuda_array_size[ref][0];
-    //SumAllocated -= getTotalSizeFromRefNum(ref)*4;  // nasty trick to make the debug mode not bail out
-    cuda_array_size[ref][0] /= 2;cuda_array_size[ref][0] += 1;
-    //SumAllocated += getTotalSizeFromRefNum(ref)*4;
+    oldsize=cuda_array_size[ref][FirstTransformDir];
+    cuda_array_size[ref][FirstTransformDir] /= 2;cuda_array_size[ref][FirstTransformDir] += 1;
     newarr=(cufftComplex *) cudaAllocDetailed(cuda_array_dim[ref], cuda_array_size[ref], fftHalfSComplex);  // allocates the result
-    //SumAllocated -= getTotalSizeFromRefNum(ref)*4;
-    cuda_array_size[ref][0]=oldsize;
-    //SumAllocated += getTotalSizeFromRefNum(ref)*4;
+    cuda_array_size[ref][FirstTransformDir]=oldsize;
 
-    if (mydim == 1)
-    {   size3d=cuda_array_size[ref][0]; dstsize3d=cuda_array_size[free_array][0];}
-    if (mydim == 2)
-    {   size3d=cuda_array_size[ref][0]*cuda_array_size[ref][1]; dstsize3d=cuda_array_size[free_array][0]*cuda_array_size[free_array][1];}
-    if (mydim == 3)
-    {   size3d=cuda_array_size[ref][0]*cuda_array_size[ref][1]*cuda_array_size[ref][2]; dstsize3d=cuda_array_size[free_array][0]*cuda_array_size[free_array][1]*cuda_array_size[free_array][2];}
-    
+    ExtraHalfStride=ExtraBatchStride/cuda_array_size[ref][FirstTransformDir]*cuda_array_size[free_array][FirstTransformDir];
+    Dbg_printf4("Extra Batches %d Stride %d Half Stride %d\n",ExtraBatch,ExtraBatchStride,ExtraHalfStride);
+        
     Dbg_printf3("rfft newarr has size %d %d\n",cuda_array_size[free_array][0],cuda_array_size[free_array][1]);
 
-    for (dststart=newarr,srcstart=getCudaRef(prhs[1]);srcstart<getCudaRef(prhs[1])+getTotalSizeFromRefNum(ref);srcstart += size3d,dststart+=dstsize3d)
-    // (myPlan, dststart, srcstart);  // Out-of-place transform
-    {   status=cufftExecR2C(myPlan, srcstart, dststart);  // Out-of-place transform
+    for (eb=0;eb<ExtraBatch;eb++) {  // only for the case where the FFT Plan cannot cover all batches (e.g. transforming along [0 1 0])
+        srcstart = getCudaRef(prhs[1]) + eb*ExtraBatchStride;
+        dststart = ((cufftComplex *) newarr) + eb*ExtraHalfStride;
+        status=cufftExecR2C(myPlan, srcstart, dststart);  // Out-of-place transform
         if (status != CUFFT_SUCCESS) {printf("Error: %s\n",ERROR_NAMES[status]);mexErrMsgTxt("cuda: Error FFT failed\n");return;}
-    }
+        }
 
     // Multiply complex array with a constant
     if (fabs(mode) == 1.0)    // 1: sqrt scaling, 2: no scaling
-        CUDAarr_times_const((float *) newarr,(float) (1/sqrt((double) size3d)),(float *) newarr,getTotalSizeFromRefNum(free_array)*2); // inplace operation, treats complex a 2 reals
+        CUDAarr_times_const((float *) newarr,sqrt(FTScale),(float *) newarr,getTotalSizeFromRefNum(free_array)*2); // inplace operation, treats complex a 2 reals
     
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
    Dbg_printf("cuda: rfft3d\n");
  }
-  else if (strcmp(command,"rifft3d")==0) { // -----------------array + array
+  else if (strcmp(command,"rifftnd")==0) { // -----------------array + array
     float * newarr,* dststart;
+    float FTScale;
     cufftComplex * srcstart; 
-    size_t ref,size3d=0,dstsize3d=0;
-    size_t oldsize=0;
-    int mydim=0;
+    size_t ref,ExtraBatch=1, ExtraBatchStride=1,ExtraHalfStride=1,oldsize=0;
+    int mydim=0,n,eb, myDim=1, FirstTransformDir=0;
+    SizeND mySize,DirYesND;
     double mode=1.0;
     cufftResult status=0;
     cufftHandle myPlan;
+    // int * dirYes=NULL;
+    int myDirYes[CUDA_MAXDIM];
+    const mwSize * sv;
+    const double * transvec;
 
-    if (nrhs != 3) mexErrMsgTxt("cuda: rifft3d needs three arguments\n");
+    if (nrhs != 3 && nrhs != 4) mexErrMsgTxt("cuda: rifft3d needs three or four arguments\n");
     /* Execute FFT on device */
     ref=getCudaRefNum(prhs[1]);
     mode=mxGetScalar(prhs[2]);  // 1: sqrt scaling, 2: no scaling
@@ -3420,36 +3477,73 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     mydim=cuda_array_dim[ref];
     if (mydim>3) mydim=3;
 
-    //SumAllocated -= getTotalSizeFromRefNum(ref)*4;  // nasty trick to make the debug mode not bail out
-    oldsize=cuda_array_size[ref][0];
-    cuda_array_size[ref][0] -= 1;cuda_array_size[ref][0] *= 2;
-    //SumAllocated += getTotalSizeFromRefNum(ref)*4;  // nasty trick to make the debug mode not bail out
 
-    newarr=cudaAllocDetailed(cuda_array_dim[ref], cuda_array_size[ref], single);  // allocates the result array
-    //SumAllocated -= getTotalSizeFromRefNum(ref)*4;  // nasty trick to make the debug mode not bail out
-    cuda_array_size[ref][0]=oldsize;
-    //SumAllocated += getTotalSizeFromRefNum(ref)*4;  // nasty trick to make the debug mode not bail out
+//     if (mydim == 1)
+//     {   size3d=cuda_array_size[ref][0]; dstsize3d=cuda_array_size[free_array][0];}
+//     if (mydim == 2)
+//     {   size3d=cuda_array_size[ref][0]*cuda_array_size[ref][1]; dstsize3d=cuda_array_size[free_array][0]*cuda_array_size[free_array][1];}
+//     if (mydim == 3)
+//     {   size3d=cuda_array_size[ref][0]*cuda_array_size[ref][1]*cuda_array_size[ref][2]; dstsize3d=cuda_array_size[free_array][0]*cuda_array_size[free_array][1]*cuda_array_size[free_array][2];}
 
-    if (mydim == 1)
-    {   size3d=cuda_array_size[ref][0]; dstsize3d=cuda_array_size[free_array][0];}
-    if (mydim == 2)
-    {   size3d=cuda_array_size[ref][0]*cuda_array_size[ref][1]; dstsize3d=cuda_array_size[free_array][0]*cuda_array_size[free_array][1];}
-    if (mydim == 3)
-    {   size3d=cuda_array_size[ref][0]*cuda_array_size[ref][1]*cuda_array_size[ref][2]; dstsize3d=cuda_array_size[free_array][0]*cuda_array_size[free_array][1]*cuda_array_size[free_array][2];}
-
-    myPlan=CreateFFTPlan(free_array,CUFFT_C2R, NULL, NULL, NULL, NULL);  // use the sizes of the new array for the plan
-    Dbg_printf3("rfft newarr has size %d %d\n",cuda_array_size[free_array][0],cuda_array_size[free_array][1]);
-
-    for (dststart=newarr,srcstart=(cufftComplex *) getCudaRef(prhs[1]);srcstart<((cufftComplex *) getCudaRef(prhs[1]))+getTotalSizeFromRefNum(ref);srcstart += size3d,dststart+=dstsize3d)
-    {   status=cufftExecC2R(myPlan, srcstart, dststart);  // Out-of-place transform  (cufftComplex *) 
-        if (status != CUFFT_SUCCESS) {printf("Error: %s\n",ERROR_NAMES[status]);mexErrMsgTxt("cuda: Error rifft3d failed\n");return;}
+    // dirYes=& myDirYes[0];
+    myDim = cuda_array_dim[free_array];
+    mySize = getSizeFromVec(cuda_array_size[free_array],myDim);
+    if (nrhs > 3) {  // four arguments including a dirYes vector
+            sv = mxGetDimensions(prhs[3]);       
+            // if (sv[1] != cuda_array_dim[ref] || sv[0] != 1) mexErrMsgTxt("cuda: fft needs dirYes vector to be of the same size as the number of dimensions in the array\n");
+            if (sv[0] != 1) mexErrMsgTxt("cuda: rifft needs dirYes vector to be oriented correctly\n");
+            transvec = mxGetPr(prhs[3]); // get pointer to vector data
+            // Dbg_printf4("Transform direction (transvec) Vector: %gx%gx%g \n", transvec[0],transvec[1],transvec[2]);
+            for (n=0;n<CUDA_MAXDIM;n++)
+                if (n < sv[1])
+                     myDirYes[n]=(int) (transvec[n] > 0.5);  // copy to integer size vector
+                else
+                     myDirYes[n]=0;  // all other dimenstions are not transformed
+            Dbg_printf5("Transform direction (myDirYes) Vector: %dx%dx%dx%d \n", myDirYes[0],myDirYes[1],myDirYes[2],myDirYes[3]);      
+    } else {
+            for (n=0;n<CUDA_MAXDIM;n++)
+                if (n < myDim)
+                     myDirYes[n]=-1;  // transform all dimensions
+                else
+                     myDirYes[n]=0;  
     }
+    FirstTransformDir = 0;
+    for (n=0;n<myDim;n++)
+        if (myDirYes[n]!=0 && mySize.s[n]) {FirstTransformDir=n;break;}  // find the first direction in which is transformed and which has a size>1;
+    
+    oldsize=cuda_array_size[ref][FirstTransformDir];
+    cuda_array_size[ref][FirstTransformDir] -= 1;cuda_array_size[ref][FirstTransformDir] *= 2;
+    newarr=cudaAllocDetailed(cuda_array_dim[ref], cuda_array_size[ref], single);  // allocates the result array
+    cuda_array_size[ref][FirstTransformDir]=oldsize;
+
+    myPlan=CreateFFTPlan(free_array,CUFFT_C2R, myDirYes, & FTScale, & ExtraBatch, & ExtraBatchStride);  // use the sizes of the new array for the plan
+    if (myPlan == 0) {
+        mexErrMsgTxt("cuda: rifft plan creation failed\n");
+        return;
+    }        
+    Dbg_printf3("rifft newarr has size %d %d\n",cuda_array_size[free_array][0],cuda_array_size[free_array][1]);
+    ExtraHalfStride=ExtraBatchStride/cuda_array_size[free_array][FirstTransformDir]*cuda_array_size[ref][FirstTransformDir];
+    Dbg_printf4("Extra Batches %d Stride %d Half Stride %d\n",ExtraBatch,ExtraBatchStride,ExtraHalfStride);
+    
+    DirYesND = getSizeFromIntVec(myDirYes,myDim);
+
+    for (eb=0;eb<ExtraBatch;eb++) {  // only for the case where the FFT Plan cannot cover all batches (e.g. transforming along [0 1 0])
+        srcstart = ((cufftComplex *) getCudaRef(prhs[1])) + eb*ExtraHalfStride;
+        dststart = newarr + eb*ExtraBatchStride;
+    	status=cufftExecC2R(myPlan, srcstart, dststart);  // Out-of-place transform  (cufftComplex *) 
+        if (status != CUFFT_SUCCESS) {printf("Error: %s\n",ERROR_NAMES[status]);mexErrMsgTxt("cuda: Error rifft3d failed\n");return;}
+        }
+
+//     for (dststart=newarr,srcstart=(cufftComplex *) getCudaRef(prhs[1]);srcstart<((cufftComplex *) getCudaRef(prhs[1]))+getTotalSizeFromRefNum(ref);srcstart += size3d,dststart+=dstsize3d)
+//     {   status=cufftExecC2R(myPlan, srcstart, dststart);  // Out-of-place transform  (cufftComplex *) 
+//         if (status != CUFFT_SUCCESS) {printf("Error: %s\n",ERROR_NAMES[status]);mexErrMsgTxt("cuda: Error rifft3d failed\n");return;}
+//     }
 
     // Multiply complex array with a constant
     if (fabs(mode) == 1.0)    // 1: sqrt scaling, 
-        CUDAarr_times_const(newarr,(float) (1.0/sqrt((double)dstsize3d)),newarr,getTotalSizeFromRefNum(free_array)); // inplace operation
+        CUDAarr_times_const(newarr,(float) sqrt(FTScale),newarr,getTotalSizeFromRefNum(free_array)); // inplace operation
     else if (fabs(mode) == 0.0)    // 0: scaling on the way backwards only
-        CUDAarr_times_const(newarr,(float) (1.0/((double)dstsize3d)),newarr,getTotalSizeFromRefNum(free_array)); // inplace operation
+        CUDAarr_times_const(newarr,(float) FTScale,newarr,getTotalSizeFromRefNum(free_array)); // inplace operation
 
     // cuda_array_FTscale[free_array]
     if (nlhs > 0)
