@@ -41,9 +41,9 @@ if isa(in,'cuda')
                 out.ref=cuda_cuda('rfftnd',in.ref,1.0);  % 1.0: sqrt scaling.
             else
                 transformDirs2=transformDirs;
-                if numel(transformDirs) > 1
-                    tmp=transformDirs2(1);transformDirs2(1)=transformDirs2(2);transformDirs2(2)=tmp;
-                end
+                 if numel(transformDirs) > 1
+                     tmp=transformDirs2(1);transformDirs2(1)=transformDirs2(2);transformDirs2(2)=tmp;
+                 end
                 out.ref=cuda_cuda('rfftnd',in.ref,1.0,transformDirs2);  % 1.0: sqrt scaling.
             end
        else
