@@ -27,13 +27,13 @@ if isa(in,'cuda')
     %    in=dip_image(in);
     % end
     if strcmp(datatype(in),'sfloat')
-        %isodd_biggerone=mod(size(in),2) & (size(in)>1);
-        %if numel(isodd_biggerone)>3
-        %    isodd_biggerone=isodd_biggerone(1:3);
-        %end
-        %if any(isodd_biggerone)
-        %   error('Cuda rft function only accepts even sizes, as the ift of the result would yield a different size');
-        if in.fromDip && (mod(size(in,2),2) || size(in,2)==1) || ((~ in.fromDip) && (mod(size(in,1),2) || size(in,1)==1))
+        if nargin>2
+            cutDir=find(transformDirs .* (size(in) > 1),1,'first');
+        else
+            cutDir=find((size(in) > 1),1,'first');
+        end
+
+        if mod(size(in,cutDir),2) % in.fromDip && (mod(size(in,2),2) || size(in,2)==1) || ((~ in.fromDip) && (mod(size(in,1),2) || size(in,1)==1))
             error('Cuda rft function only accepts even size along dim 1/2 (matlab/dipImage), as the rift of the result would yield a different size');
         end
         if isDip 
