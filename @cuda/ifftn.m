@@ -43,7 +43,7 @@ else
 end
 out.fromDip=in.fromDip;
 
-out = out / prod(insize);   % This is a special Matlab feature...
+% out = out / prod(insize);   % This is a special Matlab feature...
 
 for n=1:numel(varargin)
     if (ischar(varargin(n)) && strcmp(varargin(1),'symmetric'))

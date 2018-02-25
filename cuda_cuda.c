@@ -4311,13 +4311,19 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
   }
   else  if (strcmp(command,"setForceSynchronization")==0) {     
     int devNum=0;
+    cudaError_t status;
     if (nrhs != 2) mexErrMsgTxt("cuda: setForceSynchronization needs two argument\n");
     forceDeviceSynchronization=(int) mxGetScalar(prhs[1]);
     if (forceDeviceSynchronization) {
-         cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
+        status=cudaDeviceReset();        
+        checkCudaError("setForceSynchronization",status);
+        status=cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
     } else {
-        cudaSetDeviceFlags(cudaDeviceScheduleAuto);
+        status=cudaDeviceReset();        
+        checkCudaError("setForceSynchronization",status);
+        status=cudaSetDeviceFlags(cudaDeviceScheduleAuto);
     }
+    checkCudaError("setForceSynchronization",status);
   }
   else
   {
