@@ -1,5 +1,14 @@
 % This script shadows many CudaMat functions with a Debug version
+% the shadowed functions need to be called with input of type: cuda 
+% They will also return output of type cuda (where appropriate)
+% but they are compared with the output of the corresponding Matlab or Dipimage function.
+%
+% Example:
+% installDebug();
+% q=max(cuda(readim))
+global CudaDebug; 
 
+if isempty(CudaDebug) || ~CudaDebug
 max = @(varargin) debugCheck('max',varargin);
 min = @(varargin) debugCheck('min',varargin);
 sum = @(varargin) debugCheck('sum',varargin);
@@ -90,3 +99,11 @@ power = @(varargin) debugCheck('power',varargin);
 and = @(varargin) debugCheck('and',varargin);
 or = @(varargin) debugCheck('or',varargin);
 not = @(varargin) debugCheck('not',varargin);
+
+%% referencing
+subsref = @(varargin) debugCheck('subsref',varargin);
+subsasgn = @(varargin) debugCheck('subsasgn',varargin);
+
+CudaDebug=1;
+end
+

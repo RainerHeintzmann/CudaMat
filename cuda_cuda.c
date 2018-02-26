@@ -749,9 +749,7 @@ static int CUDA_MATLAB_CLASS[]={
     mxSINGLE_CLASS
 };
 
-
-
-#define MAX_FFTPLANS 25
+#define MAX_FFTPLANS 50
 #define MaxCudaDevices 5
 
 static cufftHandle cuda_FFTplans[MAX_FFTPLANS];  // stores a number of plans for each type of transform and dimension
@@ -2061,7 +2059,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
   
   Dbg_printf4("Pos 1: ignoreDelete state is : %d, command %s, ignoreRef: %d\n",ignoreDelete, command, ignoreRef);
 
-  if (!cuda_initialized) {
+  if (!cuda_initialized && (strcmp(command,"setForceSynchronization")!=0)) {
       const char * anerror=0;
       int devCount;
       cudaError_t err;
@@ -4315,13 +4313,19 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     if (nrhs != 2) mexErrMsgTxt("cuda: setForceSynchronization needs two argument\n");
     forceDeviceSynchronization=(int) mxGetScalar(prhs[1]);
     if (forceDeviceSynchronization) {
-        status=cudaDeviceReset();        
-        checkCudaError("setForceSynchronization",status);
-        status=cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
+        if (! cuda_initialized) {
+            status=cudaDeviceReset();
+            checkCudaError("setForceSynchronization",status);
+            status=cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync); }
+        else
+            printf("WARNING: Cuda setForceSynchronization(1) can only be done properly when the device is not active. Call cuda_shutdown first.\n");
     } else {
-        status=cudaDeviceReset();        
-        checkCudaError("setForceSynchronization",status);
-        status=cudaSetDeviceFlags(cudaDeviceScheduleAuto);
+        if (! cuda_initialized) {
+            status=cudaDeviceReset();        
+            checkCudaError("setForceSynchronization",status);
+            status=cudaSetDeviceFlags(cudaDeviceScheduleAuto); }
+        else
+            printf("WARNING: Cuda setForceSynchronization(0) can only be done properly when the device is not active. Call cuda_shutdown first.\n");
     }
     checkCudaError("setForceSynchronization",status);
   }
