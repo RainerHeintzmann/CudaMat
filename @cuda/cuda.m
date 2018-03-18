@@ -42,6 +42,9 @@ classdef (InferiorClasses = {?dip_image,?double}) cuda < handle % takes the lead
                     if ~isempty(in)
                     out.ref=cuda_cuda('put',single(in));
                     out.fromDip=0;
+                    if (isa(in,'logical'))
+                        out.isBinary=1;
+                    end
                     cuda_cuda('setSize',out.ref,size(in)); % just because matlab can eliminate sizes during cast to single
                     else
                         error('Cannot convert an empty object to cuda');
@@ -57,6 +60,8 @@ classdef (InferiorClasses = {?dip_image,?double}) cuda < handle % takes the lead
                         cuda_cuda('swapSize',out.ref); % to deal with strange size order in DipImage
                     end
                     out.fromDip=1;
+                else
+                    error('cuda: unknown datatype to convert to cuda');
                 end
             elseif nargin == 2 % reference and DipStatus are already known
                 out.ref=rhs;
