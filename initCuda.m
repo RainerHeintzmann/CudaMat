@@ -58,3 +58,23 @@ if useGenerators
 end
 
 use_double_cuda=useDoubleCuda;
+
+try
+    cuda(10);
+catch
+    fprintf('WARNING! No cuda compiled cuda installation could be detected. Try to type "recompile". For now the precomplied version is installed.\n');
+    
+    
+    CudaBase= which('cuda');
+    CudaBase=CudaBase(1:end-12);
+    % UserBase=[tempdir() 'user' filesep];  % This causes problems in Linux with multiple users.
+    mp=userpath();
+    if mp(end)==';' || mp(end)==':'    % Windows and Linux
+        mp=mp(1:end-1);
+    end
+    UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
+    mkdir(UserBase); % Just in case it does not exist
+    if ~(exist([UserBase filesep 'cuda_cuda.mexw64'], 'file') == 2)
+        copyfile([CudaBase filesep 'bin' filesep 'cuda_cuda.mexw64'],[UserBase filesep 'cuda_cuda.mexw64']);
+    end      
+end

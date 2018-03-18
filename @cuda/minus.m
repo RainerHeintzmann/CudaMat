@@ -41,9 +41,9 @@ elseif prod(size(in1)) == 1 && isa(in2,'cuda')
     out.ref=cuda_cuda('alpha_minus',in2.ref,double(in1));
     out.fromDip = in2.fromDip;   % If eiter was dipimage, result will be
 elseif isa(in1,'cuda') && isa(in2,'cuda')
-    if (~in1.fromDip && ~equalsizes(size(in1),size(in2)))
-        error('cuda:minus of Matlab type: Matrix dimensions must agree.')
-    end
+%     if (~in1.fromDip && ~equalsizes(size(in1),size(in2)))
+%         error('cuda:minus of Matlab type: Matrix dimensions must agree.')
+%     end
     
     didSwap1=0;didSwap2=0;
     if in1.fromDip == 1 && ndims(in1) == 1 && ndims(in2) > 1

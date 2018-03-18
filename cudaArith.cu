@@ -105,16 +105,22 @@ static struct cudaDeviceProp prop;  // Defined in cudaArith.h: contains the cuda
 #define IdxFromCoords3D(x,y,z,dSize,dOffs) \
   unsigned size_t idd=x+dOffs.s[0]+dSize.s[0]*(y+dOffs.s[1])+dSize.s[0]*dSize.s[1]*(z+dOffs.s[2]);  \
 
+#define TotalSizeFromND(sSize,TotalSize)                                   \
+   { TotalSize=1;                                                          \
+     for(int _d=0;_d<CUDA_MAXDIM;_d++)                                     \
+        if (sSize.s[_d]>0)                                                 \
+           TotalSize *=sSize.s[_d];                                        \
+  }
 
 #define CoordsNDFromIdx(idx,sSize,pos)                                  \
-   IntND pos;                                               \
-   { size_t resid=idx;                                               \
+   IntND pos;                                                           \
+   { size_t resid=idx;                                                  \
   for(int _d=0;_d<CUDA_MAXDIM;_d++)                                     \
       if (resid > 0)                                                    \
-        { pos.s[_d]=resid%sSize.s[_d];                                    \
+        { pos.s[_d]=resid%sSize.s[_d];                                  \
           resid/=sSize.s[_d]; }                                         \
       else                                                              \
-          pos.s[_d]=0;                                                    \
+          pos.s[_d]=0;                                                  \
   }
 
 // since the c- modula function does not wrap to positive number we define our own modula function
@@ -892,6 +898,49 @@ extern "C" const char * CUDA ## FktName(float * a, float * c, float b, SizeND SA
   return 0;                                                         \
 }                                                                       
 
+// These two macros are for head and tail. This allows easier debugging and compilation
+#define CUDA_BinaryFktSizeHead(FktName)                            \
+__global__ void FktName##_1(float*a,float * b, SizeND SA, size_t N, size_t ndims) \
+{                                                                   \
+    size_t idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+	if(idx>=N) return;
+    
+//	expression  follows here in the program text when using these two macros
+
+#define CUDA_BinaryFktSizeMid(FktName)                            \
+}                                                                       \
+__global__ void FktName##_2(float * b, float * c, SizeND SA, size_t N, size_t ndims) \
+{                                                                   \
+    size_t idx=((blockIdx.y*gridDim.x+blockIdx.x)*blockDim.x+threadIdx.x);  \
+	if(idx>=N) return;
+
+//	expression  follows here in the program text when using these two macros
+    
+#define CUDA_BinaryFktSizeTmpAllocTail(FktName)                     \
+}                                                                   \
+extern "C" const char * CUDA ## FktName(float * a, float * c, SizeND SA, SizeND SC, size_t N, size_t ndims)  \
+{                                                                   \
+    cudaError_t myerr;                                              \
+	size_t blockSize;dim3 nBlocks;                                  \
+    float * TmpArray=0;                                             \
+    myerr=cudaMalloc((void **) &TmpArray, N*ndims*sizeof(float));   \
+    if (myerr != cudaSuccess)                                       \
+      return cudaGetErrorString(myerr);                             \
+    MemoryLayout(N,blockSize,nBlocks)                               \
+	FktName##_1<<<nBlocks,blockSize>>>(a,TmpArray,SA,N,ndims);      \
+    myerr=cudaGetLastError();                                       \
+    if (myerr != cudaSuccess)                                       \
+      return cudaGetErrorString(myerr);                             \
+	FktName##_2<<<nBlocks,blockSize>>>(TmpArray,c,SA,N,ndims);      \
+    myerr=cudaGetLastError();                                       \
+    if (myerr != cudaSuccess)                                       \
+      return cudaGetErrorString(myerr);                             \
+    if (TmpArray) myerr=cudaFree(TmpArray);                         \
+    if (myerr != cudaSuccess)                                       \
+      return cudaGetErrorString(myerr);                             \
+  return 0;                                                         \
+}                                                                       
+
 // --------------Macro generating operation with complex array and constant -------------
 #define CUDA_UnaryFktConstC(FktName,expression)                      \
 __global__ void                                                     \
@@ -1457,6 +1506,10 @@ CUDA_BinaryFkt(carr_subsasg_vec,{c[2*((size_t) b[idx])]=a[2*idx];c[2*((size_t) b
 //CUDA_IndexFkt(arr_subsref_ind,{if ((idx<M)&&(idx>=0)) {size_t myind=(size_t) b[idx];((myind<N)&&(myind>=0))?(c[idx]=a[myind]):c[idx]=NAN;} else c[idx]=NAN;})
 //CUDA_IndexFkt(carr_subsref_ind,{if ((idx<M)&&(idx>=0)) {size_t myindC=2*(size_t) b[idx];((myindC<2*N)&&(myindC>=0))?(c[2*idx]=a[myindC],c[2*idx+1]=a[myindC+1]):(c[2*idx]=NAN,c[2*idx+1]=NAN);} else {c[2*idx]=NAN;c[2*idx+1]=NAN;}})
 
+// convolution of one array (b) with another one (a) of different sizes yielding array c of the same size as a
+CUDA_IndexFktND(arr_conv_arr,size_t TotalSizeA=1;size_t idx2=0;CoordsNDFromIdx(idx,SC,pos);TotalSizeFromND(SA,TotalSizeA); float Sum=0.0; for(int a_idx=0;a_idx<TotalSizeA;a_idx++){IntND pos2=pos; CoordsNDFromIdx(a_idx,SA,posA);for(int _d=0;_d<DA;_d++) pos2.s[_d]=pos.s[_d]+posA.s[_d]-(SA.s[_d]/2); IdxNDFromCoords(pos2,SC,idx2) Sum += a[a_idx]*b[idx2];} c[idx]=Sum;)
+CUDA_IndexFktND(carr_conv_arr,size_t TotalSizeA=1;size_t idx2=0;CoordsNDFromIdx(idx,SC,pos);TotalSizeFromND(SA,TotalSizeA); float SumR=0.0;float SumI=0.0; for(int a_idx=0;a_idx<TotalSizeA;a_idx++){IntND pos2=pos; CoordsNDFromIdx(a_idx,SA,posA);for(int _d=0;_d<DA;_d++) pos2.s[_d]=pos.s[_d]+posA.s[_d]-(SA.s[_d]/2); IdxNDFromCoords(pos2,SC,idx2) SumR += a[2*a_idx]*b[idx2];SumI += a[2*a_idx+1]*b[idx2];} c[2*idx]=SumR;c[2*idx+1]=SumI;)
+
 // The function below accepts a 2D index matrix (b) where each row is a list of indices corresponding to this dimension. The size of this matrix should have been adapted to the longest index list.
 // CUDA_IndexFktND(arr_subsrefND_ind,;)
 CUDA_IndexFktND(arr_subsrefND_ind,CoordsNDFromIdx(idx,SC,pos);  for(int _d=0;_d<DA;_d++){pos.s[_d]=b[pos.s[_d]+_d*SIDX];} {long long myind=0; IdxNDFromCoords(pos,SA,myind); if ((idx<TC)) {((myind<TA))?(c[idx]=a[myind]):c[idx]=NAN;} else c[idx]=NAN;})
@@ -1667,6 +1720,39 @@ CUDA_UnaryFktIntVec(carr_permute_vec,{int _d;SizeND posnew; SizeND dSize; Coords
 CUDA_Fkt2Vec(arr_xyz_2vec,CoordsNDFromIdx(idx,sSize,pos);float val=0;for(int _d=0;_d<CUDA_MAXDIM;_d++){val += vec1.s[_d]+pos.s[_d]*(vec2.s[_d]-vec1.s[_d])/sSize.s[_d];} c[idx]=val;)  // a[idx]
 CUDA_Fkt2Vec(arr_rr_2vec,CoordsNDFromIdx(idx,sSize,pos);float val=0;for(int _d=0;_d<CUDA_MAXDIM;_d++){val += Sqr(vec1.s[_d]+pos.s[_d]*(vec2.s[_d]-vec1.s[_d])/sSize.s[_d]);} c[idx]=sqrt(val);)  // a[idx]
 CUDA_Fkt2Vec(arr_phiphi_2vec,CoordsNDFromIdx(idx,sSize,pos); c[idx]=atan2(vec1.s[0]+pos.s[0]*(vec2.s[0]-vec1.s[0])/sSize.s[0],vec1.s[1]+pos.s[1]*(vec2.s[1]-vec1.s[1])/sSize.s[1]);)  // phiphi
+
+// Some code using head and tail versions of macros for easier compilation and debugging:
+// (float*a,float b*, float * c, SizeND SA, SizeND SC, size_t N, size_t D)
+CUDA_BinaryFktSizeHead(HessianCyc)
+float val;int d; size_t ids;
+CoordsNDFromIdx(idx,SA,pos); // get the nd position vector
+for(d=0;d<ndims;d++) {
+    pos.s[d]+=1; IdxNDFromCoords(pos,SA,ids);
+    val  = a[ids];
+    pos.s[d]-=2; IdxNDFromCoords(pos,SA,ids);
+    val -= a[ids];
+    b[idx+N*d] = val/2.0f;
+    pos.s[d]+=1; // restore the original value 
+}
+
+CUDA_BinaryFktSizeMid(HessianCyc)
+float val;int d,d1; size_t ids;
+CoordsNDFromIdx(idx,SA,pos); // get the nd position vector
+int dtotal=0;
+for(d1=0;d1<ndims;d1++) {
+    pos.s[ndims]=d1;  // since the outer loop defines from which gradient to read now
+    for(d=d1;d<ndims;d++) {
+    pos.s[d]+=1; IdxNDFromCoords(pos,SA,ids);
+    val  = b[ids];
+    pos.s[d]-=2; IdxNDFromCoords(pos,SA,ids);
+    val -= b[ids];
+    c[idx+N*dtotal] = val/2.0f;
+    pos.s[d]+=1;
+    dtotal++;
+    }
+ }
+
+CUDA_BinaryFktSizeTmpAllocTail(HessianCyc)  // finalize the function(s)
 
 // Now include all the user-defined functions
 // #include "user/user_cu_code.inc"
@@ -2037,7 +2123,7 @@ extern "C" int CUDAarr_times_const_scramble(float * a, float b, float * c, size_
 
 
 // Here is some code for calculating the singular value decomposition of the trailing dimension in an array
-// This code is adopted from matLib3D.h by stamatis.lefkimmiatis@epfl.ch
+// This code is adopted from matlib3D.h by stamatis.lefkimmiatis@epfl.ch
 // and svd3D_decomp.cpp by emmanuel.soubies@epfl.ch
 
 /***************************************************************************
@@ -2237,95 +2323,6 @@ extern "C" const char * CUDAsvd2D_recomp(float *Y, float *E, float * V, size_t N
     nBlocks.y=(size_t)(sqrt((float)numb)+1);}
 
 	core_svd2D_recomp<<<nBlocks,blockSize>>>(Y,E,V,N);
-    myerr=cudaGetLastError();
-    if (myerr != cudaSuccess)
-        return cudaGetErrorString(myerr);
-    return 0;
-}
-
-
-
-// Some code for 3D convolutions of small kernel sizes
-
-#define     MASK_WIDTH      3
-#define     MASK_RADIUS     MASK_WIDTH / 2
-#define     TILE_WIDTH      8
-#define         W           (TILE_WIDTH + MASK_WIDTH - 1)
-
-/**
- * GPU 3D Convolution using shared memory
- * adapted by Schnigges:
- * https://stackoverflow.com/questions/22577857/3d-convolution-with-cuda-using-shared-memory
- */
-__global__ void convolution(float *I, float* M, float *P, SizeND ImgSize)
-{
-    /***** WRITE TO SHARED MEMORY *****/
-    __shared__ float N_ds[W][W][W];
-
-    // First batch loading
-    int dest = threadIdx.x + (threadIdx.y * TILE_WIDTH) + (threadIdx.z * TILE_WIDTH * TILE_WIDTH);
-    int destTmp = dest, destX, destY, destZ, srcX,srcY,srcZ,src;
-    float sum = 0;
-    int z,y,x;
-    destX = destTmp % W; destTmp /= W; destY = destTmp % W; destTmp /= W; destZ = destTmp;
-
-    srcZ = destZ + (blockIdx.z * TILE_WIDTH) - MASK_RADIUS; srcY = destY + (blockIdx.y * TILE_WIDTH) - MASK_RADIUS; srcX = destX + (blockIdx.x * TILE_WIDTH) - MASK_RADIUS;
-    src = srcX + (srcY * ImgSize.s[0]) + (srcZ * ImgSize.s[0] * ImgSize.s[1]);
-
-    if(srcZ >= 0 && srcZ < ImgSize.s[2] && srcY >= 0 && srcY < ImgSize.s[1] && srcX >= 0 && srcX < ImgSize.s[0])
-        N_ds[destZ][destY][destX] = I[src];
-    else
-        N_ds[destZ][destY][destX] = 0;
-
-    // Second batch loading
-    dest = threadIdx.x + (threadIdx.y * TILE_WIDTH) + (threadIdx.z * TILE_WIDTH * TILE_WIDTH) + TILE_WIDTH * TILE_WIDTH * TILE_WIDTH;
-    // dest = threadIdx.x + (threadIdx.y * TILE_WIDTH) + (threadIdx.z * TILE_WIDTH * TILE_WIDTH) + TILE_WIDTH * TILE_WIDTH;  // error
-    destTmp = dest;
-    destX = destTmp % W; destTmp = destTmp / W; destY = destTmp % W; destTmp = destTmp / W; destZ = destTmp;
-
-    srcZ = destZ + (blockIdx.z * TILE_WIDTH) - MASK_RADIUS;
-    srcY = destY + (blockIdx.y * TILE_WIDTH) - MASK_RADIUS;
-    srcX = destX + (blockIdx.x * TILE_WIDTH) - MASK_RADIUS;
-    src = srcX + (srcY * ImgSize.s[0]) + (srcZ * ImgSize.s[0] * ImgSize.s[1]);
-
-    if(destZ < W)
-    {
-        if(srcZ >= 0 && srcZ < ImgSize.s[2] && srcY >= 0 && srcY < ImgSize.s[1] && srcX >= 0 && srcX < ImgSize.s[0])
-            N_ds[destZ][destY][destX] = I[src];
-        else
-            N_ds[destZ][destY][destX] = 0;
-    }
-    __syncthreads();
-
-    /***** Perform Convolution *****/
-    sum=0;
-    for(z = 0; z < MASK_WIDTH; z++)
-        for(y = 0; y < MASK_WIDTH; y++)
-            for(x = 0; x < MASK_WIDTH; x++)
-                sum += N_ds[threadIdx.z + z][threadIdx.y + y][threadIdx.x + x] * M[x + (y * MASK_WIDTH) + (z * MASK_WIDTH * MASK_WIDTH)];
-
-    z = threadIdx.z + (blockIdx.z * TILE_WIDTH); y = threadIdx.y + (blockIdx.y * TILE_WIDTH); x = threadIdx.x + (blockIdx.x * TILE_WIDTH);
-    
-    if(z < ImgSize.s[2] && y < ImgSize.s[1] && x < ImgSize.s[0])
-        P[x + (y * ImgSize.s[0]) + (z * ImgSize.s[0] * ImgSize.s[1])] = 17.7; // sum;
-
-    __syncthreads();
-}
-
-extern "C" const char * CUDA3DConv(float *deviceInputImageData, float *deviceMaskData, float * deviceOutputImageData, SizeND ImgSize)  
-{
-    cudaError_t myerr;
-    int shared_memory_size = W * W * W;
-    int block_size = TILE_WIDTH * TILE_WIDTH * TILE_WIDTH;
-    int max_size = 3 * block_size;
-    // std::cout << "Block Size: " << block_size << " - Shared Memory Size: " << shared_memory_size << " - Max Size: " << max_size << std::endl;
-    // std::cout << "SHARED MEMORY SIZE HAS TO BE SMALLER THAN MAX SIZE IN ORDER TO WORK PROPERLY !!!!!!!";
-
-    dim3 dimBlock(TILE_WIDTH, TILE_WIDTH, TILE_WIDTH);
-    dim3 dimGrid((ImgSize.s[0] + TILE_WIDTH - 1) / TILE_WIDTH, (ImgSize.s[1] + TILE_WIDTH - 1) / TILE_WIDTH, (ImgSize.s[2] + TILE_WIDTH - 1) / TILE_WIDTH);
-    convolution<<<dimGrid, dimBlock>>>(deviceInputImageData, deviceMaskData, deviceOutputImageData, ImgSize);
-    cudaDeviceSynchronize();
-
     myerr=cudaGetLastError();
     if (myerr != cudaSuccess)
         return cudaGetErrorString(myerr);
