@@ -38,7 +38,7 @@ classdef (InferiorClasses = {?dip_image,?double}) cuda < handle % takes the lead
                 if isa(in,'cuda')  % unfortunately not allowed:  || (prod(size(in)) < 2)
                     % fprintf('cuda copy constructor\n');  % jsut ignore this
                     out=in;
-                elseif isa(in,'double') || isa(in,'single')
+                elseif isa(in,'double') || isa(in,'single') || isa(in,'logical')
                     if ~isempty(in)
                     out.ref=cuda_cuda('put',single(in));
                     out.fromDip=0;

@@ -117,7 +117,10 @@ if ispc
         warning('No global CVERSION flag was set. Assuming version 11.0. Choices are 9, 10 or 11.')
         CudaComp=' -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include" ';
     end
-    if CudaVERSION==9
+    if CudaVERSION==91
+        MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.1\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.1\lib\x64" ';
+        NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.1\bin\nvcc"';
+    elseif CudaVERSION==9
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\lib\x64" ';
         NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\bin\nvcc"';
     elseif CudaVERSION==8

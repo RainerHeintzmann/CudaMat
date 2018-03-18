@@ -327,23 +327,26 @@ void printMem(size_t * start,int num)
 // Macro for index function with one list per dimension. The indices need to be given as a matrix with the longest index list dominating. The                 
 #define CallCUDA_IdxFktND(FktName,AllocFkt)                                         \
     const char *ret=0; size_t _ref1,_ref2; SizeND sizeA,sizeC;float * pC;           \
-    if (nrhs != 4 && nrhs != 5) mexErrMsgTxt("cuda: " #FktName " needs four or five (assignment) arguments\n");               \
+    if (nrhs < 3 || nrhs > 5) mexErrMsgTxt("cuda: " #FktName " needs three to five arguments (excluding function name)\n");               \
     _ref1=getCudaRefNum(prhs[1]);_ref2=getCudaRefNum(prhs[2]);                              \
     if (isComplexType(_ref2)) {mexErrMsgTxt("cuda: " #FktName " indexing with complex index arrays is not allowed\n");} \
-    sizeA=getSizeFromRefNum(_ref1);                      \
-    sizeC=SizeNDFromRef(prhs[3]);                           \
-    if (nrhs ==5)                                           \
-        pC=getCudaRef(prhs[4]);                          \
+    sizeA=getSizeFromRefNum(_ref1);                         \
+    if (nrhs >=4)                                           \
+        sizeC=SizeNDFromRef(prhs[3]);                       \
     else                                                    \
-        pC=AllocFkt(prhs[1], sizeC, cuda_array_dim[_ref1]);     \
+        sizeC=getSizeFromRefNum(_ref2);                     \
+    if (nrhs >=5)                                           \
+        pC=getCudaRef(prhs[4]);                             \
+    else                                                    \
+        pC=AllocFkt(prhs[1], sizeC, cuda_array_dim[_ref1]); \
     Dbg_printf7("cuda: sizes of " #FktName " are %dx%dx%d , %dx%dx%d \n",sizeA.s[0],sizeA.s[1],sizeA.s[2],sizeC.s[0],sizeC.s[1],sizeC.s[2]); \
     if (isComplexType(_ref1)) {                                     \
         Dbg_printf("cuda: complex array " #FktName " index array\n");                     \
-        ret=CUDAcarr_##FktName##_ind(getCudaRef(prhs[1]),getCudaRef(prhs[2]),pC,sizeA,sizeC,cuda_array_size[_ref2][0],cuda_array_dim[_ref1]); } \
+        ret=CUDAcarr_##FktName(getCudaRef(prhs[1]),getCudaRef(prhs[2]),pC,sizeA,sizeC,cuda_array_size[_ref2][0],cuda_array_dim[_ref1]); } \
     else    {                                                                            \
         Dbg_printf("cuda: array " #FktName " index array\n");                                     \
         Dbg_printf4("cuda: ref1 %d, ref2 %d, dim %d \n",_ref1,_ref2,cuda_array_dim[_ref1]); \
-        ret=CUDAarr_##FktName##_ind(getCudaRef(prhs[1]),getCudaRef(prhs[2]),pC,sizeA,sizeC,cuda_array_size[_ref2][0],cuda_array_dim[_ref1]); }\
+        ret=CUDAarr_##FktName(getCudaRef(prhs[1]),getCudaRef(prhs[2]),pC,sizeA,sizeC,cuda_array_size[_ref2][0],cuda_array_dim[_ref1]); }\
     Dbg_printf("cuda: came back \n"); \
     if (ret!=(const char *) cudaSuccess) { printf("cuda " #FktName ": %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error " #FktName ": Bailing out");}  \
                 
@@ -626,9 +629,9 @@ void printMem(size_t * start,int num)
 //  ----------------- Unary function  ------AllocCommand determines whether the result type is that same, complex or real ----------
 // Important Note: The total size given to the algorithm corrsponds to the destination array C. 
 #define CallCUDA_UnaryFktSizeConst(FktName,AllocFkt)                                        \
-    const char *ret=0;SizeND SC,SA;float * pC;size_t refA;                                  \
+    const char *ret=0;SizeND SC,SA;float * pC;size_t refA;double alpha;                     \
     if (nrhs != 4) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");              \
-        double alpha = mxGetScalar(prhs[2]);                                                \
+        alpha = mxGetScalar(prhs[2]);                                                       \
         refA=getCudaRefNum(prhs[1]);                                                        \
         SC=SizeNDFromRef(prhs[3]);                                                          \
         SA=getSizeFromRefNum(refA);                                                         \
@@ -1408,9 +1411,9 @@ float * cudaAllocComplex(const mxArray * arg) {   // make a new array with same 
 
  float * cudaAllocSized(const mxArray * arg, SizeND mysize, int mydims) {   // make a new array with same properties as other array
      size_t ref=getCudaRefNum(arg);
-     Dbg_printf2("cudaAllocSized ref is %d\n",ref);
      //swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);   // pretend this is a matlab array until allocation is done
      float * ret=cudaAllocDetailed(mydims, mysize.s, cuda_array_type[ref]);
+     Dbg_printf2("cudaAllocSized ref is %d\n",ref);
      Dbg_printf("Step 2\n");
      //swapMatlabSize(cuda_array_size[ref],cuda_array_dim[ref]);   // swap back
      //cuda_array_origFTsize[free_array]=cuda_array_origFTsize[ref]; // needs to be copied when creating another HalfFourier array
@@ -2873,13 +2876,18 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
                 cudaDelete(newref[d]); // delete these arrays again
     }    
   }
+  else if (strcmp(command,"convND")==0) {   // reference with a matrix where lowest dimension corresponds to vectors of indices
+    CallCUDA_IdxFktND(conv_arr,cudaAllocSized)
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
   else if (strcmp(command,"subsref_NDidx")==0) {   // reference with a matrix where lowest dimension corresponds to vectors of indices
-    CallCUDA_IdxFktND(subsrefND,cudaAllocSized)
+    CallCUDA_IdxFktND(subsrefND_ind,cudaAllocSized)
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"subsasgn_NDidx")==0) {   // assing with a matrix where lowest dimension corresponds to vectors of indices
-    CallCUDA_IdxFktND(subsasgnND,cudaNoAllocSized)
+    CallCUDA_IdxFktND(subsasgnND_ind,cudaNoAllocSized)
     ignoreDelete=1;ignoreRef=_ref1;   // the next delete command will be ignored
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)_ref1);
@@ -3271,14 +3279,14 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
       SizeND DirYes,mySize;
       int mode,mydim;
       float * srcstart,*dststart, * newarr;
-    int ret=0;
+    int ret=0,_d=0;
     if (nrhs != 3) mexErrMsgTxt("cuda: fftshift needs three arguments\n");
     ref=getCudaRefNum(prhs[1]);
     mode=(mxGetScalar(prhs[2]) > 0) ? 1 : -1;
 
     mydim=cuda_array_dim[ref];
     newarr=cudaAlloc(prhs[1]);
-    for (int _d=0;_d<CUDA_MAXDIM;_d++)
+    for (_d=0;_d<CUDA_MAXDIM;_d++)
         DirYes.s[_d]=1;
     mySize=getSizeFromVec(cuda_array_size[ref],mydim);
     ret=CUDAarr_times_const_rotate(getCudaRef(prhs[1]),1,newarr,mySize,DirYes,mydim,isComplexType(getCudaRefNum(prhs[1])),mode);
@@ -3819,7 +3827,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     if (cublasGetError() != CUBLAS_STATUS_SUCCESS) {mexErrMsgTxt("cuda: Error finding maximum\n");return;}
    Dbg_printf("cuda: norm\n");
   }
-  else if (strcmp(command,"Conv3DMask")==0) { // norm of array 
+  /*else if (strcmp(command,"Conv3DMask")==0) { // norm of array 
     float * deviceInputImageData,* deviceMaskData,* deviceOutputImageData;
     SizeND ImgSize;
     if (nrhs != 3) mexErrMsgTxt("cuda: Conv3DMask needs two arguments\n");
@@ -3830,6 +3838,24 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
     Dbg_printf("cuda: Cond3DMask\n");
+  } */
+  else if (strcmp(command,"HessianCirc")==0) { // Hessian with circular boundary conditions
+    size_t ref1,ndims,dSize[CUDA_MAXDIM];
+    const char * ret=0;
+    float * new_array_c=0;
+    if (nrhs != 3) mexErrMsgTxt("cuda: HessianCirc needs three arguments\n");
+    ndims=(int) mxGetScalar(prhs[2]);
+    if (ndims > 4) mexErrMsgTxt("cuda: HessianCirc supports maximally 4D input\n");
+    ref1=getCudaRefNum(prhs[1]);
+    get5DSize(ref1,dSize);
+    if (dSize[ndims] != 1) mexErrMsgTxt("cuda: HessianCirc needs the dimension direction to be of size 1\n");
+    dSize[ndims]= ndims*(ndims+1)/2;
+    new_array_c=cudaAllocDetailed(cuda_array_dim[ref1]+1, dSize, cuda_array_type[ref1]);
+    ret=CUDAHessianCyc(getCudaRef(prhs[1]), new_array_c, getSizeFromRefNum(ref1), getSizeFromRefNum(free_array), getTotalSizeFromRef(prhs[1]), ndims); // cyclic Hessian for n dims
+    if (ret!=(const char *) cudaSuccess) { printf("cuda HessianCirc: %s\n",cudaGetErrorString(cudaGetLastError())); mexErrMsgTxt("cuda error HessianCirc: Bailing out");} \
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+    Dbg_printf("cuda: HessianCirc\n");
   }
   else if (strcmp(command,"mtimes")==0) { // matrix product
     size_t ref1,ref2;

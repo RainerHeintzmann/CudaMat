@@ -203,6 +203,7 @@ externC const char * CUDAconst_minus_carr(float * a, float br, float bi, float *
 externC const char * CUDAarr_minus_Cconst(float * a, float br, float bi, float * c, size_t N);
 externC const char * CUDACconst_minus_arr(float * a, float br, float bi, float * c, size_t N);
 
+
 // Referencing with another real-valued array (interpretet as boolean)
 externC const char * CUDAarr_subsref_arr(float * in, float * mask, float *  out, size_t N, size_t * pM);
 externC const char * CUDAcarr_subsref_arr(float * in, float * mask, float *  out, size_t N, size_t * pM);
@@ -211,6 +212,9 @@ externC const char * CUDAarr_subsref_ind(float * a, float * b, float * c, size_t
 externC const char * CUDAcarr_subsref_ind(float * a, float * b, float * c, size_t N, size_t M);
 externC const char * CUDAarr_subsasgn_ind(float * a, float * b, float * c, size_t N, size_t M);
 externC const char * CUDAcarr_subsasgn_ind(float * a, float * b, float * c, size_t N, size_t M);
+
+externC const char * CUDAarr_conv_arr(float * a, float * b, float *  c, SizeND SA, SizeND SB, size_t SIDX, size_t DA);
+externC const char * CUDAcarr_conv_arr(float * a, float * b, float *  c, SizeND SA, SizeND SB, size_t SIDX, size_t DA);
 
 externC const char * CUDAarr_subsrefND_ind(float * a, float * b, float * c, SizeND SA, SizeND SC, size_t SIDX, size_t DA);
 externC const char * CUDAcarr_subsrefND_ind(float * a, float * b, float * c, SizeND SA, SizeND SC, size_t SIDX, size_t DA);
@@ -402,6 +406,8 @@ externC const char * CUDAsvd2D_last(float *X, float *Ye, float * Yv, size_t N); 
 externC const char * CUDAsvd2D_recomp(float *Y, float *E, float * V, size_t N);  // N is NOT the total size, but only the size excluding the last dimension (of size 2)
 
 externC const char * CUDA3DConv(float *deviceInputImageData, float *deviceMaskData, float * deviceOutputImageData, SizeND ImgSize);  // some code for fast convolution with a small kernel  
+
+externC const char * CUDAHessianCyc(float * a, float * c, SizeND SA, SizeND SC, size_t N, size_t ndims); // cyclic Hessian for n dims
 
 // Now include all the user-defined functions
 #include "user_h_code.inc"

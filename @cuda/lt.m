@@ -41,9 +41,9 @@ elseif prod(size(in1)) == 1 && isa(in2,'cuda')
     out.ref=cuda_cuda('alpha_smaller',in2.ref,double(in1));
     out.fromDip = in2.fromDip;  
 elseif isa(in1,'cuda') && isa(in2,'cuda')
-    if ((~in1.fromDip || ~in2.fromDip) && ~equalsizes(size(in1),size(in2)))
-        error('cuda:lt of Matlab array type: Matrix dimensions must agree.')
-    end
+%     if ((~in1.fromDip || ~in2.fromDip) && ~equalsizes(size(in1),size(in2)))
+%         error('cuda:lt of Matlab array type: Matrix dimensions must agree.')
+%     end
         
     didSwap1=0;didSwap2=0;
     if in1.fromDip == 1 && ndims(in1) == 1 && ndims(in2) > 1
