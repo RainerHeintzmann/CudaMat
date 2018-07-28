@@ -41,7 +41,7 @@ mysize(direction)=0;
 for m=2:size(varargin,2)
     sz=size(varargin{m});
     sz(direction)=0;
-    if any(mysize-sz)
+    if ~equalsizes(mysize,sz) % any(mysize-sz)
         fprintf('cuda\\cat: argument #%d does not agree to the size of the first argument.\n',m)
         error('cuda\\cat sizes along all but the append direction have to be equal!');
     end

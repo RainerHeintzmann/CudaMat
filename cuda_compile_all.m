@@ -23,6 +23,7 @@ global CVERSION;
 global CudaVERSION;
 
 if ~exist('cuda_to_compile') || isempty(cuda_to_compile)
+    return;
     error('Cannot compile any user defined cuda functions. None defined. Use cuda_define()');
 end
 
@@ -94,10 +95,14 @@ else
         MEXFLAGS='';
     end
 end
+PreCommand='';
 if ispc
     if CVERSION==15        % correct line 133 in the file   c:/program files/nvidia gpu computing toolkit/cuda/v9.0/include/crt/host_config.h  to #if _MSC_VER < 1600 || _MSC_VER > 1911
+        PreCommand='"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" x64 8.1';
         CudaComp=' --cl-version 2017 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.11.25503\bin\HostX64\x64" "-IC:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Tools\MSVC\14.11.25503\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\/include" -I../../common/inc -I"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.11.25503\include" ';
-    elseif CVERSION==14        
+        % CudaComp=' --cl-version 2017 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.14.26428\bin\Hostx64\x64" "-IC:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Tools\MSVC\14.11.25503\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\/include" -I../../common/inc -I"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.14.26428\include" ';
+        % CudaComp=' --cl-version 2017   -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\/include" -I../../common/inc';
+    elseif CVERSION==14
         CudaComp=' --cl-version 2015 -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64" "-Ic:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\/include" -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\include" ';
         %CudaComp=' --cl-version 2015 -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64" "-Ic:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include" -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include" ';
         % CudaComp=' --cl-version 2015 -ccbin "d:\Programme (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64" "-ID:\Programme (x86)\Microsoft Visual Studio 14.0\VC\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include" -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\include" ';
@@ -149,7 +154,16 @@ if ispc
     % system('"c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat"')
     % vcvars64.bat has to be present at C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64
     % status=system(['nvcc -c ' MEXFLAGS ' ' NVCCFLAGS ' ' CudaBase 'cudaArith.cu  -I.']);
-    status=system([NVCC_BIN ' -O3 -c ' NVCCFLAGS ' '  CudaComp CudaBase 'cudaArith.cu  -I. -Xcudafe "--diag_suppress=divide_by_zero"']);
+    if isempty(PreCommand)
+        status=system([NVCC_BIN ' -O3 -c ' NVCCFLAGS ' '  CudaComp CudaBase 'cudaArith.cu  -I. -Xcudafe "--diag_suppress=divide_by_zero"']);
+    else
+        status=system(PreCommand);
+        if status ~= 0
+            error('PreCommand failed.');
+        end
+        status=system([NVCC_BIN ' -O3 -c ' NVCCFLAGS ' '  CudaComp ' ' CudaBase 'cudaArith.cu  -I. -Xcudafe "--diag_suppress=divide_by_zero"']);
+        % status=system([PreCommand '&& ' NVCC_BIN ' -O3 -c ' NVCCFLAGS ' '  CudaComp ' ' CudaBase 'cudaArith.cu  -I. -Xcudafe "--diag_suppress=divide_by_zero"']);
+    end
     if status ~= 0
         error('nvcc command failed. Try defining the global variables CudaVERSION={4,5,6} and CVERSION={10,11} in the startup file.');
     end
@@ -172,13 +186,21 @@ else
         bv = 'CFLAGS="\$CFLAGS -std=gnu99"';
     end
     if ~isempty(nocula)
-        status=system(['nvcc -O3 -c ' NVCCFLAGS ' -Xcompiler -fPIC ' CudaBase  'cudaArith.cu -I/usr/local/cuda/include/ -I.']);
+        if isempty(PreCommand)
+            status=system(['nvcc -O3 -c ' NVCCFLAGS ' -Xcompiler -fPIC ' CudaBase  'cudaArith.cu -I/usr/local/cuda/include/ -I.']);
+        else
+            status=system([PreCommand '&& ' 'nvcc -O3 -c ' NVCCFLAGS ' -Xcompiler -fPIC ' CudaBase  'cudaArith.cu -I/usr/local/cuda/include/ -I.']);
+        end
         if status ~= 0
             error('nvcc command failed');
         end
         eval(['mex ' bv ' ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.o -DNOCULA "-I' UserBase '" -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lcublas -lcufft -lcudart']);
     else
-        status=system(['nvcc -c  ' NVCCFLAGS  ' -Xcompiler -fPIC ' CudaBase ' cudaArith.cu -I/usr/local/cula/include/  -I/usr/local/cuda/include/ -I.']);
+        if isempty(PreCommand)
+            status=system(['nvcc -c  ' NVCCFLAGS  ' -Xcompiler -fPIC ' CudaBase ' cudaArith.cu -I/usr/local/cula/include/  -I/usr/local/cuda/include/ -I.']);
+        else
+            status=system([PreCommand '&& ' 'nvcc -c  ' NVCCFLAGS  ' -Xcompiler -fPIC ' CudaBase ' cudaArith.cu -I/usr/local/cula/include/  -I/usr/local/cuda/include/ -I.']);
+        end
         if status ~= 0
             error('nvcc command failed');
         end
