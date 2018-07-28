@@ -24,16 +24,16 @@ switch index.type
     case '()'
         varargout{1}=cuda();
         if isa(index.subs{1},'cuda') && ((~isempty(index.subs{1}.isBinary) && index.subs{1}.isBinary) || (ndims(index.subs{1})>1 && size(index.subs{1},1) > 1 && size(index.subs{1},2) > 1))  % && index.subs{1}.fromDip % referencing with a cuda image 
-            if ndims(in)~=ndims(index.subs{1})
-                error('cuda subreferencing: Arrays have to have equal number of dimensions');
-            elseif norm(size(in)-size(index.subs{1}))==0
+            if ~equalsizes(size(in),size(index.subs{1})) % DipImage is OK with a mismatch in trailing dimensions. Used to be: ndims(in)~=ndims(index.subs{1})
+                error('cuda subreferencing: Arrays have to have equal in size');
+            else % if norm(size(in)-size(index.subs{1}))==0
                 varargout{1}.ref=cuda_cuda('subsref_cuda',in.ref,index.subs{1}.ref);
                	if varargout{1}.ref < 0  % empty sub-reference. Did not allocate.
                     varargout{1}=[];
                     return;
                 end
-            else
-                error('cuda subreferencing: Array sizes have to be equal');
+%             else
+%                 error('cuda subreferencing: Array sizes have to be equal');
             end
             varargout{1}.fromDip = in.fromDip;
             if prod(size(varargout{1})) == 1
