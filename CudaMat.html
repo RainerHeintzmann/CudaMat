@@ -150,6 +150,7 @@ p, .Normal {
 
 
 
+
       given at the top of the file <span style="font-style: italic;">cudaArith.cu</span>.<br>
       <h2>Is there a demo to quickly check the performance increase?</h2>
       Yes. CudaMat comes with a two test programs '<span
@@ -159,11 +160,11 @@ p, .Normal {
         applemantest.m</span> calculates the famous Mandelbrot set in a
       straight forward way. This test has the advantage that it does not
       require any toolboxes other than <a
-        href="http://www.nanoimaging.de/CudaMat/">CudaMat</a> and <a
-        href="http://www.nvidia.com/object/cuda_get.html">NVidia's cuda
-        library</a> to be installed. The speedup optained depend on the
-      chosen datasize. On my Intel(R) Core(TM) i7 CPU @ 2,8 GHz, 64 bit
-      processor, Windows 7 is about a factor of 30 (2.35 versus 75,5
+        href="https://github.com/RainerHeintzmann/CudaMat">CudaMat</a>
+      and <a href="http://www.nvidia.com/object/cuda_get.html">NVidia's
+        cuda library</a> to be installed. The speedup optained depend on
+      the chosen datasize. On my Intel(R) Core(TM) i7 CPU @ 2,8 GHz, 64
+      bit processor, Windows 7 is about a factor of 30 (2.35 versus 75,5
       seconds) for a 2048x2048 image with iteration depth 300.<br>
       The new (as of version 1.0.0.06 beta) on-the-fly compilation
       allows a further speedup by writing code snippets for the GPU. In
@@ -178,11 +179,12 @@ p, .Normal {
         italic;">chromo3d</span>' example image).<br>
       To run this demo, <a href="http://www.diplib.org">DipImage</a>
       with the example images and <a
-        href="http://www.nanoimaging.de/CudaMat/">CudaMat</a> need to be
-      installed, as well as the optimisation toolbox with the function<span
-        style="font-style: italic;"> <a
+        href="https://github.com/RainerHeintzmann/CudaMat">CudaMat</a>
+      need to be installed, as well as the optimisation toolbox with the
+      function<span style="font-style: italic;"> <a
           href="http://www.di.ens.fr/%7Emschmidt/Software/minFunc.html">minFunc()</a>
       </span>written by <a href="http://www.di.ens.fr/%7Emschmidt/">Mark
+
 
 
 
@@ -252,6 +254,7 @@ p, .Normal {
 
 
 
+
         no changes to the Matlab code should be necessary.</span><br>
       However, practically minor changes can be necessary, if CudaMat
       does not support the operation used in the Matlab code. This is
@@ -274,6 +277,7 @@ p, .Normal {
       transferring from the graphics card.<br>
       In other cases the user will have to either force this conversion
       (e.g. using <span style="font-style: italic;">single_force(a)</span>),
+
 
 
 
@@ -357,6 +361,7 @@ p, .Normal {
 
 
 
+
       </span>and executes the code given there. In this way it is
       ensured that code can efficiently be executed on the graphics
       card, without the cuda objects leaving the card.<br>
@@ -370,6 +375,7 @@ p, .Normal {
       displaying an image) the data is transferred back from the
       graphics card to Matlab. <br>
       The commands <span style="font-style: italic;">double_force(a) </span>and
+
 
 
 
@@ -421,7 +427,9 @@ p, .Normal {
 
 
 
+
       </span>or <span style="font-style: italic;">double_force(a) </span>with
+
 
 
 
@@ -573,31 +581,14 @@ p, .Normal {
           style="font-weight: bold; font-size: 14pt; font-family:
           'Arial';">How to obtain</span></h2>
       <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
-        margin-right: 0in;" dir="ltr">Download <a href="CudaMat.zip">the
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          current version</a> as a tar-gzip-file with all the necessary
-        classes and an example html-file in it. Just place the CudaMat
-        folder somewhere, add it to the Matlab path and call initCuda
-        (see installation details below). Depending on the operation
-        system it may be necessary to recompile the modules cudaArith.cu
-        and cuda_cuda.c. A makefile for unix environment is provided. <br>
+        margin-right: 0in;" dir="ltr">Download <a
+          href="https://github.com/RainerHeintzmann/CudaMat">the current
+          version</a> as a tar-gzip-file with all the necessary classes
+        and an example html-file in it. Just place the CudaMat folder
+        somewhere, add it to the Matlab path and call initCuda (see
+        installation details below). Depending on the operation system
+        it may be necessary to recompile the modules cudaArith.cu and
+        cuda_cuda.c. A makefile for unix environment is provided. <br>
       </p>
       For CudaMat you will need&nbsp; <a
         href="http://www.nvidia.com/object/cuda_get.html">NVidia's cuda
@@ -626,27 +617,10 @@ p, .Normal {
       <h2>Installation instructions (64 Linux system)<br>
       </h2>
       <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
-        margin-right: 0in;" dir="ltr">Download <a href="CudaMat.zip">the
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          current version</a> into a folder<span style="font-style:
-          italic;"> /usr/local/CudaMat/ </span>and unpack it with <span
+        margin-right: 0in;" dir="ltr">Download <a
+          href="https://github.com/RainerHeintzmann/CudaMat">the current
+          version</a> into a folder<span style="font-style: italic;">
+          /usr/local/CudaMat/ </span>and unpack it with <span
           style="font-style: italic;">tar -xzf CudaMat.tgz</span> .<br>
         <a href="http://www.nvidia.com/object/cuda_get.html">NVidia's
           cuda driver and toolkit</a> needs to be installed according to
@@ -738,6 +712,7 @@ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/MATLAB/dip/Linuxa64/lib:/usr/local/c
       </p>
       <p style="text-align: left; margin-bottom: 0in; margin-top: 0in;
         margin-right: 0in;" dir="ltr"><span style="font-style: italic;">cd
+
 
 
 
@@ -928,6 +903,7 @@ href="http://stackoverflow.com/questions/8900617/how-can-i-setup-nvcc-to-use-vis
 
 
 
+
       the system you were using as well as the version of CudaMat.
       Please put 'CudaMat bug' in the subject line.
       <h2>History of CudaMat and Acknowledgements<br>
@@ -1054,6 +1030,10 @@ href="http://stackoverflow.com/questions/8900617/how-can-i-setup-nvcc-to-use-vis
           python-style expansions for singleton dimension for binary
           functions of dip_image type input. Bug fixes. Mean projections
           of uneven sizes had a bug. <br>
+        </li>
+        <li><a href="https://github.com/RainerHeintzmann/CudaMat">Further
+            Versions are now maintained in GitHub</a> (and minor builds
+          in GitLab on request)<br>
         </li>
       </ul>
       <ul>

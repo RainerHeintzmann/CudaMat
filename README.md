@@ -212,11 +212,14 @@ For more details on the setup and testing see Windows 64 bit installation below.
 # Installation instructions (Windows 64 bit system)
 
 – Install VC++ Express and Windows SDK: Visual Studio does not come with 64-bit compiler (not quite sure) and 64-bit libraries (for sure). You have to obtain the windows SDK for your OS which provides the 64-bit libraries, headers, and the compiler. Ensure that 64-bit packages are selected when installing Windows SDK.
+If installing on Visual C++ 2017 Cummunity edition, make sure that you select to also install the 
+"Toolset für VC++ 2017, Version 15.4 v14.11", since cuda 9.1 is not compatible with any newer complier versions.
+
 VC++ Express: http://www.microsoft.com/express/Downloads/#2010-Visual-CPP
 Windows SDK: http://msdn.microsoft.com/en-us/windows/bb980924.aspx
 
 – Install CUDA: There are three things to install, all available from http://www.nvidia.com/content/cuda/cuda-downloads.html
-Download and install development version of NVIDIA drivers, CUDA Toolkit, CUDA SDK. Current version is 4.2
+Download and install development version of NVIDIA drivers, CUDA Toolkit, CUDA SDK. Current version is 9.1
 
 – Install CudaMat as described above. To be able to use cudamat one needs to compile the custom library cudaArithmatic.obj (with nvcc) and the mex file cuda_cuda.mexw64 (with mex). Precomiled version might possibly work, but not guaranteed (due to mismatch of systems).
 
@@ -279,7 +282,8 @@ CudaMat started with the incentive to write faster deconvolution software for mi
 * V 1.1.6beta, bug fixes. The feature to avoid copy on write was now removed, as there were too many cases where this could cause trouble in nested function calls. Better handling of Cuda-Versions introduced in MatLab.
 * V 1.1.7beta, bug fixes. xx and zz were updated.
 * V 2.0.0beta, Major version change. CudaMat now supports python-style expansions for singleton dimension for binary functions of dip_image type input. Bug fixes. Mean projections of uneven sizes had a bug.
-* V 2.1.0beta, Various bug fixes and new functionality. See changelog of GitHub for details.
+* V 2.1.0beta, Varous bug fixes and new functions. See changelog of GitHub for details.
+* V 2.2.0beta, Now (close to) full support of the various matlab adressing schemes. Minor bug fixes
 
 # Ongoing work / Future goals
 
