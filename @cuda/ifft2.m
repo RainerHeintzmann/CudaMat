@@ -20,6 +20,13 @@
 %**************************************************************************
 %
 function out=ifft2(in)
+if nargin==3
+    in2=in;
+    in=zeros_cuda(sx,sy);
+    S=struct('type','()','subs',{{1:size(in2,1),1:size(in2,2)}});
+    in=subsasgn(in,S,in2);
+    clear in2;
+end
 out=cuda();
 if isa(in,'cuda') 
     if in.fromDip
