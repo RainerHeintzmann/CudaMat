@@ -100,7 +100,7 @@ switch(FktType)
         m_snippet = sprintf('%s end \n',m_snippet);
         m_snippet = sprintf('%s out=cuda(ref,in1.fromDip || in2.fromDip);   \n',m_snippet);
 
-        c_snippet = sprintf('else if (strcmp(command,"%s")==0) {\n CallCUDA_BinaryFkt(%s,cudaAlloc)\n', FktName,FktName);
+        c_snippet = sprintf('else if (strcmp(command,"%s")==0) {\n CallCUDA_BinaryFkt(%s,cudaAllocSized)\n', FktName,FktName);
         c_snippet = sprintf('%s if (nlhs > 0) \n',c_snippet);
         c_snippet = sprintf('%s     plhs[0] =  mxCreateDoubleScalar((double)free_array); \n',c_snippet);
         c_snippet = sprintf('%s Dbg_printf("cuda: %s\");\n} \n',c_snippet,FktName);
@@ -129,7 +129,7 @@ switch(FktType)
         m_snippet = sprintf('%s grad=cuda(ref,anyDip);   \n',m_snippet);
         m_snippet = sprintf('%s fwd=f1;  %% this was modified in the cuda code \n',m_snippet);
 
-        c_snippet = sprintf('else if (strcmp(command,"%s")==0) {\n CallCUDA_NArgsFkt(%s,cudaAlloc,%d)\n', FktName,FktName,NArgs);
+        c_snippet = sprintf('else if (strcmp(command,"%s")==0) {\n CallCUDA_NArgsFkt(%s,cudaAllocSized,%d)\n', FktName,FktName,NArgs);
         c_snippet = sprintf('%s if (nlhs > 0) \n',c_snippet);
         c_snippet = sprintf('%s     plhs[0] =  mxCreateDoubleScalar((double)free_array); \n',c_snippet);
         c_snippet = sprintf('%s Dbg_printf("cuda: %s\");\n} \n',c_snippet,FktName);
