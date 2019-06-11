@@ -94,7 +94,7 @@ switch(FktType)
         m_snippet = sprintf('%s if prod(size(in1)) > 1 && ~isa(in1,''cuda'')  \n in1=cuda(in1); \nend\n',m_snippet);
         m_snippet = sprintf('%s if prod(size(in2)) > 1 && ~isa(in2,''cuda'')  \n in2=cuda(in2); \nend\n',m_snippet);
         m_snippet = sprintf('%s if isa(in1,''cuda'') && isa(in2,''cuda'')\n',m_snippet);
-        m_snippet = sprintf('%s    ref=cuda_cuda(''%s'',in1.ref,in2.ref); \n',m_snippet,FktName);
+        m_snippet = sprintf('%s    ref=cuda_cuda(''%s'',getReference(in1),getReference(in2)); \n',m_snippet,FktName);
         m_snippet = sprintf('%s else \n',m_snippet);
         m_snippet = sprintf('%s error(''%s: Needs two cuda arrays as input''); \n',m_snippet,FktName);
         m_snippet = sprintf('%s end \n',m_snippet);
@@ -120,7 +120,7 @@ switch(FktType)
             m_snippet = sprintf('%s anyDip= anyDip || f%d.fromDip;\n',m_snippet,n);
         end
         m_snippet = sprintf('%s if allcuda \n',m_snippet);
-        AllArgsRef = sprintf('f%d.ref,',[1:NArgs]);  % f1,f2,f3, ...
+        AllArgsRef = sprintf('getReference(f%d),',[1:NArgs]);  % f1,f2,f3, ...
         AllArgsRef(end)=[];
         m_snippet = sprintf('%s    ref=cuda_cuda(''%s'',%s); \n',m_snippet,FktName,AllArgsRef);
         m_snippet = sprintf('%s else \n',m_snippet);
@@ -134,7 +134,7 @@ switch(FktType)
         c_snippet = sprintf('%s     plhs[0] =  mxCreateDoubleScalar((double)free_array); \n',c_snippet);
         c_snippet = sprintf('%s Dbg_printf("cuda: %s\");\n} \n',c_snippet,FktName);
 
-        cu_snippet = sprintf('%s(arr_%s_NArgs,%s,%d) \n',FktType,FktName,CoreCommandsReal,NArgs);
+        cu_snippet = sprintf('%s(arr_%s_NArgs,%s,%d) \n',FktType,FktName,CoreCommandsReal,NArgs);  % the cuda-code has to be able to decide about complex or not inside each kernel!
         h_snippet = sprintf('externC const char * CUDAarr_%s_NArgs(float * f[%d], float * c, size_t N, int numdims, SizeND sizesC, BoolND isSingleton[%d]);\n',FktName,NArgs,NArgs);
     otherwise
         error('cuda_define: Unknown Function Type!');

@@ -24,7 +24,11 @@
 function out = conj(in1)
 out=cuda();
 if isa(in1,'cuda') 
-     out.ref=cuda_cuda('conj',in1.ref);
+    if ~isreal(in1)
+        out.ref=cuda_cuda('conj',in1.ref);
+    else
+        out=in1;  % This can save a lot of memory in all the unneccesary conjugations
+    end
 else
     error('conj: Unknown datatype');
 end
