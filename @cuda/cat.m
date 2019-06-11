@@ -21,6 +21,30 @@
 %
 
 function out = cat(direction,varargin)
+skipped=0;
+nvar=size(varargin,2);
+for m=1:nvar     % remove all empty arrays entirely from the list
+    mysize=size(varargin{m-skipped});
+    if prod(mysize) == 0
+        varargin(m-skipped)=[];  % remove this empty array entirely from the list
+        skipped=skipped+1;
+    end
+end
+if size(varargin,2)==0
+    out=[];  % only empty arguments were given 
+    return;
+end
+mysize=size(varargin{1});
+mysize(direction)=0;
+for m=2:size(varargin,2)
+    sz=size(varargin{m});
+    sz(direction)=0;
+    if ~equalsizes(mysize,sz) % any(mysize-sz)
+        fprintf('cuda\\cat: argument #%d does not agree to the size of the first argument.\n',m)
+        error('cuda\\cat sizes along all but the append direction have to be equal!');
+    end
+end
+
 if size(varargin,2)==1  % only copy (transport) the input to output
     if direction > ndims(varargin{1})
         out=copy(varargin{1});  % unfortunately a real copy has to be done here as the input is still lower dimensional in size and cannot be modified
@@ -35,16 +59,7 @@ if size(varargin,2)==1  % only copy (transport) the input to output
     else
         out=varargin{1};
     end
-else
-mysize=size(varargin{1});
-mysize(direction)=0;
-for m=2:size(varargin,2)
-    sz=size(varargin{m});
-    sz(direction)=0;
-    if ~equalsizes(mysize,sz) % any(mysize-sz)
-        fprintf('cuda\\cat: argument #%d does not agree to the size of the first argument.\n',m)
-        error('cuda\\cat sizes along all but the append direction have to be equal!');
-    end
+    return;
 end
 
 out=cuda();
@@ -62,6 +77,8 @@ if varargin{1}.fromDip
         direction =1;
     end
 end
+
+% out=varargin(1);  % just in case only one cat argument is used
 for m=2:size(varargin,2)
     if ~isa(varargin{m},'cuda')
         varargin{m}=cuda(varargin{m});  % convert to cuda
@@ -77,5 +94,4 @@ for m=2:size(varargin,2)
     end
     out.fromDip = out.fromDip || varargin{m}.fromDip; % If eiter was dipimage, result will be
     out.isBinary = out.isBinary && (isempty(varargin{m}.isBinary) || varargin{m}.isBinary);
-end
 end

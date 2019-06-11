@@ -64,7 +64,7 @@ end
             if projdir(p) == 1 && in1.fromDip
                 projdir(p) = 2;
             elseif projdir(p) == 2 && in1.fromDip
-                projdir(p) = 1 
+                projdir(p) = 1;
             end
             if ~isempty(mask)
                 maskref=mask.ref;

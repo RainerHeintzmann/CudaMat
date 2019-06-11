@@ -58,7 +58,12 @@ if isa(in,'cuda')
         %    out=double(out);
         %end        
     else
-        error('Error using rft. Datatype needs to be sfloat');
+        if nargin < 2
+            out=rft(real(in));  % force this to be real
+        else
+            out=rft(real(in),transformDirs);  % force this to be real
+        end
+%        error('Error using rft. Datatype needs to be sfloat');
     end
 else
     error('rft: Unsupported datatype');
