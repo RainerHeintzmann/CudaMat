@@ -31,6 +31,10 @@ end
 pathstr=fileparts(mfilename('fullpath'));  % ignores name and extension
 addpath(pathstr);
 mp=userpath();
+if isempty(mp)
+    userpath('reset');
+    mp = userpath();
+end
 if mp(end)==';' || mp(end)==':'    % Windows and Linux
     mp=mp(1:end-1);
 end
@@ -75,6 +79,14 @@ catch
     UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
     mkdir(UserBase); % Just in case it does not exist
     if ~(exist([UserBase filesep 'cuda_cuda.mexw64'], 'file') == 2)
+        if size(CudaVERSION,2) == 1
+            CV=[CudaVERSION '0'];
+        else
+            CV = CudaVersion;
+        end
         copyfile([CudaBase filesep 'bin' filesep 'cuda_cuda.mexw64'],[UserBase filesep 'cuda_cuda.mexw64']);
+        copyfile([CudaBase filesep 'bin' filesep 'cublas64_' CV '.dll'],[UserBase filesep]);
+        copyfile([CudaBase filesep 'bin' filesep 'cufft64_' CV '.dll'],[UserBase filesep]);
+        copyfile([CudaBase filesep 'bin' filesep 'cudart64_' CV '.dll'],[UserBase filesep]);
     end      
 end
