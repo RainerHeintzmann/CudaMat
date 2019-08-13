@@ -84,7 +84,7 @@ catch
             CudaVERSION=90;
         end
         if size(CudaVERSION,2) == 1
-            CV=[sprintf(CudaVERSION) '0'];
+            CV=[sprintf('%d',CudaVERSION) '0'];
         else
             CV = CudaVERSION;
         end
