@@ -131,7 +131,7 @@ if ispc
     elseif CudaVERSION==91
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.1\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.1\lib\x64" ';
         NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.1\bin\nvcc"';
-    elseif (CudaVERSION==9) || (CudaVERSION==90)
+    elseif (CudaVERSION==9) | (CudaVERSION==90)
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\lib\x64" ';
         NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\bin\nvcc"';
     elseif CudaVERSION==8
