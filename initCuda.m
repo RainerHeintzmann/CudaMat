@@ -79,14 +79,18 @@ catch
     UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
     mkdir(UserBase); % Just in case it does not exist
     if ~(exist([UserBase filesep 'cuda_cuda.mexw64'], 'file') == 2)
-        if size(CudaVERSION,2) == 1
-            CV=[CudaVERSION '0'];
-        else
-            CV = CudaVersion;
+        global CudaVERSION
+        if isempty(CudaVERSION)
+            CudaVERSION=90;
         end
-        copyfile([CudaBase filesep 'bin' filesep 'cuda_cuda.mexw64'],[UserBase filesep 'cuda_cuda.mexw64']);
+        if size(CudaVERSION,2) == 1
+            CV=[sprintf(CudaVERSION) '0'];
+        else
+            CV = CudaVERSION;
+        end
         copyfile([CudaBase filesep 'bin' filesep 'cublas64_' CV '.dll'],[UserBase filesep]);
         copyfile([CudaBase filesep 'bin' filesep 'cufft64_' CV '.dll'],[UserBase filesep]);
         copyfile([CudaBase filesep 'bin' filesep 'cudart64_' CV '.dll'],[UserBase filesep]);
+        copyfile([CudaBase filesep 'bin' filesep 'cuda_cuda.mexw64'],[UserBase filesep 'cuda_cuda.mexw64']);
     end      
 end
