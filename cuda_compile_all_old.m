@@ -14,15 +14,13 @@
 %
 
 function cuda_compile_all(forceRecompile) 
+if nargin < 1
+    forceRecompile=0;
+end
 global cuda_to_compile;  % contains all the collected snippets to compile into a cuda toolbox
 global NVCCFLAGS;
 global CVERSION;
 global CudaVERSION;
-global UserBase;
-global nocula;
-if nargin < 1
-    forceRecompile=0;
-end
 
 if ~exist('cuda_to_compile') || isempty(cuda_to_compile)
     return;
@@ -44,8 +42,8 @@ mp=userpath();
 if mp(end)==';' || mp(end)==':'    % Windows and Linux
     mp=mp(1:end-1);
 end
-% UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
-% mkdir(UserBase); % Just in case it does not exist
+UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
+mkdir(UserBase); % Just in case it does not exist
 
 if isfield(cuda_to_compile,'name')
     for n=1:length(cuda_to_compile.name)
@@ -124,16 +122,10 @@ if ispc
         warning('No global CVERSION flag was set. Assuming version 11.0. Choices are 9, 10 or 11.')
         CudaComp=' -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include" ';
     end
-    if CudaVERSION==10
-        MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\lib\x64" ';
-        NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\bin\nvcc"';
-    elseif CudaVERSION==92
-        MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2\lib\x64" ';
-        NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.2\bin\nvcc"';
-    elseif CudaVERSION==91
+    if CudaVERSION==91
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.1\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.1\lib\x64" ';
         NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.1\bin\nvcc"';
-    elseif (CudaVERSION==9) | (CudaVERSION==90)
+    elseif CudaVERSION==9
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\lib\x64" ';
         NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\bin\nvcc"';
     elseif CudaVERSION==8
@@ -156,6 +148,7 @@ if ispc
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.0\lib\x64" ';
     end
 
+    global nocula;
     % system('"c:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\bin\vcvars32.bat"')
     % system('nvcc -c cudaArith.cu -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\bin')
     % system('"c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat"')
@@ -172,7 +165,7 @@ if ispc
         % status=system([PreCommand '&& ' NVCC_BIN ' -O3 -c ' NVCCFLAGS ' '  CudaComp ' ' CudaBase 'cudaArith.cu  -I. -Xcudafe "--diag_suppress=divide_by_zero"']);
     end
     if status ~= 0
-        error('nvcc command failed. Try defining the global variables CudaVERSION={4,5,6,..,9,10} and CVERSION={10,11} in the startup file.');
+        error('nvcc command failed. Try defining the global variables CudaVERSION={4,5,6} and CVERSION={10,11} in the startup file.');
     end
     % system(['nvcc -c ' CudaBase 'cudaArith.cu -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\:' UserBase '"'])
     % system(['nvcc -c ' CudaBase 'cudaArith.cu -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include"'])
@@ -187,6 +180,7 @@ if ispc
         eval(['mex ' MEXFLAGS ' ' CudaBase 'cuda_cuda.c cudaArith.obj "-I' UserBase '" ' MexComp '"-IC:\Program Files\CULA\R14\include -LC:\Program Files\CULA\R14\lib64" -lcublas -lcufft -lcudart -lcula_core -lcula_lapack']);
     end
 else
+    global nocula;
     bv=[];
     if ~ispc
         bv = 'CFLAGS="\$CFLAGS -std=gnu99"';

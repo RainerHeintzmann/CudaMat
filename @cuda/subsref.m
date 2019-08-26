@@ -41,6 +41,7 @@ switch index.type
             end
             return
         else
+            didTransposeIdx=0;
             % isblock=0;
             % if length(index.subs)>1 || ndims(in) == 1 || prod(size(index.subs{1})) == 1 || ischar(index.subs{1})  % the latter is needed as the index can be ':'
             isblock=1;
@@ -70,6 +71,10 @@ switch index.type
                         end
                         % msize(d)=size(in,d);
                     else
+                        if size(index.subs{d},1) > 1 && size(index.subs{d},2) == 1
+                            index.subs{d} = reshape(index.subs{d},[size(index.subs{d},2),size(index.subs{d},1)]);
+                            didTransposeIdx=1;
+                        end
                         if isa(index.subs{d},'cuda')  % due to some funny Matlab bug which prevents calling subsref within subsref for type cuda
                             moffs(d)=getVal(index.subs{d},0);
                             % isblock=0;
@@ -89,7 +94,7 @@ switch index.type
                             end
                             msize(d)=floor(abs(index.subs{d}(end)-moffs(d))/abs(mstep(d)))+1;
                         end
-                        if length(index.subs{d}) ~= abs(msize(d)) || sum(abs(index.subs{d}-[moffs(d):mstep(d):moffs(d)+mstep(d)*(length(index.subs{d})-1)])) ~= 0
+                        if length(index.subs{d}) ~= abs(msize(d)) || any(index.subs{d} ~= [moffs(d):mstep(d):moffs(d)+mstep(d)*(length(index.subs{d})-1)])
                             isblock=0;
                         end
                     end
@@ -128,7 +133,11 @@ switch index.type
                         tmp=oldsize(1);oldsize(1)=oldsize(2);oldsize(2)=tmp;
                     else
                         if index.subs{d}(1) ~= ':'   % STRANGE thing in MATLAB: size(q(:)) gives a different result than size(q(1:end))
-                            cuda_cuda('setSize',varargout{1}.ref,[1 msize]);  % Only for matlab style. DipImage has size only along the first dimension
+                            if didTransposeIdx
+                                cuda_cuda('setSize',varargout{1}.ref,[msize 1]);  % Only for matlab style. DipImage has size only along the first dimension
+                            else
+                                cuda_cuda('setSize',varargout{1}.ref,[1 msize]);  % Only for matlab style. DipImage has size only along the first dimension
+                            end
                         end
                     end
                     cuda_cuda('setSize',in.ref,oldsize);

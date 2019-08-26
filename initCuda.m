@@ -17,6 +17,7 @@ global use_xyz_cuda; use_xyz_cuda=0;
 global use_ramp_cuda; use_ramp_cuda=0;
 global use_double_cuda; 
 global cuda_enabled; cuda_enabled=1;
+global UserBase;
 
 if nargin < 3
     useCula=0;
@@ -38,9 +39,11 @@ end
 if mp(end)==';' || mp(end)==':'    % Windows and Linux
     mp=mp(1:end-1);
 end
-UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
-% UserBase=[tempdir() 'user' filesep];
-[SUCCESS,MESSAGE,MESSAGEID] =mkdir(UserBase); % Just in case it does not exist. Ignor unsuccessful attempts
+if isempty(UserBase)
+    UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
+    % UserBase=[tempdir() 'user' filesep];
+    [SUCCESS,MESSAGE,MESSAGEID] =mkdir(UserBase); % Just in case it does not exist. Ignor unsuccessful attempts
+end
 addpath(UserBase);
 
 if exist('dip_image','file')
@@ -68,7 +71,6 @@ try
 catch
     fprintf('WARNING! No cuda compiled cuda installation could be detected. Try to type "recompile". For now the precomplied version is installed.\n');
     
-    
     CudaBase= which('cuda');
     CudaBase=CudaBase(1:end-12);
     % UserBase=[tempdir() 'user' filesep];  % This causes problems in Linux with multiple users.
@@ -76,21 +78,22 @@ catch
     if mp(end)==';' || mp(end)==':'    % Windows and Linux
         mp=mp(1:end-1);
     end
-    UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
-    mkdir(UserBase); % Just in case it does not exist
-    if ~(exist([UserBase filesep 'cuda_cuda.mexw64'], 'file') == 2)
-        global CudaVERSION
-        if isempty(CudaVERSION)
-            CudaVERSION=90;
-        end
-        if size(CudaVERSION,2) == 1
-            CV=[sprintf('%d',CudaVERSION) '0'];
-        else
-            CV = CudaVERSION;
-        end
-        copyfile([CudaBase filesep 'bin' filesep 'cublas64_' CV '.dll'],[UserBase filesep]);
-        copyfile([CudaBase filesep 'bin' filesep 'cufft64_' CV '.dll'],[UserBase filesep]);
-        copyfile([CudaBase filesep 'bin' filesep 'cudart64_' CV '.dll'],[UserBase filesep]);
-        copyfile([CudaBase filesep 'bin' filesep 'cuda_cuda.mexw64'],[UserBase filesep 'cuda_cuda.mexw64']);
-    end      
+    UserBase=[CudaBase filesep 'bin' filesep];
+%     UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
+%     mkdir(UserBase); % Just in case it does not exist
+%     if ~(exist([UserBase filesep 'cuda_cuda.mexw64'], 'file') == 2)
+%         global CudaVERSION
+%         if isempty(CudaVERSION)
+%             CudaVERSION=90;
+%         end
+%         if size(CudaVERSION,2) == 1
+%             CV=[sprintf('%d',CudaVERSION) '0'];
+%         else
+%             CV = CudaVERSION;
+%         end
+% %         copyfile([CudaBase filesep 'bin' filesep 'cublas64_' CV '.dll'],[UserBase filesep]);
+% %         copyfile([CudaBase filesep 'bin' filesep 'cufft64_' CV '.dll'],[UserBase filesep]);
+% %         copyfile([CudaBase filesep 'bin' filesep 'cudart64_' CV '.dll'],[UserBase filesep]);
+% %         copyfile([CudaBase filesep 'bin' filesep 'cuda_cuda.mexw64'],[UserBase filesep 'cuda_cuda.mexw64']);
+%     end      
 end
