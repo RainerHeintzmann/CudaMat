@@ -117,6 +117,8 @@ externC const char * CUDAconst_complex_arr(float * a, float b, float * c, size_t
 externC const char * CUDAarr_power_arr(float * a, float * b, float * c, size_t N, int numdims, SizeND sizesC, BoolND isSingletonA, BoolND isSingletonB);
 externC const char * CUDAarr_power_const(float * a, float b, float * c, size_t N);
 externC const char * CUDAconst_power_arr(float * a, float b, float * c, size_t N);
+externC const char * CUDACconst_power_arr(float * a, float br, float bi, float * c, size_t N);
+externC const char * CUDAconst_power_carr(float * a, float br, float bi, float * c, size_t N);
 
 // Unary functions with one return value
 externC const char * CUDAisIllegal_arr(float * a, float * c, size_t N);  // Size of c has to only be one

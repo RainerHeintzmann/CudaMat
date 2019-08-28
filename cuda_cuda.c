@@ -2213,21 +2213,24 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     else if (nlhs > 0)
         plhs[0]=cudaGet(prhs[1]);
   }
-  else  if (strcmp(command,"getVal")==0) {      // accepts only linear indexing
-    size_t myindex=0,maxsize;
+  else  if (strcmp(command,"getVal")==0) {      // accepts only linear 1D-indexing
+    int myindex=0;
+    size_t maxsize;
     if (nrhs != 3) mexErrMsgTxt("cuda: get needs two arguments\n");
     myindex = (size_t) mxGetScalar(prhs[2]);
-    maxsize=getTotalSizeFromRef(prhs[1]); // last index of array
+    maxsize = getTotalSizeFromRef(prhs[1]); // last index of array
     if (myindex < 0)
         if (isComplexType(getCudaRefNum(prhs[1])))
-            myindex=(maxsize-1)/2; // last index of array
+            myindex = maxsize/2+myindex; // last index of array
         else
-            myindex=maxsize+myindex; // last index of array backwards
-    if (myindex >= maxsize || myindex < 0)
-        mexErrMsgTxt("cuda: getVal index out of range\n");
+            myindex = maxsize+myindex; // last index of array backwards
+    if (myindex >= maxsize)
+        mexErrMsgTxt("cuda: getVal index out of range (above maxsize)\n");
+    if (myindex < 0)
+        mexErrMsgTxt("cuda: getVal index out of range (below 0)\n");
     if (nlhs > 0)
         if (isComplexType(getCudaRefNum(prhs[1]))) {
-        double *zr,*zi;
+          double *zr,*zi;
           cufftComplex val=cudaGetCVal(getCudaRef(prhs[1])+myindex*2);
           plhs[0] = mxCreateDoubleMatrix(1, 1, mxCOMPLEX);
           zr = mxGetPr(plhs[0]);
@@ -3070,7 +3073,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
   else if (strcmp(command,"alpha_power")==0) { // ---------------------------------
-    CallCUDA_UnaryRealFktConstR(power,cudaAlloc)
+    CallCUDA_UnaryFktConstR(power,cudaAlloc)  // changed form CallCUDA_UnaryRealFktConstR, RH 27.08.2019
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }

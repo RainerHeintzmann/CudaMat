@@ -20,14 +20,34 @@
 %**************************************************************************
 %
 
-function out=fft(in)
+function out=fft(in,N,DIM)
 out=cuda();
+if nargin < 3
+    DIM = firstNonSingleton(in);
+end
+if nargin < 2
+    N = [];
+end
+sz = size(in);
+if nargin > 1 && ~isempty(N) && sz(DIM) ~= N
+    nz = sz;
+    if N > sz(DIM)
+        nz(DIM) = N-sz(DIM);
+        nin = zeros(nz);
+        in = cat(DIM,in,nin);
+    else
+        idx=num2cell(repmat(':',[1 ndims(img)]));
+        idx{DIM}=1:N;
+        S=struct('type','()','subs',{idx});
+        in = subsref(in,S);
+    end
+end
 if isa(in,'cuda') 
     if in.fromDip
         error('fft: Not used for datatype DipImage. Use ft instead!');
     end
     myDirYes = zeros(1,ndims(in));
-    myDirYes(firstNonSingleton(in))=1;
+    myDirYes(DIM) = 1;
     out.ref=cuda_cuda('fftnd',in.ref,1,myDirYes);
 else
     error('fft: Unsupported datatype');

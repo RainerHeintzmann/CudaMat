@@ -1,4 +1,4 @@
-% ifft(in) : Fourier transforms cuda dat (up to 3D), matlab style
+% isVectorIdx(in) : checks wheter an index is a single orientation and can thus be used for One-D indexing in Matlab
 
 %************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
@@ -19,37 +19,6 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-function out=ifft(in,N,DIM)
-out=cuda();
-if nargin < 3
-    DIM = firstNonSingleton(in);
-end
-if nargin < 2
-    N = [];
-end
+function res=isVectorIdx(in)
 sz = size(in);
-
-if nargin > 1 && ~isempty(N) && sz(DIM) ~= N
-    nz = sz;
-    if N > sz(DIM)
-        nz(DIM) = N-sz(DIM);
-        nin = zeros(nz);
-        in = cat(DIM,in,nin);
-    else
-        idx=num2cell(repmat(':',[1 ndims(img)]));
-        idx{DIM}=1:N;
-        S=struct('type','()','subs',{idx});
-        in = subsref(in,S);
-    end
-end
-if isa(in,'cuda') 
-    if in.fromDip
-        error('ifft: Not used for datatype DipImage. Use ft instead!');
-    end
-    myDirYes = zeros(1,ndims(in));
-    myDirYes(DIM) = 1;
-    out.ref=cuda_cuda('fftnd',in.ref,-1,myDirYes);
-else
-    error('ifft: Unsupported datatype');
-end
-out.fromDip=in.fromDip;
+res = prod(sz) == sum(sz(sz~=1));

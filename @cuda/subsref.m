@@ -41,7 +41,6 @@ switch index.type
             end
             return
         else
-            didTransposeIdx=0;
             % isblock=0;
             % if length(index.subs)>1 || ndims(in) == 1 || prod(size(index.subs{1})) == 1 || ischar(index.subs{1})  % the latter is needed as the index can be ':'
             isblock=1;
@@ -71,9 +70,9 @@ switch index.type
                         end
                         % msize(d)=size(in,d);
                     else
-                        if size(index.subs{d},1) > 1 && size(index.subs{d},2) == 1
-                            index.subs{d} = reshape(index.subs{d},[size(index.subs{d},2),size(index.subs{d},1)]);
-                            didTransposeIdx=1;
+                        firstIndexDim = firstNonSingleton(index.subs{d});
+                        if isVectorIdx(index.subs{d}) && (length(size(index.subs{d},2)) < 2 || size(index.subs{d},2) == 1)
+                            index.subs{d} = reshape(index.subs{d},[1, prod(size(index.subs{d}))]);
                         end
                         if isa(index.subs{d},'cuda')  % due to some funny Matlab bug which prevents calling subsref within subsref for type cuda
                             moffs(d)=getVal(index.subs{d},0);
@@ -131,16 +130,19 @@ switch index.type
             if length(index.subs) == 1 && length(oldsize) > 1 % restore the old size (if changed)
                     if in.fromDip
                         tmp=oldsize(1);oldsize(1)=oldsize(2);oldsize(2)=tmp;
-                    else
-                        if index.subs{d}(1) ~= ':'   % STRANGE thing in MATLAB: size(q(:)) gives a different result than size(q(1:end))
-                            if didTransposeIdx
-                                cuda_cuda('setSize',varargout{1}.ref,[msize 1]);  % Only for matlab style. DipImage has size only along the first dimension
-                            else
-                                cuda_cuda('setSize',varargout{1}.ref,[1 msize]);  % Only for matlab style. DipImage has size only along the first dimension
-                            end
-                        end
                     end
                     cuda_cuda('setSize',in.ref,oldsize);
+                    if (size(index.subs{d}(1),2) == 1) && ischar(index.subs{d}) && index.subs{d}(1) ==':' 
+                    else % STRANGE thing in MATLAB: size(q(:)) gives a different result than size(q(1:end))
+                        if isVectorIdx(in)  % If the INPUT is a vector its orientation is kept. Otherwise the orientation of the INDEX is used!!
+                            newsize = ones(1,ndims(in));
+                            newsize(firstNonSingleton(in)) = msize;
+                        else
+                            newsize = ones(1,max(ndims(in),firstIndexDim));
+                            newsize(firstIndexDim) = msize;
+                        end
+                        cuda_cuda('setSize',varargout{1}.ref,newsize);  % Only for matlab style. DipImage has size only along the first dimension
+                    end
             end
 
         % end

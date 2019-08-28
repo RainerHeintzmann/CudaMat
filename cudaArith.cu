@@ -1368,6 +1368,20 @@ CUDA_BinaryFkt(arr_power_arr,c[idx]=pow(a[idxA],b[idxB]);)
 CUDA_UnaryFktConst(arr_power_const,c[idx]=pow(a[idx],b);)
 CUDA_UnaryFktConst(const_power_arr,c[idx]=pow(b,a[idx]);)
 
+CUDA_UnaryFktConstC(Cconst_power_arr, 
+        float mag2;
+        float mag;
+        float exponent = a[idx];
+        float halfexponent = exponent/2.0;
+        float phi = atan2(bi,br);
+        mag2=bi*bi+br*br;
+        mag=pow(mag2,halfexponent);
+        phi *= exponent;
+        c[2*idx]=mag*cos(phi);
+        c[2*idx+1]=mag*sin(phi);)
+        
+// not implemented        
+CUDA_UnaryFktConstC(const_power_carr,c[idx]= NAN;c[idx+1]= NAN;  )
 // Multiplications
 CUDA_BinaryFkt(arr_times_arr,c[idx]=a[idxA]*b[idxB];)
 CUDA_BinaryFkt(carr_times_carr,
@@ -1629,12 +1643,12 @@ CUDA_UnaryFkt(sinc_carr,size_t idc=2*idx; c[idc]=0;c[idc+1]=0;)
 // c[idc]= (a[idc] == 0) ? sin(a[idc])*cosh(a[idc+1])/a[idc] : cosh(a[idc+1]);c[idc+1]= (a[idc] == 0) ? cos(a[idc])*sinh(a[idc+1])/a[idc] : sinh(a[idc+1]);)
 
 // besselj, but order will be integer only:
-CUDA_BinaryFkt(arr_besselj_arr,{c[idx]=jnf(size_t(a[idxA]),b[idxB]);})
-CUDA_UnaryFktConst(arr_besselj_const,{c[idx]=jnf(size_t(a[idx]),b);})
-CUDA_UnaryFktConst(const_besselj_arr,{c[idx]=jnf(size_t(b),a[idx]);})
+CUDA_BinaryFkt(arr_besselj_arr,{float res=jnf(size_t(a[idxA]),b[idxB]);c[idx]=isnan(res)?0.0:res;}) // the NAN check is unfortunately needed as besselj(2,0) produces NAN
+CUDA_UnaryFktConst(arr_besselj_const,{float res=jnf(size_t(a[idx]),b);c[idx]=isnan(res)?0.0:res;}) // the NAN check is unfortunately needed as besselj(2,0) produces NAN
+CUDA_UnaryFktConst(const_besselj_arr,{float res=jnf(size_t(b),a[idx]);c[idx]=isnan(res)?0.0:res;}) // the NAN check is unfortunately needed as besselj(2,0) produces NAN
 
 // atan2 only for real inputs
-CUDA_BinaryFkt(arr_atan2_arr,{c[idx]=atan2(b[idx],a[idx]);})
+CUDA_BinaryFkt(arr_atan2_arr,{c[idx] = atan2(b[idx],a[idx]);})  
 CUDA_UnaryFktConst(arr_atan2_const,{c[idx]=atan2(a[idx],b);})
 CUDA_UnaryFktConst(const_atan2_arr,{c[idx]=atan2(b,a[idx]);})
 
