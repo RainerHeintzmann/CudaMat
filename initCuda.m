@@ -29,8 +29,6 @@ if nargin < 1
     useGenerators=1;
 end
 
-pathstr=fileparts(mfilename('fullpath'));  % ignores name and extension
-addpath(pathstr);
 mp=userpath();
 if isempty(mp)
     userpath('reset');
@@ -40,11 +38,13 @@ if mp(end)==';' || mp(end)==':'    % Windows and Linux
     mp=mp(1:end-1);
 end
 if isempty(UserBase)
+    pathstr=fileparts(mfilename('fullpath'));  % ignores name and extension
+    addpath(pathstr);
     UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
     % UserBase=[tempdir() 'user' filesep];
     [SUCCESS,MESSAGE,MESSAGEID] =mkdir(UserBase); % Just in case it does not exist. Ignor unsuccessful attempts
+    addpath(UserBase);
 end
-addpath(UserBase);
 
 if exist('dip_image','file')
     createDipHandles();
@@ -79,6 +79,7 @@ catch
         mp=mp(1:end-1);
     end
     UserBase=[CudaBase filesep 'bin' filesep];
+    addpath(UserBase);
 %     UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
 %     mkdir(UserBase); % Just in case it does not exist
 %     if ~(exist([UserBase filesep 'cuda_cuda.mexw64'], 'file') == 2)
