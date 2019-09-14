@@ -3309,7 +3309,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     float * newarr=0;
     float FTScale;
     int ret,n, dev=0, eb=0, b, myDim=1; 
-    double mode;
+    double mode;    // abs(mode) <= 1 means no rotation. |mode| > 1 means with fftshifts before and after. positive: forward. negative: inverse
     size_t ref, ExtraBatch=1, ExtraBatchStride=1;
     SizeND mySize,DirYesND;
     struct cudaDeviceProp prop;

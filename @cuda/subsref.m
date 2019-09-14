@@ -141,7 +141,11 @@ switch index.type
                             newsize = ones(1,max(ndims(in),firstIndexDim));
                             newsize(firstIndexDim) = msize;
                         end
-                        cuda_cuda('setSize',varargout{1}.ref,newsize);  % Only for matlab style. DipImage has size only along the first dimension
+                        if in.fromDip
+                            cuda_cuda('setSize',varargout{1}.ref,prod(newsize));
+                        else
+                            cuda_cuda('setSize',varargout{1}.ref,newsize);  % Only for matlab style. DipImage has size only along the first dimension
+                        end
                     end
             end
 

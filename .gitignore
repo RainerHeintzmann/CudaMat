@@ -32,3 +32,4 @@ userCuda6VC11
 
 # extra-FileFormats
 *.zip
+bin/myMovie.mat

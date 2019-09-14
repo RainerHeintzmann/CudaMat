@@ -22,8 +22,8 @@
 
 function out = single_force(in)
 if isa(in,'cuda')
-    out = double(cuda_cuda('get',getReference(in)));
+    out = single(cuda_cuda('get',getReference(in)));
 else
-    out=double(in);
+    out=single(in);
 end
 

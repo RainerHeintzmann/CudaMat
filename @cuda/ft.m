@@ -22,7 +22,7 @@
 function out=ft(in)
 out=cuda();
 if isa(in,'cuda') 
-    out.ref=cuda_cuda('fftnd',in.ref,2);
+    out.ref=cuda_cuda('fftnd',in.ref,2);  % abs(mode) <= 1 means no rotation. |mode| > 1 means with fftshifts before and after. positive: forward. negative: inverse
 else
     error('fft: Unsupported datatype');
 end
