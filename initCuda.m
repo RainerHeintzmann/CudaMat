@@ -39,11 +39,15 @@ if mp(end)==';' || mp(end)==':'    % Windows and Linux
 end
 if isempty(UserBase)
     pathstr=fileparts(mfilename('fullpath'));  % ignores name and extension
-    addpath(pathstr);
+    if isdeployed()==0
+        addpath(pathstr);
+    end
     UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
     % UserBase=[tempdir() 'user' filesep];
     [SUCCESS,MESSAGE,MESSAGEID] =mkdir(UserBase); % Just in case it does not exist. Ignor unsuccessful attempts
-    addpath(UserBase);
+    if isdeployed()==0
+        addpath(UserBase);
+    end
 end
 
 if exist('dip_image','file')
@@ -79,7 +83,9 @@ catch
         mp=mp(1:end-1);
     end
     UserBase=[CudaBase filesep 'bin' filesep];
-    addpath(UserBase);
+    if isdeployed()==0
+        addpath(UserBase);
+    end
 %     UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
 %     mkdir(UserBase); % Just in case it does not exist
 %     if ~(exist([UserBase filesep 'cuda_cuda.mexw64'], 'file') == 2)
