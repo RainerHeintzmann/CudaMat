@@ -3,6 +3,8 @@
 CudaMat enables fast computing on graphics cards that supports the CUDA programming language. Currently such cards are available from NVidia. CudaMat is, as much as possible, invisible to the user. The idea is that the user can transform any existing Matlab code into a CudaMat code with minimal effort. E.g. with a single line like a=cuda(a) the Matlab object ‘a’ gets transformed into a CudaMat object ‘a’. This can be checked using the matlab command whos.
 previous version (pre 2.0.0) were hosted elsewhere.
 
+NOTE: To get a working version under Windows which does not need a pre-installed Cuda Development, you will have to obtain the file cufft64_90.dll and put it into the CudaMat/bin folder!
+
 # Under which conditions will CudaMat be fast?
 
 CudaMat will greately improve the speed of your code, when the main time of your Matlab code is spent in computing ‘expensive’ operations between large matrices and/or vectors, sums over them or Fourier transformations. However, when the problem consists of many operations on small matrices and vectors, CudaMat will probably not help you and might in fact turn out to be slower than standard matlab code. One way to think of this is that every start of a function execution in CudaMat has some overhead, but once it is running, it is quite fast.
