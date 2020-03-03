@@ -20,6 +20,10 @@
 %**************************************************************************
 %
 function res=numel(in,varargin)
+if in.ref < 0
+    res=0;
+    return;
+end
  if in.fromDip
      res=1;
  else

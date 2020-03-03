@@ -106,7 +106,8 @@ if isa(in1,'cuda')
             val=cuda();
             val.ref=cuda_cuda('part_sum',in1.ref,[],projdir);
             if isempty(mask)
-                val=val/size(in1,p);
+                val=val/size(in1,projdir);
+                % val=val/size(in1,p);
             end
             val.fromDip = 0;
             % error('cuda/sum: Patial sum of multidemensional arrays in Matlab style not yet supported.');
@@ -119,3 +120,6 @@ else
     error('cuda/mean: Unknown datatype');
 end
             
+if isa(val,'cuda') && ~val.fromDip
+    val=removeTrailingDims(val);  % This is a crazy Matlab thing: Trailing empty dimensions are removed. Not so in DipImage.
+end

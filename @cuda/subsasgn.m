@@ -95,7 +95,7 @@ switch index.type
             if length(index.subs)>1 || ndims(in) == 1 || prod(size(index.subs{1})) == 1 || ischar(index.subs{1})  % the latter is needed as the index can be ':'
                 isblock=1;
 
-                if length(index.subs) ~= 1 && length(index.subs) ~= length(oldsize)
+                if length(index.subs) ~= 1 && length(index.subs) < length(oldsize)
                     error('cuda subreferencing: Wrong number of dimensions');
                 end
                 if length(index.subs) == 1 && length(oldsize) > 1  % trying to access multidimensional array with one index
@@ -105,16 +105,18 @@ switch index.type
                 end
                 for d=1:length(index.subs)
                     if ischar(index.subs{d}) && index.subs{d}(1) ==':' && (size(index.subs{d}(1),2) == 1)     % User really want the whole range
-                        if in.fromDip == 0
-                            moffs(d)= 1;   % matlab style
-                        else
-                            moffs(d)= 0;   % DipImage style
-                        end
-                        mstep(d)=1;
-                        if length(index.subs)==1
-                            msize=insize;  % assign all the sizes here, as d will only iterate over 1 direction
-                        else
-                            msize(d)=insize(d);  % only for this direction (which has a ':')
+                        if d <= numel(msize)
+                            if in.fromDip == 0
+                                moffs(d)= 1;   % matlab style
+                            else
+                                moffs(d)= 0;   % DipImage style
+                            end
+                            mstep(d)=1;
+                            if length(index.subs)==1
+                                msize=insize;  % assign all the sizes here, as d will only iterate over 1 direction
+                            else
+                                msize(d)=insize(d);  % only for this direction (which has a ':')
+                            end
                         end
                     else
                         if isempty(index.subs{d})
@@ -171,6 +173,11 @@ switch index.type
             end
             
             if isblock
+                maxdim = max([length(moffs),length(msize),length(mstep),length(insize)]);
+                moffs = expandVec(moffs,maxdim,0.0);
+                msize = expandVec(msize,maxdim);
+                mstep = expandVec(mstep,maxdim);
+                insize = expandVec(insize,maxdim);
                 if any((moffs + (msize-1).*mstep) > insize) || (isreal(in) && ~isreal(val))  % dataset needs expansion or change of datatype
                     ns=max((moffs + (msize-1).*mstep), insize); % new size
                     if isreal(in) && isreal(val)

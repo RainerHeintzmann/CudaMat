@@ -1,6 +1,6 @@
-% double_force(in): conversion from cuda to double
+% gather(in): conversion from cuda to double
 %
-% see also: castToMatlab, gather
+% see also: castToMatlab, double_force
 %
 
 %***************************************************************************
@@ -22,7 +22,7 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-function out = double_force(in)
+function out = gather(in)
 if getReference(in) < 0
     out = [];
     return;

@@ -1655,6 +1655,9 @@ CUDA_UnaryFktConst(const_atan2_arr,{c[idx]=atan2(b,a[idx]);})
 CUDA_UnaryFkt(log_arr,c[idx]=log(a[idx]);)
 CUDA_UnaryFkt(log_carr,c[2*idx]=log(a[2*idx]);c[2*idx+1]=0;)   //  not implemented
 
+CUDA_UnaryFkt(log10_arr,c[idx]=log10(a[idx]);)
+CUDA_UnaryFkt(log10_carr,c[2*idx]=log10(a[2*idx]);c[2*idx+1]=0;)   //  not implemented
+
 CUDA_UnaryFkt(abs_arr,c[idx]= (a[idx] > 0) ? a[idx] : -a[idx];)
 CUDA_UnaryFkt(abs_carr,size_t idc=2*idx; c[idx]=sqrt(a[idc]*a[idc]+a[idc+1]*a[idc+1]);)
 

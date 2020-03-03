@@ -1,9 +1,6 @@
-% double_force(in): conversion from cuda to double
-%
-% see also: castToMatlab, gather
-%
+% log10(in) : decadic logararithm of cuda object (currently not complex)
 
-%***************************************************************************
+%************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
 %   heintzmann@gmail.com                                                  *
 %                                                                         *
@@ -22,16 +19,12 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-function out = double_force(in)
-if getReference(in) < 0
-    out = [];
-    return;
-end
-if isa(in,'cuda')
-    % out = double(cuda_cuda('get',in.ref));
-    out = double(cuda_cuda('get',getReference(in)));
+
+function out = log10(in1)
+out=cuda();
+if isa(in1,'cuda') 
+     out.ref=cuda_cuda('log10',in1.ref);
 else
-    out=double(in);
+    error('cuda log10: Unknown datatype');
 end
-
-
+out.fromDip = in1.fromDip;  

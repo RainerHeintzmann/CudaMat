@@ -1,9 +1,6 @@
-% double_force(in): conversion from cuda to double
-%
-% see also: castToMatlab, gather
-%
+% ft3d(in) DipImage style Fourier transforms cuda dat (up to 3D)
 
-%***************************************************************************
+%************************** CudaMat ****************************************
 %   Copyright (C) 2008-2009 by Rainer Heintzmann                          *
 %   heintzmann@gmail.com                                                  *
 %                                                                         *
@@ -22,16 +19,11 @@
 %   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 %**************************************************************************
 %
-function out = double_force(in)
-if getReference(in) < 0
-    out = [];
-    return;
-end
-if isa(in,'cuda')
-    % out = double(cuda_cuda('get',in.ref));
-    out = double(cuda_cuda('get',getReference(in)));
+function out=ft3d(in)
+out=cuda();
+if isa(in,'cuda') 
+    out.ref=cuda_cuda('fft3d',in.ref,2);
 else
-    out=double(in);
+    error('fft: Unsupported datatype');
 end
-
-
+out.fromDip=in.fromDip;

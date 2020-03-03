@@ -3211,6 +3211,15 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
     if (nlhs > 0)
         plhs[0] =  mxCreateDoubleScalar((double)free_array);
   }
+  else if (strcmp(command,"log10")==0) {
+    if (! isComplexType(getCudaRefNum(prhs[1]))) {
+        CallCUDA_UnaryFkt(log10,cudaAllocReal)
+    }
+    else
+        mexErrMsgTxt("cuda: log10 not implemented for complex arrays\n");
+    if (nlhs > 0)
+        plhs[0] =  mxCreateDoubleScalar((double)free_array);
+  }
   else if (strcmp(command,"uminus")==0) { 
       CallCUDA_UnaryFkt(uminus,cudaAlloc)
     if (nlhs > 0)

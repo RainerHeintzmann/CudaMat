@@ -45,8 +45,14 @@ switch index.type
             % if length(index.subs)>1 || ndims(in) == 1 || prod(size(index.subs{1})) == 1 || ischar(index.subs{1})  % the latter is needed as the index can be ':'
             isblock=1;
             oldsize=size(in);
-            if length(index.subs) ~= 1 && length(index.subs) ~= length(oldsize)
-                error('cuda subreferencing: Wrong number of dimensions');
+            if length(index.subs) ~= 1 && length(index.subs) < length(oldsize)  % 3d access to 2d array is allowed if the exctra dimensions refer to 1
+                if in.fromDip
+                	error('cuda subreferencing: Wrong number of dimensions for DimImage datatype.');
+                else
+                    for d=length(index.subs)+1:length(oldsize)
+                        index.subs{d}=1;  % Matlab allows indexing with less dimensions and simply puts "1" in the unspecified directions
+                    end
+                end
             end
             if length(index.subs) == 1 && length(oldsize) > 1  % trying to access multidimensional array with one index
                cuda_cuda('setSize',in.ref,prod(oldsize));

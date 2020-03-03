@@ -32,6 +32,7 @@ classdef (InferiorClasses = {?dip_image,?double}) cuda < handle % takes the lead
                 %fprintf('constructing empty cuda object\n');
                 out.ref=-1;
                 out.isBinary=0;
+                out.fromDip=0;
             elseif nargin == 1
                 in=rhs;
                 %fprintf('constructing cuda obj\n');
@@ -40,14 +41,16 @@ classdef (InferiorClasses = {?dip_image,?double}) cuda < handle % takes the lead
                     out=in;
                 elseif isa(in,'double') || isa(in,'single') || isa(in,'logical')
                     if ~isempty(in)
-                    out.ref=cuda_cuda('put',single(in));
-                    out.fromDip=0;
-                    if (isa(in,'logical'))
-                        out.isBinary=1;
-                    end
-                    cuda_cuda('setSize',out.ref,size(in)); % just because matlab can eliminate sizes during cast to single
-                    else
-                        error('Cannot convert an empty object to cuda');
+                        out.ref=cuda_cuda('put',single(in));
+                        out.fromDip=0;
+                        if (isa(in,'logical'))
+                            out.isBinary=1;
+                        end
+                        cuda_cuda('setSize',out.ref,size(in)); % just because matlab can eliminate sizes during cast to single
+                    else 
+                        out = cuda();
+                        return; 
+                        % error('Cannot convert an empty object to cuda');
                     end
                 elseif isa(in,'dip_image')
                     if strcmp(datatype(in), 'scomplex') || strcmp(datatype(in), 'dcomplex')
@@ -90,6 +93,10 @@ classdef (InferiorClasses = {?dip_image,?double}) cuda < handle % takes the lead
             % disp(in);  % shows some object details
         end
         function [s,varargout]=size(rhs,which)  
+            if rhs.ref < 0 % empty
+                s = [0,0];
+                return;
+            end
             lhs=cuda_cuda('getSize',rhs.ref);
             if length(lhs) > 1 && rhs.fromDip
                 tmp=lhs(2);lhs(2)=lhs(1);lhs(1)=tmp;

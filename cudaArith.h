@@ -366,6 +366,9 @@ externC const char * CUDAconst_atan2_arr(float * a, float b, float * c, size_t N
 externC const char * CUDAlog_arr(float * a, float * c, size_t N);
 externC const char * CUDAlog_carr(float * a, float * c, size_t N);
 
+externC const char * CUDAlog10_arr(float * a, float * c, size_t N);
+externC const char * CUDAlog10_carr(float * a, float * c, size_t N);
+
 externC const char * CUDAconj_arr(float*a,float * c, size_t N);
 externC const char * CUDAconj_carr(float*a,float * c, size_t N);
 

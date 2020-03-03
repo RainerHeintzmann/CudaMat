@@ -35,7 +35,10 @@ if isa(in,'cuda')
     insize=size(in);
     dims=length(insize);
     if dims>2
-        error('ifft2 for higher dimension data not implemented. Did you want to use ifftn for 3d ffts?');
+        transformdir = zeros(1,dims);
+        transformdir(1:2) = 1;
+        out.ref=cuda_cuda('fftnd',in.ref,-1,double(transformdir));  % double cast is very important here. Otherwise datatype does not match
+        % error('ifft2 for higher dimension data not implemented. Did you want to use ifftn for 3d ffts?');
     else
         out.ref=cuda_cuda('fftnd',in.ref,-1);
     end
