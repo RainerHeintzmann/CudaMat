@@ -33,3 +33,4 @@ userCuda6VC11
 # extra-FileFormats
 *.zip
 bin/myMovie.mat
+bin/cufft64_90.dll
