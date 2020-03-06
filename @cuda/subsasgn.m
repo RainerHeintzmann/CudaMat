@@ -105,7 +105,7 @@ switch index.type
                 end
                 for d=1:length(index.subs)
                     if ischar(index.subs{d}) && index.subs{d}(1) ==':' && (size(index.subs{d}(1),2) == 1)     % User really want the whole range
-                        if d <= numel(msize)
+                        if d <= numel(insize)
                             if in.fromDip == 0
                                 moffs(d)= 1;   % matlab style
                             else
@@ -213,6 +213,9 @@ switch index.type
                     out.ref=cuda_cuda('subsasgn_block',valref,in.ref,moffs,msize,0,mstep);  % is an array to assign. As no copy was generated nothing will be deleted.
                 end
             else   % isblock=0 : not a block
+                if isreal(in) && ~isreal(val)
+                    in=complex(in);
+                end
                 mybool=index.subs{1};
                 mVecSize=tvalsize;
                 if isa(index.subs{1},'cuda')

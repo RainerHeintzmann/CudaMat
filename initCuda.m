@@ -86,7 +86,8 @@ catch
     if isdeployed()==0
         addpath(UserBase);
     end
-%     UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
+    UserBase=[mp filesep 'LocalCudaMatSrc' filesep];
+%%% THE CODE BELOW IS NOT NEEDED SINCE THE USER PATH IS SIMPLY CHANGED TO THE BIN FOLDER. No need to copy!
 %     mkdir(UserBase); % Just in case it does not exist
 %     if ~(exist([UserBase filesep 'cuda_cuda.mexw64'], 'file') == 2)
 %         global CudaVERSION
@@ -98,9 +99,9 @@ catch
 %         else
 %             CV = CudaVERSION;
 %         end
-% %         copyfile([CudaBase filesep 'bin' filesep 'cublas64_' CV '.dll'],[UserBase filesep]);
-% %         copyfile([CudaBase filesep 'bin' filesep 'cufft64_' CV '.dll'],[UserBase filesep]);
-% %         copyfile([CudaBase filesep 'bin' filesep 'cudart64_' CV '.dll'],[UserBase filesep]);
-% %         copyfile([CudaBase filesep 'bin' filesep 'cuda_cuda.mexw64'],[UserBase filesep 'cuda_cuda.mexw64']);
+%         copyfile([CudaBase filesep 'bin' filesep 'cublas64_' CV '.dll'],[UserBase filesep]);
+%         copyfile([CudaBase filesep 'bin' filesep 'cudart64_' CV '.dll'],[UserBase filesep]);
+%         copyfile([CudaBase filesep 'bin' filesep 'cuda_cuda.mexw64'],[UserBase filesep 'cuda_cuda.mexw64']);
+%         copyfile([CudaBase filesep 'bin' filesep 'cufft64_' CV '.dll'],[UserBase filesep]);
 %     end      
 end

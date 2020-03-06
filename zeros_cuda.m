@@ -28,7 +28,7 @@ if (use_zeros_cuda)
     tmp=cuda(0);
     res= zeros_cuda2(tmp,varargin{:});        
 else
-    if isstr(varargin{end})
+    if ischar(varargin{end})
         varargin={varargin{1:end-1}};
         res=complex(builtin('zeros',varargin{:}),0);  % call the standart matlab zeros function
     else

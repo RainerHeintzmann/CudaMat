@@ -21,7 +21,7 @@
 %
 function out=ones(in,tag,refobj)
 if strcmp(tag,'like')
-    out = ones_cuda(in);
+    out = ones_cuda(in,datatype(refobj));
 else
     error('Undefined use of the ones function');
 end

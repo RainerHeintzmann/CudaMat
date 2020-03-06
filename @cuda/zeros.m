@@ -21,7 +21,7 @@
 %
 function out=zeros(in,tag,refobj)
 if strcmp(tag,'like')
-    out = zeros_cuda(in);
+    out = zeros_cuda(in,datatype(refobj));
 else
     error('Undefined use of the zero function');
 end
