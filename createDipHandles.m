@@ -9,7 +9,7 @@ global diphandle_phiphi;
 global diphandle_newim;
 global diphandle_newimar;
 
-if 0 % isdeployed()==0
+if 1 % isdeployed()==0
     pathOld=pwd;  % remember where the current path is
     pathDIP=fileparts(which('dipimage/xx')); % get the directory path of the dipimage/xx function
     cd(pathDIP);  % go to the DipImage path to shadow the current cudaMat xx function.

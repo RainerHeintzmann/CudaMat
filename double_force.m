@@ -23,11 +23,11 @@
 %**************************************************************************
 %
 function out = double_force(in)
-if getReference(in) < 0
-    out = [];
-    return;
-end
 if isa(in,'cuda')
+    if getReference(in) < 0
+        out = [];
+        return;
+    end
     % out = double(cuda_cuda('get',in.ref));
     out = double(cuda_cuda('get',getReference(in)));
 else
