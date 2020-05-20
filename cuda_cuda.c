@@ -2214,7 +2214,7 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
         plhs[0]=cudaGet(prhs[1]);
   }
   else  if (strcmp(command,"getVal")==0) {      // accepts only linear 1D-indexing
-    int myindex=0;
+    size_t myindex=0;
     size_t maxsize;
     if (nrhs != 3) mexErrMsgTxt("cuda: get needs two arguments\n");
     myindex = (size_t) mxGetScalar(prhs[2]);
@@ -3274,7 +3274,9 @@ if ((ignoreDelete!=0) && strcmp(command,"set_ignoreDelete")!=0 && strcmp(command
             }
             else
             {
-                mexErrMsgTxt("cuda: permutation contains index beyond acceptable array dimension CUDA_MAXDIM or below zero\n");
+                char msgTxt[1000];
+                sprintf(msgTxt,"cuda: permutation contains index beyond acceptable array dimension CUDA_MAXDIM of %d (dim %d, shift %d) or below zero\n",CUDA_MAXDIM, d, nshifts[d]);
+                mexErrMsgTxt(msgTxt);
             }
     }
             
