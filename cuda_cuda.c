@@ -267,7 +267,7 @@ void printMem(size_t * start,int num)
     dims_sizes=(int)(mxGetM(prhs[1]) * mxGetN(prhs[1]));                                    \
     dsizes=mxGetPr(prhs[1]);                                                                \
     if (dims_sizes >= CUDA_MAXDIM)                                                          \
-        mexErrMsgTxt("cuda: newarr to many dimensions (>CUDA_MAXDIM)\n");                   \
+        mexErrMsgTxt("cuda: newarr too many dimensions (>CUDA_MAXDIM)\n");                   \
     for (d=0;d<dims_sizes;d++) {nsizes[d]=(size_t) dsizes[d];tsize *= nsizes[d];}              \
     Dbg_printf5("newarray with dimension %d, sizes %d %d %d\n",dims_sizes,nsizes[0],nsizes[1],nsizes[2]); \
                                                                                             \
@@ -654,7 +654,7 @@ size_t dims_sizes,nshifts[CUDA_MAXDIM], dsize[CUDA_MAXDIM],d,tsize=1,ref;       
     if (nrhs != 3) mexErrMsgTxt("cuda: " #FktName " needs three arguments\n");              \
     dims_sizes=(size_t)(mxGetM(prhs[2]) * mxGetN(prhs[2])); dshifts=mxGetPr(prhs[2]);       \
     if (dims_sizes > CUDA_MAXDIM)                                                           \
-        mexErrMsgTxt("cuda: " #FktName " to many dimensions (>CUDA_MAXDIM)\n");             \
+        mexErrMsgTxt("cuda: " #FktName " too many dimensions (>CUDA_MAXDIM)\n");            \
                                                                                             \
     ref=getCudaRefNum(prhs[1]);                                                             \
                                                                                             \

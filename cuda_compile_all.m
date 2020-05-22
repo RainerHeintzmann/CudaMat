@@ -101,7 +101,7 @@ PreCommand='';
 if ispc
     if CVERSION==15        % correct line 133 in the file   c:/program files/nvidia gpu computing toolkit/cuda/v9.0/include/crt/host_config.h  to #if _MSC_VER < 1600 || _MSC_VER > 1911
         PreCommand='"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" x64 8.1';
-        CudaComp=' --cl-version 2017 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.11.25503\bin\HostX64\x64" "-IC:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Tools\MSVC\14.11.25503\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\/include" -I../../common/inc -I"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.11.25503\include" ';
+        CudaComp=' -ccbin "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.11.25503\bin\HostX64\x64" "-IC:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Tools\MSVC\14.11.25503\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\/include" -I../../common/inc -I"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.11.25503\include" ';
         % CudaComp=' --cl-version 2017 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.14.26428\bin\Hostx64\x64" "-IC:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Tools\MSVC\14.11.25503\include" -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\/include" -I../../common/inc -I"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.14.26428\include" ';
         % CudaComp=' --cl-version 2017   -I./ -I../../common/inc -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v9.0\/include" -I../../common/inc';
     elseif CVERSION==14
@@ -124,7 +124,10 @@ if ispc
         warning('No global CVERSION flag was set. Assuming version 11.0. Choices are 9, 10 or 11.')
         CudaComp=' -ccbin "c:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin" "-Ic:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include" ';
     end
-    if CudaVERSION==10
+    if CudaVERSION==10.1 || CudaVERSION==101
+        MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64" ';
+        NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin\nvcc"';
+    elseif CudaVERSION==10
         MexComp=' "-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\include" "-LC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\lib\x64" ';
         NVCC_BIN = '"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\bin\nvcc"';
     elseif CudaVERSION==92
