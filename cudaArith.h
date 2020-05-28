@@ -21,8 +21,8 @@
 #define externC extern "C"
 #endif
 
-#define CUDA_MAXDIM 6   // is needed for transferring parameters, CAREFUL! This uses for some function this number of variables on each processor
-#define CUDA_MAXPROJ 6  // needed for projections
+#define CUDA_MAXDIM 5   // is needed for transferring parameters, CAREFUL! This uses for some function this number of variables on each processor
+#define CUDA_MAXPROJ 5  // needed for projections
 #define ACCUTYPE double   // is used in cudaArith.cu and cuda_cuda.c  to define the type in which accumulation operations are computed
 
 // THESE STRUCT DEFINITIONS ARE NEEDED, AS CUDA CANNOT DEAL CORRECTLY WITH FIXED LENGTH ARRAYS IN THE ARGUMENT
